@@ -1,0 +1,946 @@
+# App revisions
+
+Source: https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Apps/co_app-revisions.htm
+
+ 
+
+App revisions
+
+APIs
+
+Workflows
+
+Integrations
+
+Pro tips
+
+ 
+
+ 
+
+ 
+
+                Collibra sites
+            
+
+                Use this menu to easily navigate to Collibra sites, documentation, resource centers and community forums.
+            
+
+Collibra.com
+
+ 
+
+Dashboard
+
+ 
+
+Community
+
+ 
+
+Developer Portal
+
+ 
+
+Documentation
+
+ 
+
+Marketplace
+
+ 
+
+Product Resource Center
+
+ 
+
+Support
+
+ 
+
+University
+
+ 
+
+ 
+
+APIs
+
+Workflows
+
+Integrations
+
+Pro tips
+
+ 
+
+ 
+
+Workflow Designer documentation
+ 
+
+ 
+Workflows at Collibra
+
+ 
+
+About the Workflow Designer
+ 
+
+ 
+Enable the Workflow Designer
+
+ 
+Workflow permissions
+
+ 
+
+Creating workflows
+ 
+
+ 
+
+Workflow basic configuration elements
+ 
+
+ 
+Model keys
+
+ 
+Workflow description
+
+ 
+Process variables
+
+ 
+Workflow dialog boxes
+
+ 
+Create a pool and lanes
+
+ 
+Create start and end events
+
+ 
+Add workflow elements
+
+ 
+
+Designing workflows
+ 
+
+ 
+Workspaces
+
+ 
+Models
+
+ 
+
+Apps
+ 
+
+ 
+Create a new app
+
+ 
+Import apps
+
+ 
+Move apps
+
+ 
+App revisions
+
+ 
+Add models to an app
+
+ 
+App editor
+
+ 
+
+Processes
+ 
+
+ 
+Create a new process
+
+ 
+Import processes
+
+ 
+Process editor
+
+ 
+Process editor menu bar
+
+ 
+Canvas and configuration area
+
+ 
+
+Process execution
+ 
+
+ 
+The workflow user
+
+ 
+Names and unique names in workflows
+
+ 
+The "groovy-lib" folder
+
+ 
+Upgrading your scripts for Collibra 2024.02 compatibility
+
+ 
+
+Upgrading your scripts for Groovy 3 compatibility
+ 
+
+ 
+Change Groovy switch statement
+
+ 
+Adjusting for Groovy JavaBeans specification compatibility changes
+
+ 
+Bulk operations in Groovy script tasks
+
+ 
+Java API v1 to v2 mapping
+
+ 
+
+Beans
+ 
+
+ 
+API v2 in workflows
+
+ 
+BusinessItem bean
+
+ 
+Users bean
+
+ 
+Event bean
+
+ 
+Utility bean
+
+ 
+Mail bean
+
+ 
+Translation bean
+
+ 
+
+Listeners
+ 
+
+ 
+Alternatives to API v1 listeners
+
+ 
+Overview of task listeners
+
+ 
+Overview of execution listeners
+
+ 
+Logging in workflows
+
+ 
+Multi-instance variable aggregation
+
+ 
+
+Shape repository
+ 
+
+ 
+Start event
+
+ 
+Timer start event
+
+ 
+Signal start event
+
+ 
+Error start event
+
+ 
+
+User task
+ 
+
+ 
+Candidate user expressions
+
+ 
+
+Service task
+ 
+
+ 
+
+Delegates
+ 
+
+ 
+Alternatives to API v1 delegates
+
+ 
+GetRelations and RemoveRelations delegates
+
+ 
+AddRelation delegate
+
+ 
+AddResourceRole and RemoveResourceRole delegates
+
+ 
+GetTerm and RemoveTerm delegate
+
+ 
+AddTerm delegate
+
+ 
+GetAttribute and RemoveAttribute delegates
+
+ 
+AddAttribute delegate
+
+ 
+TermIntake delegate
+
+ 
+ChangeStatus delegate
+
+ 
+StartWorkflowInstance delegate
+
+ 
+MailSender delegate
+
+ 
+GetUserNames delegate
+
+ 
+GetRelatedTerms delegate
+
+ 
+CreateIssue delegate
+
+ 
+ChangeIssueResponsibleCommunity delegate
+
+ 
+AddComment delegate
+
+ 
+Script task
+
+ 
+Manual task
+
+ 
+Email task
+
+ 
+External API task
+
+ 
+Collibra API task
+
+ 
+Subprocess
+
+ 
+Call activity
+
+ 
+Event subprocess
+
+ 
+Exclusive gateway
+
+ 
+Parallel gateway
+
+ 
+Inclusive gateway
+
+ 
+Event-based gateway
+
+ 
+Timer boundary event
+
+ 
+Error boundary event
+
+ 
+Signal boundary event
+
+ 
+Message boundary event
+
+ 
+Timer intermediate event
+
+ 
+Signal catching intermediate event
+
+ 
+Message catching intermediate event
+
+ 
+Intermediate event
+
+ 
+Signal throwing intermediate event
+
+ 
+End event
+
+ 
+Error end event
+
+ 
+Terminate end event
+
+ 
+Pool
+
+ 
+Lane
+
+ 
+Sequence flows
+
+ 
+Text annotation
+
+ 
+
+Forms
+ 
+
+ 
+Create a new form
+
+ 
+Import forms
+
+ 
+Form editor
+
+ 
+Form editor menu bar
+
+ 
+Form canvas
+
+ 
+
+Form components
+ 
+
+ 
+Date
+
+ 
+Multiline Text
+
+ 
+Rich Text
+
+ 
+Text
+
+ 
+Tags
+
+ 
+File Upload
+
+ 
+Asset Type
+
+ 
+Domain Type
+
+ 
+Attribute Type
+
+ 
+Relation Type
+
+ 
+User
+
+ 
+Group
+
+ 
+Role
+
+ 
+Asset
+
+ 
+Domain
+
+ 
+Community
+
+ 
+Role In Community
+
+ 
+Radio Buttons
+
+ 
+Checkbox
+
+ 
+Checkbox Group
+
+ 
+Select (Single)
+
+ 
+Select (Multiple)
+
+ 
+Blank Space
+
+ 
+Text Display
+
+ 
+Image
+
+ 
+Link
+
+ 
+Horizontal Line
+
+ 
+Panel
+
+ 
+Subform
+
+ 
+Form outcomes
+
+ 
+Form expressions
+
+ 
+Form scopes
+
+ 
+
+Start forms
+ 
+
+ 
+Configuration variables
+
+ 
+Form properties
+
+ 
+Form property types
+
+ 
+Form values
+
+ 
+
+Form examples
+ 
+
+ 
+Basic concept
+
+ 
+Change the state of text input components based on the checkbox selection
+
+ 
+Mark a form field as mandatory if a value entered in another field meets a condition
+
+ 
+Display assets only from a selected domain
+
+ 
+JavaScript in expressions
+
+ 
+Create a workflow with dynamic forms
+
+ 
+Edit an out-of-the-box workflow
+
+ 
+Change the process model properties
+
+ 
+
+Managing workflows in Collibra
+ 
+
+ 
+Out-of-the-box workflow deployments
+
+ 
+Deploy a workflow
+
+ 
+View and edit workflows
+
+ 
+Enable or disable workflows
+
+ 
+View and edit workflow definition settings
+
+ 
+Workflows title bar
+
+ 
+
+Configuration variables
+ 
+
+ 
+Edit configuration variables
+
+ 
+Duration variables
+
+ 
+Translating workflows
+
+ 
+View running workflow instances
+
+ 
+System instances
+
+ 
+Delete workflows
+
+ 
+How to manage the new workflow permissions
+
+ 
+
+Out-of-the-box workflows walk-throughs
+ 
+
+ 
+
+Approval Process
+ 
+
+ 
+Approval Process configuration
+
+ 
+
+Assign Owner To Data Set
+ 
+
+ 
+Assign Owner To Data Set configuration
+
+ 
+
+Cancel Process
+ 
+
+ 
+Cancel Process configuration
+
+ 
+
+Escalation Process
+ 
+
+ 
+Escalation Process configuration
+
+ 
+
+Issue Creation
+ 
+
+ 
+Issue Creation configuration
+
+ 
+
+Issue Management
+ 
+
+ 
+Issue Management configuration
+
+ 
+
+Issue Move
+ 
+
+ 
+Issue Move configuration
+
+ 
+
+Post Data Ingestion Workflow
+ 
+
+ 
+Post Data Ingestion Workflow configuration
+
+ 
+
+Propose New Business Asset
+ 
+
+ 
+Propose New Business Asset configuration
+
+ 
+
+Propose New Business Term
+ 
+
+ 
+Propose New Business Term configuration
+
+ 
+
+Propose New Code Value
+ 
+
+ 
+Propose New Code Value configuration
+
+ 
+
+Propose New Data Asset
+ 
+
+ 
+Propose New Data Asset configuration
+
+ 
+
+Propose New Governance Asset
+ 
+
+ 
+Propose New Governance Asset configuration
+
+ 
+
+Propose New Technology Asset
+ 
+
+ 
+Propose New Technology Asset configuration
+
+ 
+
+Request Assets Access
+ 
+
+ 
+Request Assets Access configuration
+
+ 
+
+Simple Approval
+ 
+
+ 
+Simple Approval configuration
+
+ 
+
+Voting Sub-Process
+ 
+
+ 
+Voting Sub-Process configuration
+
+ 
+Voting Sub-Process instructions
+
+Start
+ 
+
+ 
+Designing workflows
+ 
+
+ 
+Apps
+ 
+ 
+
+                Move apps
+                            
+
+                                Add models to an app
+                
+
+ 
+
+ 
+
+App revisions
+
+March 19, 2026
+
+Revisions are snapshots of your workflow app at a specific point in time. In Workflow Designer, they help you managing changes and ensure the stability of your workflows.
+
+The primary purpose of app revisions is to provide a robust version control mechanism for your workflow apps. By creating revisions, you can:
+
+Make changes without affecting the current version of the app.
+
+Revert to an older version of the app if needed. This allows you to return to a previously known good state of the app.
+
+  Provide an audit trail for changes made to the app.
+
+Manage revisions
+
+You can create revisions of your app in Workflow Designer to establish specific checkpoints from the 
+Apps
+ page in your workspace:
+
+Navigate to the app you wish to manage.
+
+For the app, select 
+ more → 
+Create a revision
+.
+
+In the 
+Creating a new revision
+ dialog box:
+Enter a 
+Key
+.
+Provide an optional 
+Description
+.
+Click 
+Create
+ to create your revision.
+
+Revision actions
+
+Once revisions exist, you can view and perform several actions from the 
+Revisions
+ section of the app editor:
+
+Revert to this revision
+: Restore the app in Workflow Designer to the state it was in when that specific revision was created.
+
+Copy into workspace
+: Copy the selected revision into a different workspace.
+Create a revision and use this function to effectively copy the app to another workspace.
+
+About
+: View information about the app revision.
+
+Download
+: Download the app revision as a ZIP file for backup or sharing.
+
+Delete
+: Permanently remove the app revision.
+
+Important considerations
+
+You can copy a specific app revision into a different workspace using the 
+Copy into workspace
+ action available in the 
+Revisions
+ section and use this as an effective way to copy an app to a different workspace.
+
+You cannot copy a revision into the same workspace or into a workspace that already has a process with the same model key.
+
+Copying a revision does not copy the 
+versions
+ of the app models.
+
+When you move an entire app to a different workspace, all associated revisions are included in the move.
+
+However, there are specific scenarios to be aware of:
+
+  Conflicts: A conflict arises when a model in your app is linked to other models outside your app, or when a model from another app references a model in your app. In these situations, the conflicted models are copied instead of moved. The app retains its revisions, but there is no model history for the conflicted models.
+
+Clashes: A clash occurs if there are models in the target workspace that have the same key as models in the app that you are moving. In such cases, the app revisions are lost. Additionally, no history is available for those models.
+
+The move operation provides advanced options that allow you to choose how to handle these conflicts:
+
+Warn and stop
+: If the target workspace contains models with keys identical to the ones being moved, the operation stops with a warning. This prevents unintended overwrites or duplicate creations without explicit user intervention.
+
+Copy conflicted models to the target workspace
+: This is the default behavior for conflicts.
+
+Update existing models with moved versions
+: The moved models replace the existing models that have the same key.
+
+Create new keys and move as new models
+: The keys of the moved models are renamed by appending a sequential number to the key names.
+
+                Move apps
+                            
+
+                                Add models to an app
+                
+
+ 
+
+ 
+
+X
+
+LinkedIn
+
+Instagram
+
+YouTube
+
+About Collibra
+
+Collibra Platform
+
+Blog
+
+Careers
+
+Partner Program
+
+Contact us
+
+Sitemap
+
+© 2026 Collibra. All rights reserved.
+
+Privacy and legal
+

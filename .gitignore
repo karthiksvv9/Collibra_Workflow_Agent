@@ -1,0 +1,11 @@
+.venv/
+node_modules/
+src/ui/node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+output/*.log
+output/*.err.log
+output/vector_store.sqlite3
+output/_run_smoke_build.py
+npm-debug.log*

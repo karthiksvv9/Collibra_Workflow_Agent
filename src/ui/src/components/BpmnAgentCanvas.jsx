@@ -1,0 +1,332 @@
+import React, { useEffect, useRef, useState } from 'react';
+import BpmnModeler from 'bpmn-js/lib/Modeler';
+import { Bot, Code2, Database, Download, EyeOff, FileText, Maximize, Play, RefreshCw, Search, ShieldCheck, Terminal } from 'lucide-react';
+import { compileGroovy, exportWorkflow, simulateWorkflow, testWorkflowPackage } from '../api.js';
+import BlockLibrary from './BlockLibrary.jsx';
+import PackageImporter from './PackageImporter.jsx';
+import RightDock from './RightDock.jsx';
+
+const STARTER_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://collibra.com/workflow-agent">
+  <bpmn:collaboration id="Collaboration_1">
+    <bpmn:participant id="Participant_Collibra" name="Collibra Governance Workflow" processRef="Process_1" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_1" name="New Collibra Workflow" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_1">
+      <bpmn:lane id="Lane_Requester" name="Requester"><bpmn:flowNodeRef>StartEvent_1</bpmn:flowNodeRef><bpmn:flowNodeRef>UserTask_RequestForm</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="Lane_Steward" name="Data Steward"><bpmn:flowNodeRef>UserTask_Review</bpmn:flowNodeRef><bpmn:flowNodeRef>Gateway_Approved</bpmn:flowNodeRef><bpmn:flowNodeRef>EndEvent_Rejected</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="Lane_System" name="Collibra Automation"><bpmn:flowNodeRef>ServiceTask_UpdateAsset</bpmn:flowNodeRef><bpmn:flowNodeRef>SendTask_Notify</bpmn:flowNodeRef><bpmn:flowNodeRef>EndEvent_1</bpmn:flowNodeRef></bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="StartEvent_1" name="Start"><bpmn:outgoing>Flow_1</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:userTask id="UserTask_RequestForm" name="Requester Form"><bpmn:incoming>Flow_1</bpmn:incoming><bpmn:outgoing>Flow_2</bpmn:outgoing></bpmn:userTask>
+    <bpmn:userTask id="UserTask_Review" name="Steward Review"><bpmn:incoming>Flow_2</bpmn:incoming><bpmn:outgoing>Flow_3</bpmn:outgoing></bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_Approved" name="Approved?"><bpmn:incoming>Flow_3</bpmn:incoming><bpmn:outgoing>Flow_4</bpmn:outgoing><bpmn:outgoing>Flow_Reject</bpmn:outgoing></bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="ServiceTask_UpdateAsset" name="Update Collibra Asset"><bpmn:incoming>Flow_4</bpmn:incoming><bpmn:outgoing>Flow_5</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:sendTask id="SendTask_Notify" name="Notify Requester"><bpmn:incoming>Flow_5</bpmn:incoming><bpmn:outgoing>Flow_6</bpmn:outgoing></bpmn:sendTask>
+    <bpmn:endEvent id="EndEvent_1" name="Done"><bpmn:incoming>Flow_6</bpmn:incoming></bpmn:endEvent>
+    <bpmn:endEvent id="EndEvent_Rejected" name="Rejected"><bpmn:incoming>Flow_Reject</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="UserTask_RequestForm" />
+    <bpmn:sequenceFlow id="Flow_2" sourceRef="UserTask_RequestForm" targetRef="UserTask_Review" />
+    <bpmn:sequenceFlow id="Flow_3" sourceRef="UserTask_Review" targetRef="Gateway_Approved" />
+    <bpmn:sequenceFlow id="Flow_4" name="Approved" sourceRef="Gateway_Approved" targetRef="ServiceTask_UpdateAsset" />
+    <bpmn:sequenceFlow id="Flow_Reject" name="Rejected" sourceRef="Gateway_Approved" targetRef="EndEvent_Rejected" />
+    <bpmn:sequenceFlow id="Flow_5" sourceRef="ServiceTask_UpdateAsset" targetRef="SendTask_Notify" />
+    <bpmn:sequenceFlow id="Flow_6" sourceRef="SendTask_Notify" targetRef="EndEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Collaboration_1">
+      <bpmndi:BPMNShape id="Participant_Collibra_di" bpmnElement="Participant_Collibra" isHorizontal="true"><dc:Bounds x="90" y="60" width="1220" height="520" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Requester_di" bpmnElement="Lane_Requester" isHorizontal="true"><dc:Bounds x="120" y="60" width="1190" height="150" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Steward_di" bpmnElement="Lane_Steward" isHorizontal="true"><dc:Bounds x="120" y="210" width="1190" height="170" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_System_di" bpmnElement="Lane_System" isHorizontal="true"><dc:Bounds x="120" y="380" width="1190" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1"><dc:Bounds x="190" y="117" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_RequestForm_di" bpmnElement="UserTask_RequestForm"><dc:Bounds x="300" y="95" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="UserTask_Review_di" bpmnElement="UserTask_Review"><dc:Bounds x="300" y="255" width="150" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Approved_di" bpmnElement="Gateway_Approved" isMarkerVisible="true"><dc:Bounds x="560" y="270" width="50" height="50" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ServiceTask_UpdateAsset_di" bpmnElement="ServiceTask_UpdateAsset"><dc:Bounds x="740" y="440" width="180" height="82" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SendTask_Notify_di" bpmnElement="SendTask_Notify"><dc:Bounds x="990" y="440" width="150" height="82" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1"><dc:Bounds x="1230" y="463" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_Rejected_di" bpmnElement="EndEvent_Rejected"><dc:Bounds x="760" y="277" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1"><di:waypoint x="226" y="135" /><di:waypoint x="300" y="135" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_2_di" bpmnElement="Flow_2"><di:waypoint x="375" y="175" /><di:waypoint x="375" y="255" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_3_di" bpmnElement="Flow_3"><di:waypoint x="450" y="295" /><di:waypoint x="560" y="295" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_4_di" bpmnElement="Flow_4"><di:waypoint x="585" y="320" /><di:waypoint x="585" y="481" /><di:waypoint x="740" y="481" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_Reject_di" bpmnElement="Flow_Reject"><di:waypoint x="610" y="295" /><di:waypoint x="760" y="295" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_5_di" bpmnElement="Flow_5"><di:waypoint x="920" y="481" /><di:waypoint x="990" y="481" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_6_di" bpmnElement="Flow_6"><di:waypoint x="1140" y="481" /><di:waypoint x="1230" y="481" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
+
+export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms }) {
+  const canvasRef = useRef(null);
+  const modelerRef = useRef(null);
+  const overlayIdsRef = useRef(new Map());
+  const [modelerReady, setModelerReady] = useState(false);
+  const [selectedElement, setSelectedElement] = useState(null);
+  const [consoleEntries, setConsoleEntries] = useState([]);
+  const [packageName, setPackageName] = useState('collibra-workflow-agent.zip');
+  const [importSummary, setImportSummary] = useState('Ready');
+  const [rightTab, setRightTab] = useState('properties');
+  const [hideHandles, setHideHandles] = useState(true);
+
+  useEffect(() => {
+    const modeler = new BpmnModeler({
+      container: canvasRef.current,
+      keyboard: { bindTo: document },
+      moveCanvas: { enabled: true }
+    });
+    modelerRef.current = modeler;
+    modeler.importXML(STARTER_BPMN)
+      .then(({ warnings }) => {
+        modeler.get('canvas').zoom('fit-viewport');
+        setModelerReady(true);
+        addConsole({ level: warnings?.length ? 'warn' : 'success', message: 'bpmn-js canvas initialized', detail: warnings?.length ? warnings : 'Starter Collibra workflow loaded.' });
+      })
+      .catch(err => addConsole({ level: 'error', message: 'Starter BPMN failed', detail: err.message }));
+    const eventBus = modeler.get('eventBus');
+    eventBus.on('selection.changed', e => {
+      setSelectedElement(e.newSelection?.[0] || null);
+      if (e.newSelection?.[0]) setRightTab('properties');
+    });
+    eventBus.on('commandStack.changed', () => refreshScriptBadges());
+    return () => modeler.destroy();
+  }, []);
+
+  useEffect(() => {
+    refreshScriptBadges();
+  }, [appModel?.scripts, modelerReady]);
+
+  function addConsole(entry) {
+    setConsoleEntries(prev => [...prev.slice(-120), { ...entry, at: new Date().toLocaleTimeString() }]);
+  }
+
+  function clearConsole() {
+    setConsoleEntries([]);
+  }
+
+  function refreshScriptBadges() {
+    const modeler = modelerRef.current;
+    if (!modelerReady || !modeler) return;
+    try {
+      const overlays = modeler.get('overlays');
+      overlayIdsRef.current.forEach(id => overlays.remove(id));
+      overlayIdsRef.current.clear();
+      Object.keys(appModel?.scripts || {}).forEach(elementId => {
+        const overlayId = overlays.add(elementId, 'script-badge', {
+          position: { top: -8, right: -8 },
+          html: '<div class="script-badge">AI</div>'
+        });
+        overlayIdsRef.current.set(elementId, overlayId);
+      });
+    } catch {
+      // Element may not be visible after an import. Safe to ignore and refresh later.
+    }
+  }
+
+  async function importBpmnXml(xml, sourceName = 'imported BPMN') {
+    const clean = sanitizeBpmnXml(xml);
+    if (!clean || !looksLikeBpmn(clean)) {
+      throw new Error('No BPMN definitions were found. The file may be a form/app XML rather than a BPMN definition. Upload the whole ZIP or a real .bpmn/.bpmn20.xml file.');
+    }
+    try {
+      const result = await modelerRef.current.importXML(clean);
+      modelerRef.current.get('canvas').zoom('fit-viewport');
+      setSelectedElement(null);
+      setImportSummary(`Loaded ${sourceName}`);
+      addConsole({ level: result?.warnings?.length ? 'warn' : 'success', message: 'BPMN loaded into canvas', detail: { sourceName, bytes: clean.length, warnings: result?.warnings || [] } });
+    } catch (err) {
+      const warningText = (err.warnings || []).map(w => w.message || String(w)).join('\n');
+      addConsole({ level: 'error', message: 'bpmn-js parse/import failed', detail: { error: err.message, warnings: warningText } });
+      throw err;
+    }
+  }
+
+  async function getBpmnXml() {
+    const { xml } = await modelerRef.current.saveXML({ format: true });
+    return xml;
+  }
+
+  async function onImported(result) {
+    try {
+      if (result.bpmnXml) await importBpmnXml(result.bpmnXml, result.chosenBpmn || result.appModel?.metadata?.bpmnSource || 'package BPMN');
+      if (result.appModel) {
+        setAppModel(prev => deepMerge(prev, {
+          ...result.appModel,
+          scripts: { ...(prev.scripts || {}), ...(result.appModel.scripts || {}) },
+          forms: { ...(prev.forms || {}), ...(result.forms || {}), ...(result.appModel.forms || {}) },
+          elementProperties: { ...(prev.elementProperties || {}), ...(result.appModel.elementProperties || {}) }
+        }));
+      }
+      if (result.forms) setForms(prev => ({ ...prev, ...result.forms }));
+      const msg = `Members: ${(result.members || []).length}. ${result.chosenBpmn ? `BPMN: ${result.chosenBpmn}. ` : ''}${result.warnings?.length ? `Warnings: ${result.warnings.join('; ')}` : ''}`;
+      setImportSummary(msg);
+      addConsole({ level: result.warnings?.length ? 'warn' : 'info', message: 'Package imported', detail: result });
+    } catch (err) {
+      setImportSummary(`Import read package but could not render BPMN: ${err.message}`);
+      addConsole({ level: 'error', message: 'Import finished but BPMN could not render', detail: err.message });
+    }
+  }
+
+  async function doExport() {
+    try {
+      const bpmnXml = await getBpmnXml();
+      await exportWorkflow({ bpmnXml, appModel, forms, packageName });
+      addConsole({ level: 'success', message: 'Package exported', detail: packageName });
+      setRightTab('console');
+    } catch (err) {
+      addConsole({ level: 'error', message: 'Export failed', detail: err.message });
+      setRightTab('console');
+    }
+  }
+
+  async function simulate() {
+    try {
+      const bpmnXml = await getBpmnXml();
+      const result = await simulateWorkflow({ bpmnXml, appModel, formValues: {} });
+      addConsole({ level: 'info', message: 'Simulation completed', detail: result });
+      setRightTab('console');
+    } catch (err) {
+      addConsole({ level: 'error', message: 'Simulation failed', detail: err.message });
+      setRightTab('console');
+    }
+  }
+
+  async function testPackage() {
+    try {
+      const bpmnXml = await getBpmnXml();
+      const result = await testWorkflowPackage({ bpmnXml, appModel, forms, maxIterations: 3 });
+      if (result.repairedAppModel) {
+        setAppModel(prev => deepMerge(prev, result.repairedAppModel));
+      }
+      addConsole({
+        level: result.ok ? 'success' : 'error',
+        message: `Autonomous package test ${result.status || (result.ok ? 'passed' : 'failed')}`,
+        detail: result
+      });
+      setRightTab('console');
+    } catch (err) {
+      addConsole({ level: 'error', message: 'Autonomous package test failed', detail: err.message });
+      setRightTab('console');
+    }
+  }
+
+  async function compileSelected() {
+    if (!selectedElement) {
+      addConsole({ level: 'warn', message: 'Compile skipped', detail: 'Select a BPMN element first.' });
+      setRightTab('console');
+      return;
+    }
+    const groovy = appModel?.scripts?.[selectedElement.id]?.groovy || '';
+    if (!groovy.trim()) {
+      addConsole({ level: 'warn', message: 'No Groovy found for selected element', detail: 'Open Properties and click Ask AI for this block or paste Groovy code first.' });
+      setRightTab('properties');
+      return;
+    }
+    try {
+      const result = await compileGroovy({ code: groovy, elementId: selectedElement.id });
+      addConsole({ level: result.ok ? 'success' : 'error', message: `Compile ${result.ok ? 'passed' : 'failed'} for ${selectedElement.id}`, detail: result });
+      setRightTab('console');
+    } catch (err) {
+      addConsole({ level: 'error', message: 'Compile failed', detail: err.message });
+      setRightTab('console');
+    }
+  }
+
+  async function reloadStarter() {
+    await importBpmnXml(STARTER_BPMN, 'starter workflow');
+  }
+
+  function fitCanvas() {
+    modelerRef.current?.get('canvas')?.zoom('fit-viewport');
+  }
+
+  return (
+    <div className={`agent-workbench ${hideHandles ? 'hide-edit-handles' : ''}`}>
+      <header className="topbar">
+        <div className="brand-block">
+          <strong>DSC Collibra Workflow Agent</strong>
+          <small>Production BPMN designer + RAG training + Groovy generation + compile/export</small>
+        </div>
+        <div className="top-actions">
+          <input value={packageName} onChange={e => setPackageName(e.target.value)} aria-label="Export package name" />
+          <button onClick={() => setRightTab('rag')} className="accent-button"><Database size={16}/> RAG / Train</button>
+          <button onClick={() => setRightTab('agent')}><Bot size={16}/> Generate BPMN</button>
+          <button onClick={compileSelected}><Code2 size={16}/> Compile selected</button>
+          <button onClick={simulate}><Play size={16}/> Run simulation</button>
+          <button onClick={testPackage}><ShieldCheck size={16}/> Test all</button>
+          <button onClick={() => setRightTab('docs')}><FileText size={16}/> Docs</button>
+          <button onClick={doExport} className="primary-button"><Download size={16}/> Export ZIP</button>
+        </div>
+      </header>
+
+      <aside className="toolbox">
+        <div className="toolbox-head">
+          <strong>Workflow Toolbox</strong>
+          <span><ShieldCheck size={13}/> bpmn-js + Collibra</span>
+        </div>
+        <div className="quick-toolbar">
+          <button onClick={fitCanvas}><Maximize size={14}/> Fit</button>
+          <button onClick={reloadStarter}><RefreshCw size={14}/> Reset</button>
+          <button onClick={() => setHideHandles(v => !v)}><EyeOff size={14}/> {hideHandles ? 'Handles off' : 'Handles on'}</button>
+          <button onClick={() => setRightTab('console')}><Terminal size={14}/> Logs</button>
+          <button onClick={() => setRightTab('rag')}><Search size={14}/> RAG</button>
+        </div>
+        <PackageImporter onImported={onImported} />
+        <small className="import-summary">{importSummary}</small>
+        <BlockLibrary modeler={modelerReady ? modelerRef.current : null} selectedElement={selectedElement} addConsole={addConsole} />
+      </aside>
+
+      <main className="canvas-wrap">
+        <div className="canvas-toolbar">
+          <span>{selectedElement ? `Selected: ${selectedElement.id} - ${selectedElement.type}` : 'Select a BPMN element to edit Collibra properties and Groovy.'}</span>
+          <span>Native bpmn-js canvas enabled: zoom, pan, connect, append, lanes, pools, import/export.</span>
+        </div>
+        <div className="canvas" ref={canvasRef} />
+      </main>
+
+      <RightDock
+        activeTab={rightTab}
+        setActiveTab={setRightTab}
+        selectedElement={selectedElement}
+        appModel={appModel}
+        setAppModel={setAppModel}
+        getBpmnXml={getBpmnXml}
+        importBpmnXml={importBpmnXml}
+        addConsole={addConsole}
+        consoleEntries={consoleEntries}
+        clearConsole={clearConsole}
+        forms={forms}
+      />
+      <footer className="app-footer">karthik.v</footer>
+    </div>
+  );
+}
+
+function looksLikeBpmn(xml) {
+  const low = String(xml || '').slice(0, 16000).toLowerCase();
+  return low.includes('<bpmn:definitions') || (low.includes('<definitions') && (low.includes('bpmn') || low.includes('www.omg.org/spec/bpmn')));
+}
+
+function sanitizeBpmnXml(xml) {
+  if (!xml || typeof xml !== 'string') return '';
+  let clean = xml.replace(/^\uFEFF/, '').trim();
+  const xmlStart = clean.indexOf('<?xml');
+  const bpmnStart = clean.indexOf('<bpmn:definitions');
+  const defsStart = clean.indexOf('<definitions');
+  const starts = [xmlStart, bpmnStart, defsStart].filter(v => v >= 0).sort((a, b) => a - b);
+  if (starts.length && starts[0] > 0) clean = clean.slice(starts[0]);
+  return clean;
+}
+
+function deepMerge(left, right) {
+  const result = { ...(left || {}) };
+  Object.entries(right || {}).forEach(([key, value]) => {
+    if (value && typeof value === 'object' && !Array.isArray(value) && result[key] && typeof result[key] === 'object' && !Array.isArray(result[key])) {
+      result[key] = deepMerge(result[key], value);
+    } else {
+      result[key] = value;
+    }
+  });
+  return result;
+}

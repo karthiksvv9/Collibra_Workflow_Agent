@@ -1,0 +1,70 @@
+app:
+  name: "DSC Collibra Workflow Automation Agent"
+  environment: "local"
+  host: "127.0.0.1"
+  port: 8088
+
+models:
+  chat_model: "gpt-5-4-2026"
+  embedding_model: "text-embedding-3-large"
+  temperature: 0.1
+  max_output_tokens: 8192
+  request_timeout_seconds: 90
+
+openai:
+  api_key: ""
+  organization: ""
+  project: ""
+  base_url: ""
+
+paths:
+  docs_dir: "./docs/rag_training"
+  jars_dir: "./jars"
+  output_dir: "./output"
+  vector_store: "./output/vector_store.sqlite3"
+  research_notes: "./docs/collibra_workflow_research.md"
+
+runtime:
+  max_workers: 10
+  ingestion_batch_size: 24
+  chunk_size: 1400
+  chunk_overlap: 220
+  relation_sample_rows: 100
+  use_multiprocessing: true
+  use_multithreading: true
+  docs_scrape_max_pages: 80
+  docs_scrape_verify_ssl: false
+
+groovy:
+  executable: "groovy"
+  compile_timeout_seconds: 20
+  default_classpath:
+    - "./jars/*"
+
+collibra:
+  java_api_docs_url: "https://developer.collibra.com/apis/java/javav2/allpackages-index.html"
+  workflow_docs_seed_urls:
+    - "https://developer.collibra.com/workflows/workflow-documentation"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Process/ref_activities_script_task.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Process/ref_activities_service_task.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Forms/to_forms.htm"
+  organization:
+    uuid_columns:
+      - "asset_id"
+      - "asset uuid"
+      - "source id"
+      - "target id"
+      - "relation type id"
+      - "domain id"
+      - "community id"
+    role_columns:
+      - "role"
+      - "responsibility"
+      - "steward"
+      - "owner"
+
+quality:
+  require_bpmn_start_and_end: true
+  require_script_imports: true
+  reject_generic_groovy_imports: true
+  max_self_heal_iterations: 5

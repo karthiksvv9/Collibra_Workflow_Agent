@@ -1,0 +1,13 @@
+[project]
+name = "collibra-workflow-agent"
+version = "0.1.0"
+description = "Autonomous Collibra Workflow Automation Agent Platform with RAG, BPMN packaging, Groovy validation, and canvas UI."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
