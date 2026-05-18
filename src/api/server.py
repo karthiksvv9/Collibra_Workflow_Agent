@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.agents.groovy_compiler import GroovyCompiler
+from src.agents.groovy_ootb import load_ootb_groovy_profile
 from src.agents.llm_client import model_options_payload, request_text_completion, resolve_model_profile
 from src.agents.workflow_agent import CollibraWorkflowAgent
 from src.api.schemas import (
@@ -434,6 +435,17 @@ def generate_code_workbench(payload: dict) -> dict:
     context = rag_engine.retrieve(prompt, limit=6).render()
     groovy = _ai_or_compat_groovy(element, prompt, context, _selected_model_id(payload))
     compile_result = groovy_compiler.compile_script(groovy) if groovy.strip() else None
+    compile_status = _compile_status(compile_result)
+    warnings = []
+    if compile_result:
+        if compile_result.skipped:
+            warnings.append("Groovy compilation was skipped because no Groovy runtime was available. Treat as not deployable until compiled.")
+        elif not compile_result.ok:
+            warnings.append("Groovy compilation or Collibra standards lint failed. Review compile results before export.")
+        elif any(issue.severity == "warning" for issue in compile_result.standards):
+            warnings.append("Groovy compiled with standards warnings. Review before deployment.")
+    else:
+        warnings.append("No Groovy was generated for compilation.")
     return {
         "groovy": groovy,
         "summary": f"Generated Collibra code guidance for {element.get('id', 'selected element')}.",
@@ -443,8 +455,8 @@ def generate_code_workbench(payload: dict) -> dict:
             "Kept output compile-oriented with defensive execution-variable handling.",
         ],
         "tests": ["Compile selected Groovy.", "Run workflow simulation.", "Export ZIP and validate in a Collibra test tenant."],
-        "warnings": [] if (compile_result and compile_result.ok) else ["Groovy compiler may be unavailable or returned lint warnings."],
-        "compileStatus": "passed" if (compile_result and compile_result.ok) else "not-run",
+        "warnings": warnings,
+        "compileStatus": compile_status,
         "compileResults": [_compile_result_dict(compile_result)] if compile_result else [],
         "context": context[:3000],
     }
@@ -758,7 +770,7 @@ def repair_workflow(request: RepairWorkflowRequest) -> dict:
             flow.skip_expression = "${skipFlow == true}"
     for node in model.nodes:
         if node.type == "scriptTask" and node.script and "import " not in node.script:
-            node.script = "import java.util.UUID\n\n" + node.script
+            node.script = "// #importFile NONE\n" + node.script.lstrip()
     package = WorkflowPackage(process=model, forms=forms, app_name=model.name)
     return {
         "process": asdict(package.process),
@@ -1080,11 +1092,22 @@ def _forms_from_payload(forms: list[dict]) -> list[FormModel]:
 def _compile_result_dict(result) -> dict:
     return {
         "ok": result.ok,
+        "status": _compile_status(result),
         "stdout": result.stdout,
         "stderr": result.stderr,
         "skipped": result.skipped,
         "standards": [asdict(issue) for issue in result.standards],
     }
+
+
+def _compile_status(result) -> str:
+    if result is None:
+        return "not-run"
+    if result.ok and not result.skipped:
+        return "passed"
+    if result.skipped:
+        return "skipped"
+    return "failed"
 
 
 def _documentation_markdown(model: BpmnModel, forms: list[FormModel], prompt: str) -> str:
@@ -1928,7 +1951,7 @@ def _block_patch(instruction: str, target: dict) -> dict:
     if target.get("type") == "scriptTask" or "groovy" in lowered:
         return {
             "documentation": instruction,
-            "script": "import java.util.UUID\n\nString assetId = execution.getVariable(\"assetId\") as String\nif (assetId?.trim()) {\n    execution.setVariable(\"assetIdNormalized\", UUID.fromString(assetId.trim()).toString())\n}\n",
+            "script": "// #importFile NONE\n\ndef assetId = execution.getVariable(\"assetId\")\nexecution.setVariable(\"assetIdPresent\", assetId != null && assetId.toString().trim())\n",
         }
     return {"documentation": instruction}
 
@@ -2106,6 +2129,7 @@ def _simulation_payload(model: BpmnModel, result) -> dict:
 
 
 def _ai_or_compat_groovy(element: dict, prompt: str, context: str, model_id: str) -> str:
+    ootb_style = load_ootb_groovy_profile(settings).render_for_prompt(f"{element.get('name', '')} {element.get('type', '')} {prompt}")
     request = f"""You are generating Collibra Workflow Designer Groovy, not Java.
 Return only compile-safe Groovy code for the selected BPMN element.
 
@@ -2118,15 +2142,23 @@ User instruction:
 Retrieved RAG and organization context:
 {context[:8000]}
 
+{ootb_style}
+
 Rules:
-- Use Groovy syntax and explicit imports.
+- Use Groovy snippet syntax and explicit imports. Do not return a Java class, `public static void main`, or markdown fences.
 - Use Collibra Java API v2 DTO builder classes only when grounded by context or obvious package names.
 - For sequence flows, return Groovy/listener guidance as code comments plus a JUEL condition example.
+- UUIDs in Collibra are data identifiers, not packages. Use `string2Uuid(variableOrUuidText)` as seen in OOTB workflows.
+- Do not use `UUID.fromString(...)` in generated workflow snippets. Do not add `import java.util.UUID`.
+- Never import `uuid`, `UUID`, or any made-up Collibra UUID package.
+- Start generated script tasks with `// #importFile NONE`.
 - Never output markdown fences.
 """
     text = request_text_completion(settings, request, model_id=model_id, action="groovy_generation")
     code = _strip_code_fence(text or "")
-    return code if code.strip() else _compat_groovy(element, prompt, context)
+    if code.strip() and _looks_like_collibra_groovy_snippet(code):
+        return code
+    return _compat_groovy(element, prompt, context)
 
 
 def _business_rag_answer(question: str, context: str, results: list[dict], model_id: str) -> str:
@@ -2178,9 +2210,23 @@ def _strip_code_fence(text: str) -> str:
     return value
 
 
+def _looks_like_collibra_groovy_snippet(code: str) -> bool:
+    lowered = str(code or "").lower()
+    if re.search(r"(?m)^\s*(public\s+)?class\s+\w+", code):
+        return False
+    if "public static void main" in lowered:
+        return False
+    if "uuid.fromstring" in lowered or re.search(r"(?m)^\s*import\s+java\.util\.uuid\s*;?\s*$", lowered):
+        return False
+    if re.search(r"(?m)^\s*import\s+(?!java\.util\.uuid\b)(?:uuid|.*\.uuid|.*\.uuid\.\*)\s*;?\s*$", lowered):
+        return False
+    return True
+
+
 def _compat_groovy(element: dict, prompt: str, context: str) -> str:
     element_type = str(element.get("type", ""))
     element_id = element.get("id", "selectedElement")
+    label = (str(element.get("name") or "") + " " + str(prompt or "") + " " + element_type).lower()
     if "SequenceFlow" in element_type or "Gateway" in element_type:
         return """// Condition/listener guidance for this BPMN element.
 // Use this as a sequence-flow condition when appropriate:
@@ -2190,19 +2236,105 @@ def approvalDecision = execution.getVariable('approvalDecision')
 execution.setVariable('lastEvaluatedFlow', '%s')
 return approvalDecision != null
 """ % element_id
-    return """import java.util.UUID
+    if any(token in label for token in ("mail", "email", "notify", "notification", "sendtask")):
+        return """// #importFile NONE
+def recipients = users.getUserIds("user(${startUser})")
+if (recipients.isEmpty()) {
+    loggerApi.warn("No users to send a mail to, no mail will be sent")
+} else {
+    mail.sendMails(recipients, "workflow-notification", null, execution)
+}
+execution.setVariable("%sCompleted", true)
+""" % _groovy_var(element_id)
+    if "relation" in label:
+        return """// #importFile NONE
+import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
+
+def sourceAssetId = execution.getVariable("sourceAssetId") ?: execution.getVariable("assetId")
+def targetAssetId = execution.getVariable("targetAssetId")
+def relationTypeId = execution.getVariable("relationTypeId")
+
+if (sourceAssetId && targetAssetId && relationTypeId) {
+    relationApi.addRelation(AddRelationRequest.builder()
+        .sourceId(string2Uuid(sourceAssetId.toString()))
+        .targetId(string2Uuid(targetAssetId.toString()))
+        .typeId(string2Uuid(relationTypeId.toString()))
+        .build())
+    execution.setVariable("%sCompleted", true)
+} else {
+    loggerApi.warn("Relation creation skipped because source, target, or relation type is missing")
+    execution.setVariable("%sCompleted", false)
+}
+""" % (_groovy_var(element_id), _groovy_var(element_id))
+    if any(token in label for token in ("responsibility", "owner", "steward role", "assign")):
+        return """// #importFile NONE
+import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
+
+def ownerId = execution.getVariable("ownerId") ?: execution.getVariable("requesterId")
+def roleId = execution.getVariable("roleId")
+def resourceId = execution.getVariable("assetId") ?: item.id
+
+if (ownerId && roleId && resourceId) {
+    responsibilityApi.addResponsibility(AddResponsibilityRequest.builder()
+        .ownerId(string2Uuid(ownerId.toString()))
+        .resourceId(resourceId instanceof String ? string2Uuid(resourceId) : resourceId)
+        .roleId(string2Uuid(roleId.toString()))
+        .resourceType(item.type)
+        .build())
+    execution.setVariable("%sCompleted", true)
+} else {
+    loggerApi.warn("Responsibility assignment skipped because owner, role, or resource is missing")
+    execution.setVariable("%sCompleted", false)
+}
+""" % (_groovy_var(element_id), _groovy_var(element_id))
+    if any(token in label for token in ("asset status", "status", "approve", "reject", "change asset", "update asset")):
+        return """// #importFile NONE
+import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+
+def statusId = execution.getVariable("targetStatusId") ?: execution.getVariable("approvedStatusId")
+def assetId = execution.getVariable("assetId") ?: item.id
+
+if (statusId && assetId) {
+    assetApi.changeAsset(ChangeAssetRequest.builder()
+        .id(assetId instanceof String ? string2Uuid(assetId) : assetId)
+        .statusId(string2Uuid(statusId.toString()))
+        .build())
+    execution.setVariable("%sCompleted", true)
+} else {
+    loggerApi.warn("Asset status update skipped because asset or status id is missing")
+    execution.setVariable("%sCompleted", false)
+}
+""" % (_groovy_var(element_id), _groovy_var(element_id))
+    if any(token in label for token in ("validate", "required", "request", "form")):
+        return """// #importFile NONE
+def missingFields = []
+["assetId", "businessJustification"].each { fieldName ->
+    def value = execution.getVariable(fieldName)
+    if (value == null || value.toString().trim().isEmpty()) {
+        missingFields.add(fieldName)
+    }
+}
+execution.setVariable("validationPassed", missingFields.isEmpty())
+execution.setVariable("validationMessage", missingFields.isEmpty() ? "Request is complete" : "Missing required fields: " + missingFields.join(", "))
+"""
+    return """// #importFile NONE
 
 // Generated for BPMN element: %s
 // Prompt: %s
-// Retrieved Collibra context is available in the AI console response.
+// Retrieved Collibra context is available in the AI console response. UUID values must come from forms, config, or RAG mappings.
 
-String assetId = execution.getVariable('assetId') as String
-if (assetId?.trim()) {
-    execution.setVariable('assetIdNormalized', UUID.fromString(assetId.trim()).toString())
-}
+execution.setVariable('%sCompleted', true)
+loggerApi.info('Completed workflow step %s')
+""" % (element_id, prompt[:300].replace("\n", " "), _groovy_var(element_id), element_id)
 
-execution.setVariable('collibraWorkflowStep', '%s')
-""" % (element_id, prompt[:300].replace("\n", " "), element_id)
+
+def _groovy_var(value: str) -> str:
+    clean = re.sub(r"[^A-Za-z0-9_]+", "_", str(value or "step")).strip("_")
+    if not clean:
+        clean = "step"
+    if clean[0].isdigit():
+        clean = "step_" + clean
+    return clean[:80]
 
 
 ELEMENT_CATALOG = [

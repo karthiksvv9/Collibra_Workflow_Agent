@@ -98,9 +98,9 @@ def generate_complex_data_product_access_package(root: str | Path | None = None)
 
 def _scripts() -> dict[str, str]:
     return {
-        "task_ValidateRequestContext": """import java.util.UUID
+        "task_ValidateRequestContext": """// #importFile NONE
 
-String requestId = (execution.getVariable('requestId') ?: UUID.randomUUID().toString()) as String
+String requestId = (execution.getVariable('requestId') ?: java.util.UUID.randomUUID().toString()) as String
 String requester = (execution.getVariable('requesterId') ?: execution.getVariable('initiator') ?: 'unknown-requester') as String
 String assetId = (execution.getVariable('assetId') ?: '') as String
 String purpose = (execution.getVariable('businessPurpose') ?: '') as String
@@ -112,43 +112,43 @@ execution.setVariable('riskRating', riskRating)
 execution.setVariable('validationPassed', complete)
 execution.setVariable('validationMessage', complete ? 'Request context is complete.' : 'Asset and business purpose are required before steward triage.')
 """,
-        "task_OpenPolicyException": """import java.util.UUID
+        "task_OpenPolicyException": """// #importFile NONE
 import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
 
 String requestId = execution.getVariable('requestId') as String
 String assetId = execution.getVariable('assetId') as String
 String controls = (execution.getVariable('securityControls') ?: 'Compensating control review required') as String
-UUID targetAssetId = UUID.fromString(assetId)
+def targetAssetId = string2Uuid(assetId)
 AddAttributeRequest attributeRequest = AddAttributeRequest.builder()
     .assetId(targetAssetId)
-    .typeId(UUID.fromString(execution.getVariable('policyExceptionAttributeTypeId') as String))
+    .typeId(string2Uuid(execution.getVariable('policyExceptionAttributeTypeId') as String))
     .value('Policy exception approved for request ' + requestId + ': ' + controls)
     .build()
 attributeApi.addAttribute(attributeRequest)
 execution.setVariable('policyExceptionCreated', true)
 execution.setVariable('policyExceptionReference', requestId + '-EXCEPTION')
 """,
-        "task_CreateRelationAndResponsibility": """import java.util.UUID
+        "task_CreateRelationAndResponsibility": """// #importFile NONE
 import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
 import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
 
 String assetId = execution.getVariable('assetId') as String
 String consumerAssetId = execution.getVariable('consumerAssetId') as String
 String requesterId = execution.getVariable('requesterId') as String
-UUID relationTypeId = UUID.fromString(execution.getVariable('consumerRelationTypeId') as String)
-UUID roleId = UUID.fromString(execution.getVariable('consumerRoleId') as String)
+def relationTypeId = string2Uuid(execution.getVariable('consumerRelationTypeId') as String)
+def roleId = string2Uuid(execution.getVariable('consumerRoleId') as String)
 try {
     if (consumerAssetId?.trim()) {
         relationApi.addRelation(AddRelationRequest.builder()
-            .sourceId(UUID.fromString(assetId))
-            .targetId(UUID.fromString(consumerAssetId))
+            .sourceId(string2Uuid(assetId))
+            .targetId(string2Uuid(consumerAssetId))
             .typeId(relationTypeId)
             .build())
     }
     responsibilityApi.addResponsibility(AddResponsibilityRequest.builder()
-        .resourceId(UUID.fromString(assetId))
+        .resourceId(string2Uuid(assetId))
         .roleId(roleId)
-        .ownerId(UUID.fromString(requesterId))
+        .ownerId(string2Uuid(requesterId))
         .build())
     execution.setVariable('relationApiSucceeded', true)
     execution.setVariable('relationApiMessage', 'Relation and responsibility created.')
@@ -157,20 +157,20 @@ try {
     execution.setVariable('relationApiMessage', ex.getMessage())
 }
 """,
-        "task_UpdateAssetStatus": """import java.util.UUID
+        "task_UpdateAssetStatus": """// #importFile NONE
 import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
 
 String assetId = execution.getVariable('assetId') as String
 String statusId = execution.getVariable('approvedStatusId') as String
 ChangeAssetRequest request = ChangeAssetRequest.builder()
-    .id(UUID.fromString(assetId))
-    .statusId(UUID.fromString(statusId))
+    .id(string2Uuid(assetId))
+    .statusId(string2Uuid(statusId))
     .build()
 assetApi.changeAsset(request)
 execution.setVariable('assetStatusUpdated', true)
 execution.setVariable('finalDecision', 'approved')
 """,
-        "task_RollbackAndNotify": """import java.util.UUID
+        "task_RollbackAndNotify": """// #importFile NONE
 
 String requestId = execution.getVariable('requestId') as String
 String apiMessage = (execution.getVariable('relationApiMessage') ?: 'Unknown API error') as String
@@ -178,7 +178,7 @@ execution.setVariable('remediationRequired', true)
 execution.setVariable('remediationSummary', 'Request ' + requestId + ' requires technical remediation: ' + apiMessage)
 execution.setVariable('finalDecision', 'technical-remediation')
 """,
-        "task_NotifyCompletion": """import java.util.UUID
+        "task_NotifyCompletion": """// #importFile NONE
 
 String requestId = execution.getVariable('requestId') as String
 String finalDecision = (execution.getVariable('finalDecision') ?: 'approved') as String
@@ -187,7 +187,7 @@ execution.setVariable('notificationRecipient', recipient)
 execution.setVariable('notificationSubject', 'Collibra data product access request ' + requestId + ' ' + finalDecision)
 execution.setVariable('notificationQueued', true)
 """,
-        "task_NotifyRejection": """import java.util.UUID
+        "task_NotifyRejection": """// #importFile NONE
 
 String requestId = execution.getVariable('requestId') as String
 String reason = (execution.getVariable('rejectionReason') ?: execution.getVariable('triageNotes') ?: execution.getVariable('approvalNotes') ?: 'Request rejected by governance review.') as String

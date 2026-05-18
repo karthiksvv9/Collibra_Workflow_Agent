@@ -26,6 +26,10 @@ def test_complex_scenario_package_imports_and_passes_quality_loop(tmp_path: Path
     assert diagnostics["missingForms"] == []
     assert len(imported["forms"]) == 6
     assert len(imported["appModel"]["scripts"]) == 7
+    for script in imported["appModel"]["scripts"].values():
+        groovy = script["groovy"] if isinstance(script, dict) else script
+        assert "UUID.fromString" not in groovy
+        assert "import java.util.UUID" not in groovy
 
     payload = {
         "bpmnXml": imported["bpmnXml"],

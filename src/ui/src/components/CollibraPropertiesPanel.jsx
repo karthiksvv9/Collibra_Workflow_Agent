@@ -7,7 +7,7 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
   const elementScript = useMemo(() => appModel?.scripts?.[elementId] || {}, [appModel, elementId]);
   const elementProps = useMemo(() => appModel?.elementProperties?.[elementId] || {}, [appModel, elementId]);
   const allForms = useMemo(() => ({ ...(appModel?.forms || {}), ...(forms || {}) }), [appModel?.forms, forms]);
-  const [prompt, setPrompt] = useState('Generate production Collibra Groovy for this BPMN element. Use Collibra Java API v2 style imports, organization UUID mappings from RAG, defensive null checks, execution variables, comments, and compile-safe code.');
+  const [prompt, setPrompt] = useState('Generate production Collibra Workflow Designer Groovy for this BPMN element. Use Collibra Java API v2 DTO imports only when required, organization identifiers and UUID values from RAG, string2Uuid(...) for UUID conversion, defensive null checks, execution variables, comments, and compile-safe snippet code.');
   const [groovy, setGroovy] = useState('');
   const [props, setProps] = useState({});
   const [busy, setBusy] = useState(false);
@@ -104,7 +104,8 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
           }
         }
       }));
-      addConsole?.({ level: result.compileStatus === 'passed' ? 'success' : 'info', message: `AI generated Groovy for ${elementId}`, detail: result });
+      const level = result.compileStatus === 'passed' ? 'success' : result.compileStatus === 'failed' ? 'error' : result.compileStatus === 'skipped' ? 'warn' : 'info';
+      addConsole?.({ level, message: `AI generated Groovy for ${elementId}`, detail: result });
     } catch (err) {
       addConsole?.({ level: 'error', message: 'AI Groovy generation failed', detail: err.message });
     } finally {

@@ -40,10 +40,10 @@ class GroovyCompiler:
                 return self._compile_with_embedded_groovy(script, cp, java_executable, lint.issues)
         if executable is None:
             return CompileResult(
-                ok=lint.passed,
+                ok=False,
                 stderr=(
                     "Groovy executable not found and embedded Java/Groovy fallback could not start; "
-                    "syntax compilation skipped after static standards lint."
+                    "syntax compilation skipped after static standards lint. This is not a deployable success state."
                 ),
                 standards=lint.issues,
                 skipped=True,

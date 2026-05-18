@@ -54,6 +54,9 @@ class CollibraWorkflowAgent:
             workflow_package = self._heuristic_design(master_prompt, context)
 
         compile_results = self._compile_and_self_heal(workflow_package)
+        compile_failures = _compile_failure_summaries(compile_results)
+        if compile_failures:
+            raise ValueError("Generated Groovy failed compilation/lint validation: " + "; ".join(compile_failures))
         errors = workflow_package.validate()
         if errors:
             raise ValueError("Generated workflow failed validation: " + "; ".join(errors))
@@ -466,16 +469,20 @@ class CollibraWorkflowAgent:
         repaired = script
         if any(issue.code == "generic_import" for issue in result.standards):
             repaired = re.sub(r"(?m)^\s*import\s+([\w.]+)\.\*\s*$", "", repaired)
+        if any(issue.code in {"invalid_uuid_import", "unused_uuid_import", "java_class_wrapper"} for issue in result.standards):
+            repaired = re.sub(r"(?m)^\s*import\s+(?:uuid|UUID|[\w.]*\.uuid(?:\.[\w.*]+)?)\s*;?\s*\n?", "", repaired, flags=re.IGNORECASE)
+            repaired = re.sub(r"(?m)^\s*import\s+java\.util\.UUID\s*;?\s*\n?", "", repaired)
+        repaired = repaired.replace("UUID.randomUUID()", "java.util.UUID.randomUUID()")
+        repaired = re.sub(r"\bUUID\.fromString\s*\(", "string2Uuid(", repaired)
+        repaired = re.sub(r"\bUUID\s+([A-Za-z_]\w*)\s*=", r"def \1 =", repaired)
         if "AddAssetRequest" in repaired and "import com.collibra.dgc.core.api.dto.instance.asset.AddAssetRequest" not in repaired:
             repaired = "import com.collibra.dgc.core.api.dto.instance.asset.AddAssetRequest\n" + repaired
         if "AddRelationRequest" in repaired and "import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest" not in repaired:
             repaired = "import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest\n" + repaired
-        if "UUID." in repaired and "import java.util.UUID" not in repaired:
-            repaired = "import java.util.UUID\n" + repaired
         return repaired
 
 
-VALIDATE_SCRIPT = """import java.util.UUID
+VALIDATE_SCRIPT = """// #importFile NONE
 
 String assetName = execution.getVariable("assetName") as String
 String domainIdText = execution.getVariable("domainId") as String
@@ -491,16 +498,16 @@ if (!assetTypePublicId?.trim()) {
     throw new IllegalArgumentException("assetTypePublicId is required")
 }
 
-UUID domainId = UUID.fromString(domainIdText)
+def domainId = string2Uuid(domainIdText.trim())
 execution.setVariable("domainIdNormalized", domainId.toString())
 execution.setVariable("assetNameNormalized", assetName.trim())
 execution.setVariable("assetTypePublicIdNormalized", assetTypePublicId.trim())
 """
 
 
-APPLY_METADATA_SCRIPT = """import com.collibra.dgc.core.api.dto.instance.asset.AddAssetRequest
+APPLY_METADATA_SCRIPT = """// #importFile NONE
+import com.collibra.dgc.core.api.dto.instance.asset.AddAssetRequest
 import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
-import java.util.UUID
 
 String assetName = execution.getVariable("assetNameNormalized") as String
 String domainIdText = execution.getVariable("domainIdNormalized") as String
@@ -509,7 +516,7 @@ String assetTypePublicId = execution.getVariable("assetTypePublicIdNormalized") 
 AddAssetRequest addAssetRequest = AddAssetRequest.builder()
     .name(assetName)
     .displayName(assetName)
-    .domainId(UUID.fromString(domainIdText))
+    .domainId(string2Uuid(domainIdText))
     .typePublicId(assetTypePublicId)
     .build()
 
@@ -522,8 +529,8 @@ String relationTypePublicId = execution.getVariable("relationTypePublicId") as S
 
 if (sourceId?.trim() && targetId?.trim() && relationTypePublicId?.trim()) {
     AddRelationRequest relationRequest = AddRelationRequest.builder()
-        .sourceId(UUID.fromString(sourceId.trim()))
-        .targetId(UUID.fromString(targetId.trim()))
+        .sourceId(string2Uuid(sourceId.trim()))
+        .targetId(string2Uuid(targetId.trim()))
         .typePublicId(relationTypePublicId.trim())
         .build()
     def relation = relationApi.addRelation(relationRequest)
@@ -624,6 +631,19 @@ def _requires_complex_prompt_design(prompt: str) -> bool:
         "provision",
     ]
     return sum(1 for signal in signals if signal in value) >= 2
+
+
+def _compile_failure_summaries(results: dict[str, CompileResult]) -> list[str]:
+    failures: list[str] = []
+    for element_id, result in results.items():
+        if result.ok:
+            continue
+        if result.skipped:
+            detail = result.stderr or "Groovy runtime unavailable; compile was skipped."
+        else:
+            detail = result.stderr or "; ".join(issue.message for issue in result.standards if issue.severity == "error") or "Compilation failed."
+        failures.append(f"{element_id}: {detail.strip()}")
+    return failures
 
 
 def _complex_prompt_forms(process_id: str) -> list[FormModel]:
@@ -731,9 +751,9 @@ def _complex_prompt_forms(process_id: str) -> list[FormModel]:
 
 def _complex_prompt_scripts() -> dict[str, str]:
     return {
-        "validate_context": """import java.util.UUID
+        "validate_context": """// #importFile NONE
 
-String requestId = (execution.getVariable("requestId") ?: UUID.randomUUID().toString()) as String
+String requestId = (execution.getVariable("requestId") ?: java.util.UUID.randomUUID().toString()) as String
 String requesterId = (execution.getVariable("requesterId") ?: "") as String
 String assetId = (execution.getVariable("assetId") ?: "") as String
 String purpose = (execution.getVariable("businessPurpose") ?: "") as String
@@ -746,57 +766,57 @@ execution.setVariable("businessPurposeNormalized", purpose.trim())
 execution.setVariable("validationPassed", complete)
 execution.setVariable("validationMessage", complete ? "Request is complete." : "Requester, asset, purpose and provisioning workflow key are required.")
 """,
-        "create_policy_exception": """import java.util.UUID
+        "create_policy_exception": """// #importFile NONE
 import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
 
 String assetId = execution.getVariable("assetIdNormalized") as String
 String requestId = execution.getVariable("requestId") as String
 String controls = (execution.getVariable("securityControls") ?: "Controls must be confirmed before provisioning.") as String
-UUID attributeTypeId = UUID.fromString(execution.getVariable("policyExceptionAttributeTypeId") as String)
+def attributeTypeId = string2Uuid(execution.getVariable("policyExceptionAttributeTypeId") as String)
 AddAttributeRequest request = AddAttributeRequest.builder()
-    .assetId(UUID.fromString(assetId))
+    .assetId(string2Uuid(assetId))
     .typeId(attributeTypeId)
     .value("Policy exception for request " + requestId + ": " + controls)
     .build()
 attributeApi.addAttribute(request)
 execution.setVariable("policyExceptionCreated", true)
 """,
-        "create_relations": """import java.util.UUID
+        "create_relations": """// #importFile NONE
 import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
 import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
 
 String assetId = execution.getVariable("assetIdNormalized") as String
 String consumerAssetId = (execution.getVariable("consumerAssetId") ?: "") as String
 String requesterId = execution.getVariable("requesterIdNormalized") as String
-UUID relationTypeId = UUID.fromString(execution.getVariable("consumerRelationTypeId") as String)
-UUID consumerRoleId = UUID.fromString(execution.getVariable("consumerRoleId") as String)
+def relationTypeId = string2Uuid(execution.getVariable("consumerRelationTypeId") as String)
+def consumerRoleId = string2Uuid(execution.getVariable("consumerRoleId") as String)
 if (consumerAssetId.trim()) {
     relationApi.addRelation(AddRelationRequest.builder()
-        .sourceId(UUID.fromString(assetId))
-        .targetId(UUID.fromString(consumerAssetId.trim()))
+        .sourceId(string2Uuid(assetId))
+        .targetId(string2Uuid(consumerAssetId.trim()))
         .typeId(relationTypeId)
         .build())
 }
 responsibilityApi.addResponsibility(AddResponsibilityRequest.builder()
-    .resourceId(UUID.fromString(assetId))
+    .resourceId(string2Uuid(assetId))
     .roleId(consumerRoleId)
-    .ownerId(UUID.fromString(requesterId))
+    .ownerId(string2Uuid(requesterId))
     .build())
 execution.setVariable("relationAndResponsibilityCreated", true)
 """,
-        "update_access_status": """import java.util.UUID
+        "update_access_status": """// #importFile NONE
 import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
 
 String assetId = execution.getVariable("assetIdNormalized") as String
-UUID approvedStatusId = UUID.fromString(execution.getVariable("approvedStatusId") as String)
+def approvedStatusId = string2Uuid(execution.getVariable("approvedStatusId") as String)
 assetApi.changeAsset(ChangeAssetRequest.builder()
-    .id(UUID.fromString(assetId))
+    .id(string2Uuid(assetId))
     .statusId(approvedStatusId)
     .build())
 execution.setVariable("assetStatusUpdated", true)
 execution.setVariable("finalDecision", "approved")
 """,
-        "notify_success": """import java.util.UUID
+        "notify_success": """// #importFile NONE
 
 String requestId = execution.getVariable("requestId") as String
 String recipient = (execution.getVariable("requesterEmail") ?: execution.getVariable("requesterIdNormalized") ?: "requester") as String
@@ -804,7 +824,7 @@ execution.setVariable("notificationRecipient", recipient)
 execution.setVariable("notificationSubject", "Collibra governed access request " + requestId + " approved and provisioned")
 execution.setVariable("notificationQueued", true)
 """,
-        "notify_rejection": """import java.util.UUID
+        "notify_rejection": """// #importFile NONE
 
 String requestId = execution.getVariable("requestId") as String
 String reason = (execution.getVariable("stewardNotes") ?: execution.getVariable("businessNotes") ?: "Request rejected or withdrawn.") as String

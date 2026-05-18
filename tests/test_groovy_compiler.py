@@ -1,4 +1,5 @@
 from src.agents.groovy_compiler import GroovyCompiler
+from src.core.config import GroovyConfig
 
 
 def test_compiler_accepts_missing_collibra_runtime_classes_with_local_stubs() -> None:
@@ -18,5 +19,25 @@ try {
 
     result = GroovyCompiler().compile_script(script)
 
-    assert result.ok is True
-    assert result.skipped or "temporary Collibra dependency stubs" in result.stdout
+    if result.skipped:
+        assert result.ok is False
+        assert "not a deployable success state" in result.stderr
+    else:
+        assert result.ok is True
+        assert "temporary Collibra dependency stubs" in result.stdout
+
+
+def test_compiler_skipped_runtime_is_not_success() -> None:
+    compiler = GroovyCompiler(
+        GroovyConfig(
+            executable="definitely-missing-groovy",
+            java_executable="definitely-missing-java",
+            use_embedded_jars=False,
+        )
+    )
+
+    result = compiler.compile_script("// #importFile NONE\nexecution.setVariable('validated', true)")
+
+    assert result.skipped is True
+    assert result.ok is False
+    assert "not a deployable success state" in result.stderr

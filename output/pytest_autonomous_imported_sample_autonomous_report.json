@@ -159,6 +159,7 @@
               "ok": true,
               "skipped": false,
               "standards": [],
+              "status": "passed",
               "stderr": "",
               "stdout": ""
             }
@@ -460,6 +461,7 @@
             "ok": true,
             "skipped": false,
             "standards": [],
+            "status": "passed",
             "stderr": "",
             "stdout": ""
           }
