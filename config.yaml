@@ -5,20 +5,38 @@ app:
   port: 8088
 
 models:
-  chat_model: "gpt-5-4-2026"
+  chat_model: "gpt-5-4-2026-03-05"
   embedding_model: "text-embedding-3-large"
+  # This gateway screenshot only showed chat/completions. Keep local hashing
+  # embeddings unless a tenant-approved embeddings endpoint is added.
+  embedding_provider: "hashing"
   temperature: 0.1
   max_output_tokens: 8192
   request_timeout_seconds: 90
 
 openai:
+  provider: "custom_chat_completions"
+  # Do not commit the real API key. The non-admin start script prompts for
+  # MERCK_API_KEY and keeps it only in the current process environment.
   api_key: ""
+  api_key_env: "MERCK_API_KEY"
+  api_key_header: "X-Merck-APIKey"
+  api_key_prefix: ""
   organization: ""
   project: ""
-  base_url: ""
+  base_url: "https://iapi-test.proj.com/gpt/v2"
+  chat_completions_path: "/gpt-5-4-2026-03-05/chat/completions"
+  embedding_enabled: false
 
 paths:
   docs_dir: "./docs/rag_training"
+  rag_templates_dir: "./docs/rag_training/00_templates"
+  rag_user_dropzone_dir: "./docs/rag_training/01_user_dropzone"
+  rag_ootb_workflows_dir: "./docs/rag_training/02_ootb_workflows"
+  rag_official_docs_dir: "./docs/rag_training/03_collibra_official_docs"
+  rag_organization_standards_dir: "./docs/rag_training/04_organization_standards"
+  rag_generated_training_dir: "./docs/rag_training/05_generated_training"
+  relation_template_file: "./docs/rag_training/00_templates/Collibra_Relation_UUID_Template.xlsx"
   jars_dir: "./jars"
   output_dir: "./output"
   vector_store: "./output/vector_store.sqlite3"
@@ -37,6 +55,14 @@ runtime:
 
 groovy:
   executable: "groovy"
+  # No Groovy installation is required. If `groovy` is not on PATH, the compiler
+  # falls back to Java plus Apache Groovy runtime JARs in ./jars.
+  java_executable: "java"
+  use_embedded_jars: true
+  java_options:
+    - "-Xms32m"
+    - "-Xmx384m"
+    - "-XX:ReservedCodeCacheSize=96m"
   compile_timeout_seconds: 20
   default_classpath:
     - "./jars/*"
@@ -48,6 +74,12 @@ collibra:
     - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Process/ref_activities_script_task.htm"
     - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Process/ref_activities_service_task.htm"
     - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Forms/to_forms.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Forms/to_forms-editor.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Forms/to_form-canvas.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Forms/ta_create-forms.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowDesigner/Forms/to_form-examples.htm"
+    - "https://developer.collibra.com/workflows/workflow-documentation/Content/Workflows/WorkflowElements/ref_form-properties.htm"
+    - "https://developer.collibra.com/tutorials/workflow-dynamic-forms/Content/Workflows/WorkflowDesigner/Forms/to_form-components.htm"
   organization:
     uuid_columns:
       - "asset_id"

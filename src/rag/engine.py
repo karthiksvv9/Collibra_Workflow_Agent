@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
@@ -61,9 +62,12 @@ class RAGEngine:
             config.models.embedding_model,
             config.models.request_timeout_seconds,
             api_key=config.openai.api_key,
+            api_key_env=config.openai.api_key_env,
             organization=config.openai.organization,
             project=config.openai.project,
             base_url=config.openai.base_url,
+            provider=config.models.embedding_provider,
+            enabled=config.openai.embedding_enabled,
         )
         self.store = store or SQLiteVectorStore(config.paths.vector_store)
         self.mapper = RelationMapper(
@@ -80,17 +84,17 @@ class RAGEngine:
         if not paths:
             return IngestionReport(0, 0, 0, self.store.count(), ["No documents found for ingestion."])
 
-        documents: list[SourceDocument] = []
         max_workers = max(1, min(self.config.runtime.max_workers, len(paths)))
-        executor_cls = ProcessPoolExecutor if self.config.runtime.use_multiprocessing else ThreadPoolExecutor
-        with executor_cls(max_workers=max_workers) as pool:
-            futures = {pool.submit(load_document, path): path for path in paths}
-            for future in as_completed(futures):
-                path = futures[future]
-                try:
-                    documents.append(future.result())
-                except Exception as exc:  # pragma: no cover - defensive around third-party parsers
-                    warnings.append(f"{path}: {exc}")
+        can_use_process_pool = self._can_use_process_pool()
+        if self.config.runtime.use_multiprocessing and not can_use_process_pool:
+            warnings.append("Multiprocessing document ingestion is unavailable for this runner; used thread fallback.")
+        executor_cls = ProcessPoolExecutor if self.config.runtime.use_multiprocessing and can_use_process_pool else ThreadPoolExecutor
+        documents, load_warnings = self._load_documents(paths, executor_cls, max_workers)
+        warnings.extend(load_warnings)
+        if self.config.runtime.use_multiprocessing and can_use_process_pool and not documents and load_warnings:
+            documents, fallback_warnings = self._load_documents(paths, ThreadPoolExecutor, max_workers)
+            warnings.append("Multiprocessing document ingestion failed; used thread fallback for this run.")
+            warnings.extend(fallback_warnings)
 
         all_chunks: list[Chunk] = []
         for document in documents:
@@ -128,6 +132,26 @@ class RAGEngine:
             vector_count=self.store.count(),
             warnings=warnings,
         )
+
+    def _load_documents(self, paths: list[Path], executor_cls, max_workers: int) -> tuple[list[SourceDocument], list[str]]:
+        documents: list[SourceDocument] = []
+        warnings: list[str] = []
+        with executor_cls(max_workers=max_workers) as pool:
+            futures = {pool.submit(load_document, path): path for path in paths}
+            for future in as_completed(futures):
+                path = futures[future]
+                try:
+                    documents.append(future.result())
+                except Exception as exc:  # pragma: no cover - defensive around third-party parsers/process pools
+                    warnings.append(f"{path}: {exc}")
+        return documents, warnings
+
+    @staticmethod
+    def _can_use_process_pool() -> bool:
+        main_file = getattr(sys.modules.get("__main__"), "__file__", "") or ""
+        if not main_file or str(main_file).startswith("<"):
+            return False
+        return Path(main_file).exists()
 
     def retrieve(self, question: str, limit: int = 8) -> RAGAnswerContext:
         query_embedding = self.embeddings.embed([question])[0]

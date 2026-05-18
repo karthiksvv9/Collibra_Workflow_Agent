@@ -95,7 +95,7 @@ function Ensure-ProjectFolders {
     }
 
     if (-not (Get-Command groovy -ErrorAction SilentlyContinue)) {
-        Write-Host "Groovy executable not found on PATH. Live Groovy syntax compilation will be skipped." -ForegroundColor Yellow
+        Write-Host "Groovy executable not found on PATH. Java + embedded Groovy JAR fallback will be used when Java and ./jars are available." -ForegroundColor Yellow
     } else {
         Write-Host "Groovy executable found." -ForegroundColor Green
     }

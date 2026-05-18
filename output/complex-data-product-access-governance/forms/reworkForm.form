@@ -1,0 +1,59 @@
+{
+  "description": "Requester correction form for rerouted governance requests.",
+  "fields": [
+    {
+      "enabled": true,
+      "id": "reworkSummary",
+      "label": "Rework summary",
+      "name": "Rework summary",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "businessPurpose",
+      "label": "Updated business purpose",
+      "name": "Updated business purpose",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "consumerAssetId",
+      "label": "Updated consumer asset UUID",
+      "name": "Updated consumer asset UUID",
+      "readable": true,
+      "required": false,
+      "type": "string",
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "reworkForm",
+  "metadata": {
+    "description": "Requester correction form for rerouted governance requests.",
+    "key": "reworkForm",
+    "modelType": "form",
+    "name": "Requester Rework",
+    "version": "1.0.0"
+  },
+  "name": "Requester Rework",
+  "outcomes": [
+    {
+      "label": "Resubmit",
+      "primary": true,
+      "value": "resubmit"
+    },
+    {
+      "label": "Withdraw",
+      "primary": false,
+      "value": "withdraw"
+    }
+  ]
+}

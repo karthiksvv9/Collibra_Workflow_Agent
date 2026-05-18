@@ -199,6 +199,12 @@ class BpmnModel:
             for key in ("expression", "delegateExpression", "class", "type"):
                 if key in node.properties:
                     attrs[_q(FLOWABLE_NS, key)] = str(node.properties[key])
+        if node.type == "callActivity":
+            if node.properties.get("calledElement"):
+                attrs["calledElement"] = str(node.properties["calledElement"])
+            for key in ("calledElementType", "inheritVariables", "businessKey", "sameDeployment", "fallbackToDefaultTenant"):
+                if key in node.properties:
+                    attrs[_q(FLOWABLE_NS, key)] = str(node.properties[key])
         if node.properties.get("skipExpression"):
             attrs[_q(FLOWABLE_NS, "skipExpression")] = str(node.properties["skipExpression"])
         element = ET.SubElement(process, _q(BPMN_NS, tag), attrs)
@@ -302,8 +308,9 @@ class BpmnModel:
                         properties={
                             _local(key): value
                             for key, value in node.attrib.items()
-                            if key.startswith("{")
-                            and _local(key) not in {"formKey", "candidateUsers", "candidateGroups"}
+                            if (key.startswith("{") or _local(key) in {"calledElement"})
+                            and _local(key)
+                            not in {"formKey", "candidateUsers", "candidateGroups"}
                         },
                         x=x,
                         y=y,

@@ -1,0 +1,68 @@
+{
+  "description": "Security/privacy review for high-risk or restricted requests.",
+  "fields": [
+    {
+      "enabled": true,
+      "id": "securityDecision",
+      "label": "Security decision",
+      "name": "Security decision",
+      "readable": true,
+      "required": true,
+      "type": "dropdown",
+      "values": [
+        {
+          "label": "Approve",
+          "value": "approve"
+        },
+        {
+          "label": "Rework",
+          "value": "rework"
+        },
+        {
+          "label": "Reject",
+          "value": "reject"
+        }
+      ],
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "policyExceptionRequired",
+      "label": "Policy exception required",
+      "name": "Policy exception required",
+      "readable": true,
+      "required": false,
+      "type": "checkbox",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "securityControls",
+      "label": "Required controls",
+      "name": "Required controls",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "securityReviewForm",
+  "metadata": {
+    "description": "Security/privacy review for high-risk or restricted requests.",
+    "key": "securityReviewForm",
+    "modelType": "form",
+    "name": "Security and Privacy Review",
+    "version": "1.0.0"
+  },
+  "name": "Security and Privacy Review",
+  "outcomes": [
+    {
+      "label": "Submit review",
+      "primary": true,
+      "value": "submit_review"
+    }
+  ]
+}

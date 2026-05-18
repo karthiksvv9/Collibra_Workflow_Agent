@@ -1,0 +1,117 @@
+{
+  "description": "",
+  "fields": [
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "stewardDecision",
+      "label": "Steward decision",
+      "name": "Steward decision",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "enum",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "stewardNotes",
+      "label": "Steward notes",
+      "name": "Steward notes",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "riskRating",
+      "label": "Confirmed risk rating",
+      "name": "Confirmed risk rating",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "enum",
+      "value": null,
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowStewardTriageForm",
+  "metadata": {},
+  "modelType": "form",
+  "name": "Steward Triage",
+  "outcomes": [],
+  "palette": "",
+  "raw": {
+    "fields": [
+      {
+        "default": null,
+        "id": "stewardDecision",
+        "name": "Steward decision",
+        "readable": true,
+        "required": true,
+        "type": "enum",
+        "values": [
+          {
+            "id": "approve",
+            "name": "Approve"
+          },
+          {
+            "id": "rework",
+            "name": "Request rework"
+          },
+          {
+            "id": "reject",
+            "name": "Reject"
+          }
+        ],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "stewardNotes",
+        "name": "Steward notes",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "riskRating",
+        "name": "Confirmed risk rating",
+        "readable": true,
+        "required": true,
+        "type": "enum",
+        "values": [],
+        "writable": true
+      }
+    ],
+    "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowStewardTriageForm",
+    "name": "Steward Triage"
+  },
+  "rows": [],
+  "source": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowStewardTriageForm.form",
+  "version": ""
+}

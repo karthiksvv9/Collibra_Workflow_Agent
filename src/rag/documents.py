@@ -9,7 +9,7 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 
-SUPPORTED_EXTENSIONS = {".docx", ".pdf", ".xlsx", ".xml", ".bpmn", ".app", ".form", ".json", ".txt", ".md"}
+SUPPORTED_EXTENSIONS = {".docx", ".pdf", ".xlsx", ".xml", ".bpmn", ".app", ".form", ".json", ".txt", ".md", ".zip"}
 
 
 @dataclass(slots=True)
@@ -39,6 +39,8 @@ def load_document(path: str | Path) -> SourceDocument:
         return _load_xml(file_path, kind=suffix[1:])
     if suffix in {".app", ".form", ".json"}:
         return _load_json_or_text(file_path, kind=suffix[1:])
+    if suffix == ".zip":
+        return _load_workflow_zip(file_path)
     return SourceDocument(str(file_path), suffix[1:] or "text", file_path.read_text(encoding="utf-8", errors="ignore"))
 
 
@@ -174,6 +176,50 @@ def _load_json_or_text(path: Path, kind: str) -> SourceDocument:
         return SourceDocument(str(path), kind, raw)
 
 
+def _load_workflow_zip(path: Path) -> SourceDocument:
+    parts = [f"# Workflow ZIP: {path.name}"]
+    metadata: dict[str, Any] = {"members": 0, "bpmn": 0, "forms": 0, "apps": 0, "groovy": 0}
+    with zipfile.ZipFile(path) as archive:
+        names = [name for name in archive.namelist() if not name.endswith("/")]
+        metadata["members"] = len(names)
+        for name in names:
+            suffix = Path(name).suffix.lower()
+            if suffix not in {".bpmn", ".xml", ".form", ".app", ".json", ".groovy", ".md", ".txt"}:
+                continue
+            raw = archive.read(name).decode("utf-8", errors="ignore")
+            if suffix in {".bpmn", ".xml"}:
+                metadata["bpmn"] += 1
+                parts.append(f"\n## BPMN/XML: {name}\n{_summarize_xml_text(raw)}")
+            elif suffix == ".form":
+                metadata["forms"] += 1
+                parts.append(f"\n## Form: {name}\n{_summarize_json_text(raw)}")
+            elif suffix == ".app":
+                metadata["apps"] += 1
+                parts.append(f"\n## App: {name}\n{_summarize_json_text(raw)}")
+            elif suffix == ".groovy":
+                metadata["groovy"] += 1
+                parts.append(f"\n## Groovy: {name}\n{raw[:4000]}")
+            else:
+                parts.append(f"\n## {name}\n{raw[:4000]}")
+    return SourceDocument(str(path), "zip", "\n".join(parts), metadata)
+
+
+def _summarize_json_text(raw: str) -> str:
+    try:
+        data = json.loads(raw)
+        return json.dumps(data, indent=2, sort_keys=True)[:5000]
+    except json.JSONDecodeError:
+        return raw[:5000]
+
+
+def _summarize_xml_text(raw: str) -> str:
+    try:
+        root = ET.fromstring(raw)
+        return _xml_to_semantic_text(root)[:6000]
+    except Exception:
+        return raw[:6000]
+
+
 def _xml_to_semantic_text(root: ET.Element) -> str:
     lines: list[str] = []
     for node in root.iter():
@@ -188,4 +234,3 @@ def _xml_to_semantic_text(root: ET.Element) -> str:
 
 def _strip_ns(value: str) -> str:
     return value.rsplit("}", 1)[-1] if "}" in value else value
-

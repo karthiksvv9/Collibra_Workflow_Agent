@@ -1,0 +1,117 @@
+{
+  "description": "",
+  "fields": [
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "complianceDecision",
+      "label": "Compliance decision",
+      "name": "Compliance decision",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "enum",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "policyExceptionRequired",
+      "label": "Policy exception required",
+      "name": "Policy exception required",
+      "readable": true,
+      "required": false,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "boolean",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "securityControls",
+      "label": "Security controls",
+      "name": "Security controls",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowComplianceReviewForm",
+  "metadata": {},
+  "modelType": "form",
+  "name": "Risk and Compliance Review",
+  "outcomes": [],
+  "palette": "",
+  "raw": {
+    "fields": [
+      {
+        "default": null,
+        "id": "complianceDecision",
+        "name": "Compliance decision",
+        "readable": true,
+        "required": true,
+        "type": "enum",
+        "values": [
+          {
+            "id": "approve",
+            "name": "Approve"
+          },
+          {
+            "id": "rework",
+            "name": "Request rework"
+          },
+          {
+            "id": "reject",
+            "name": "Reject"
+          }
+        ],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "policyExceptionRequired",
+        "name": "Policy exception required",
+        "readable": true,
+        "required": false,
+        "type": "boolean",
+        "values": [],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "securityControls",
+        "name": "Security controls",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      }
+    ],
+    "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowComplianceReviewForm",
+    "name": "Risk and Compliance Review"
+  },
+  "rows": [],
+  "source": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowComplianceReviewForm.form",
+  "version": ""
+}

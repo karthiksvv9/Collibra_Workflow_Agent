@@ -1,0 +1,59 @@
+{
+  "description": "Technical steward action form after Collibra API failure.",
+  "fields": [
+    {
+      "enabled": true,
+      "id": "remediationAction",
+      "label": "Remediation action",
+      "name": "Remediation action",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "relationApiMessage",
+      "label": "API message",
+      "name": "API message",
+      "readable": true,
+      "required": false,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "technicalRetryApproved",
+      "label": "Retry approved",
+      "name": "Retry approved",
+      "readable": true,
+      "required": true,
+      "type": "checkbox",
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "remediationForm",
+  "metadata": {
+    "description": "Technical steward action form after Collibra API failure.",
+    "key": "remediationForm",
+    "modelType": "form",
+    "name": "Technical Remediation",
+    "version": "1.0.0"
+  },
+  "name": "Technical Remediation",
+  "outcomes": [
+    {
+      "label": "Retry automation",
+      "primary": true,
+      "value": "retry_automation"
+    },
+    {
+      "label": "Cancel",
+      "primary": false,
+      "value": "cancel"
+    }
+  ]
+}

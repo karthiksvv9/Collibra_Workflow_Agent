@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
-import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from src.agents.llm_client import request_json_design
 from src.agents.groovy_compiler import CompileResult, GroovyCompiler
 from src.agents.prompts import build_design_prompt
 from src.core.config import Settings, settings
@@ -109,32 +108,9 @@ class CollibraWorkflowAgent:
         return results
 
     def _try_llm_design(self, master_prompt: str, context: str) -> dict[str, Any] | None:
-        api_key = self.config.openai.api_key or os.getenv("OPENAI_API_KEY", "")
-        if not api_key:
-            return None
         try:
-            from openai import OpenAI
-
-            kwargs = {"timeout": self.config.models.request_timeout_seconds, "api_key": api_key}
-            if self.config.openai.organization:
-                kwargs["organization"] = self.config.openai.organization
-            if self.config.openai.project:
-                kwargs["project"] = self.config.openai.project
-            if self.config.openai.base_url:
-                kwargs["base_url"] = self.config.openai.base_url
-            client = OpenAI(**kwargs)
             prompt = build_design_prompt(master_prompt, context)
-            response = client.responses.create(
-                model=self.config.models.chat_model,
-                input=prompt,
-                temperature=self.config.models.temperature,
-                max_output_tokens=self.config.models.max_output_tokens,
-            )
-            text = response.output_text
-            match = re.search(r"\{.*\}", text, re.DOTALL)
-            if not match:
-                return None
-            return json.loads(match.group(0))
+            return request_json_design(self.config, prompt)
         except Exception:
             return None
 
@@ -190,6 +166,9 @@ class CollibraWorkflowAgent:
         )
 
     def _heuristic_design(self, master_prompt: str, context: str) -> WorkflowPackage:
+        if _requires_complex_prompt_design(master_prompt):
+            return self._complex_prompt_design(master_prompt, context)
+
         process_id = _safe_id(_summarise_name(master_prompt) + "Workflow")
         form = FormModel(
             key=f"{process_id}StartForm",
@@ -235,6 +214,223 @@ class CollibraWorkflowAgent:
             ),
         )
         return WorkflowPackage(model, [form], app_name=model.name)
+
+    def _complex_prompt_design(self, master_prompt: str, context: str) -> WorkflowPackage:
+        process_id = _safe_id(_summarise_name(master_prompt) + "AiDesignedComplexWorkflow")
+        process_name = _title(master_prompt)
+        scripts = _complex_prompt_scripts()
+        forms = _complex_prompt_forms(process_id)
+        lanes = ["Requester", "Data Steward", "Business Owner", "Risk and Compliance", "Collibra Automation", "Provisioning Workflow"]
+        nodes = [
+            BpmnNode(
+                "start_request",
+                "startEvent",
+                "Start governed access request",
+                "Requester",
+                "Start event with request form for governed asset access.",
+                form_key=forms[0].key,
+                x=80,
+                y=120,
+            ),
+            BpmnNode(
+                "submit_request",
+                "userTask",
+                "Submit governed access request",
+                "Requester",
+                "Requester supplies asset, purpose, access window, relation and provisioning intent.",
+                form_key=forms[0].key,
+                candidate_groups="${requesterGroup}",
+                x=220,
+                y=120,
+            ),
+            BpmnNode(
+                "validate_context",
+                "scriptTask",
+                "Validate request and RAG mappings",
+                "Collibra Automation",
+                "Normalize UUIDs and validate required organization mapping variables from RAG/config.",
+                script=scripts["validate_context"],
+                x=430,
+                y=720,
+            ),
+            BpmnNode("gateway_request_complete", "exclusiveGateway", "Request complete?", "Collibra Automation", x=640, y=735),
+            BpmnNode(
+                "requester_rework",
+                "userTask",
+                "Requester rework",
+                "Requester",
+                "Requester corrects missing purpose, UUIDs, relation details or access constraints.",
+                form_key=forms[1].key,
+                candidate_groups="${requesterGroup}",
+                x=760,
+                y=120,
+            ),
+            BpmnNode(
+                "steward_triage",
+                "userTask",
+                "Data steward triage",
+                "Data Steward",
+                "Steward confirms ownership, domain, asset status, relation intent and routing decision.",
+                form_key=forms[2].key,
+                candidate_groups="${dataStewardRole}",
+                x=850,
+                y=270,
+            ),
+            BpmnNode("gateway_steward_decision", "exclusiveGateway", "Steward decision", "Data Steward", x=1060, y=285),
+            BpmnNode("gateway_risk_route", "exclusiveGateway", "Risk route", "Collibra Automation", x=1170, y=735),
+            BpmnNode(
+                "business_approval",
+                "userTask",
+                "Business owner approval",
+                "Business Owner",
+                "Business owner approves, rejects or requests rework.",
+                form_key=forms[3].key,
+                candidate_groups="${businessOwnerRole}",
+                x=1310,
+                y=420,
+            ),
+            BpmnNode("gateway_business_decision", "exclusiveGateway", "Business decision", "Business Owner", x=1530, y=435),
+            BpmnNode(
+                "risk_compliance_review",
+                "userTask",
+                "Risk and compliance review",
+                "Risk and Compliance",
+                "Compliance owner reviews high-risk access and approves policy exception where required.",
+                form_key=forms[4].key,
+                candidate_groups="${riskComplianceRole}",
+                x=1310,
+                y=570,
+            ),
+            BpmnNode("gateway_compliance_decision", "exclusiveGateway", "Compliance decision", "Risk and Compliance", x=1530, y=585),
+            BpmnNode("gateway_policy_exception", "exclusiveGateway", "Policy exception?", "Collibra Automation", x=1650, y=735),
+            BpmnNode(
+                "create_policy_exception",
+                "scriptTask",
+                "Create policy exception metadata",
+                "Collibra Automation",
+                "Create Collibra policy exception attribute and audit variables using Java API v2 builders.",
+                script=scripts["create_policy_exception"],
+                x=1760,
+                y=720,
+            ),
+            BpmnNode(
+                "create_relations",
+                "scriptTask",
+                "Create relation and responsibility",
+                "Collibra Automation",
+                "Create relation/responsibility using organization UUID mappings retrieved from RAG.",
+                script=scripts["create_relations"],
+                x=1990,
+                y=720,
+            ),
+            BpmnNode(
+                "call_provisioning_workflow",
+                "callActivity",
+                "Call downstream provisioning workflow",
+                "Provisioning Workflow",
+                "Calls a separate Collibra/Flowable workflow to provision access after governance approval.",
+                properties={
+                    "calledElement": "${provisioningWorkflowKey}",
+                    "calledElementType": "key",
+                    "inheritVariables": "true",
+                    "businessKey": "${requestId}",
+                },
+                x=2240,
+                y=875,
+            ),
+            BpmnNode("gateway_provisioning_result", "exclusiveGateway", "Provisioning result", "Provisioning Workflow", x=2490, y=890),
+            BpmnNode(
+                "technical_remediation",
+                "userTask",
+                "Technical remediation",
+                "Provisioning Workflow",
+                "Technical owner fixes failed provisioning and retries the called workflow.",
+                form_key=forms[5].key,
+                candidate_groups="${technicalStewardRole}",
+                x=2240,
+                y=1000,
+            ),
+            BpmnNode(
+                "update_access_status",
+                "scriptTask",
+                "Update asset status and audit",
+                "Collibra Automation",
+                "Apply final Collibra status and audit attributes after downstream workflow success.",
+                script=scripts["update_access_status"],
+                x=2630,
+                y=720,
+            ),
+            BpmnNode(
+                "notify_success",
+                "scriptTask",
+                "Notify approval completion",
+                "Collibra Automation",
+                "Queue final notification variables for completion mail task or integration.",
+                script=scripts["notify_success"],
+                x=2840,
+                y=720,
+            ),
+            BpmnNode(
+                "notify_rejection",
+                "scriptTask",
+                "Notify rejection or withdrawal",
+                "Collibra Automation",
+                "Queue rejection notification variables for rejected and withdrawn paths.",
+                script=scripts["notify_rejection"],
+                x=1310,
+                y=835,
+            ),
+            BpmnNode("end_approved", "endEvent", "Approved and provisioned", "Requester", x=3060, y=120),
+            BpmnNode("end_rejected", "endEvent", "Rejected or withdrawn", "Requester", x=1530, y=120),
+        ]
+        flows = [
+            SequenceFlow("flow_start_submit", "start_request", "submit_request", "Start"),
+            SequenceFlow("flow_submit_validate", "submit_request", "validate_context", "Submit"),
+            SequenceFlow("flow_validate_complete_gateway", "validate_context", "gateway_request_complete", "Validated"),
+            SequenceFlow("flow_complete_to_steward", "gateway_request_complete", "steward_triage", "Complete", "${validationPassed == true}"),
+            SequenceFlow("flow_incomplete_to_rework", "gateway_request_complete", "requester_rework", "Incomplete", "${validationPassed != true}", is_default=True),
+            SequenceFlow("flow_rework_validate", "requester_rework", "validate_context", "Resubmit"),
+            SequenceFlow("flow_steward_gateway", "steward_triage", "gateway_steward_decision", "Route"),
+            SequenceFlow("flow_steward_approve", "gateway_steward_decision", "gateway_risk_route", "Approve", "${stewardDecision == 'approve'}"),
+            SequenceFlow("flow_steward_rework", "gateway_steward_decision", "requester_rework", "Rework", "${stewardDecision == 'rework'}", is_default=True),
+            SequenceFlow("flow_steward_reject", "gateway_steward_decision", "notify_rejection", "Reject", "${stewardDecision == 'reject'}"),
+            SequenceFlow("flow_risk_standard", "gateway_risk_route", "business_approval", "Standard risk", "${riskRating == 'standard'}", is_default=True),
+            SequenceFlow("flow_risk_compliance", "gateway_risk_route", "risk_compliance_review", "High risk", "${riskRating == 'high' || riskRating == 'restricted'}"),
+            SequenceFlow("flow_business_gateway", "business_approval", "gateway_business_decision", "Decision"),
+            SequenceFlow("flow_business_approve", "gateway_business_decision", "gateway_policy_exception", "Approve", "${businessDecision == 'approve'}"),
+            SequenceFlow("flow_business_rework", "gateway_business_decision", "requester_rework", "Rework", "${businessDecision == 'rework'}", is_default=True),
+            SequenceFlow("flow_business_reject", "gateway_business_decision", "notify_rejection", "Reject", "${businessDecision == 'reject'}"),
+            SequenceFlow("flow_compliance_gateway", "risk_compliance_review", "gateway_compliance_decision", "Decision"),
+            SequenceFlow("flow_compliance_approve", "gateway_compliance_decision", "gateway_policy_exception", "Approve", "${complianceDecision == 'approve'}"),
+            SequenceFlow("flow_compliance_rework", "gateway_compliance_decision", "requester_rework", "Rework", "${complianceDecision == 'rework'}", is_default=True),
+            SequenceFlow("flow_compliance_reject", "gateway_compliance_decision", "notify_rejection", "Reject", "${complianceDecision == 'reject'}"),
+            SequenceFlow("flow_exception_required", "gateway_policy_exception", "create_policy_exception", "Exception required", "${policyExceptionRequired == true}"),
+            SequenceFlow("flow_no_exception", "gateway_policy_exception", "create_relations", "No exception", "${policyExceptionRequired != true}", is_default=True),
+            SequenceFlow("flow_exception_relations", "create_policy_exception", "create_relations", "Exception logged"),
+            SequenceFlow("flow_relations_call", "create_relations", "call_provisioning_workflow", "Invoke provisioning"),
+            SequenceFlow("flow_call_result", "call_provisioning_workflow", "gateway_provisioning_result", "Provisioning returned"),
+            SequenceFlow("flow_provision_success", "gateway_provisioning_result", "update_access_status", "Provisioned", "${provisioningStatus == 'success'}"),
+            SequenceFlow("flow_provision_failure", "gateway_provisioning_result", "technical_remediation", "Provisioning failed", "${provisioningStatus != 'success'}", is_default=True),
+            SequenceFlow("flow_remediation_retry", "technical_remediation", "call_provisioning_workflow", "Retry"),
+            SequenceFlow("flow_status_notify", "update_access_status", "notify_success", "Status updated"),
+            SequenceFlow("flow_notify_success_end", "notify_success", "end_approved", "Done"),
+            SequenceFlow("flow_notify_reject_end", "notify_rejection", "end_rejected", "Done"),
+        ]
+        model = BpmnModel(
+            process_id=process_id,
+            name=process_name,
+            lanes=lanes,
+            nodes=nodes,
+            flows=flows,
+            documentation=(
+                "Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context "
+                "for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, "
+                "script-task Groovy and a call activity to a downstream provisioning workflow.\n\n"
+                f"Master prompt excerpt: {master_prompt[:1000]}\n\n"
+                f"Retrieved RAG context excerpt:\n{context[:1500]}"
+            ),
+        )
+        return WorkflowPackage(process=model, forms=forms, app_name=process_name)
 
     def _repair_groovy(self, script: str, result: CompileResult) -> str:
         repaired = script
@@ -324,3 +520,210 @@ def _summarise_name(prompt: str) -> str:
 def _title(prompt: str) -> str:
     words = re.findall(r"[A-Za-z0-9]+", prompt)[:8]
     return " ".join(words).title() or "Generated Collibra Workflow"
+
+
+def _requires_complex_prompt_design(prompt: str) -> bool:
+    value = prompt.lower()
+    signals = [
+        "call activity",
+        "callactivity",
+        "other workflow",
+        "downstream workflow",
+        "multiple forms",
+        "reroute",
+        "rework",
+        "complex",
+        "policy exception",
+        "provision",
+    ]
+    return sum(1 for signal in signals if signal in value) >= 2
+
+
+def _complex_prompt_forms(process_id: str) -> list[FormModel]:
+    return [
+        FormModel(
+            key=f"{process_id}AccessRequestForm",
+            name="Governed Access Request",
+            fields=[
+                FormField("requesterId", "Requester UUID", "string", True),
+                FormField("requesterEmail", "Requester email", "string", True),
+                FormField("assetId", "Asset UUID", "string", True),
+                FormField("consumerAssetId", "Consumer asset UUID", "string"),
+                FormField("businessPurpose", "Business purpose", "string", True),
+                FormField(
+                    "riskRating",
+                    "Risk rating",
+                    "enum",
+                    True,
+                    values=[
+                        {"id": "standard", "name": "Standard"},
+                        {"id": "high", "name": "High"},
+                        {"id": "restricted", "name": "Restricted"},
+                    ],
+                ),
+                FormField("requestedAccessEndDate", "Requested access end date", "date", True),
+                FormField("provisioningWorkflowKey", "Downstream provisioning workflow key", "string", True),
+            ],
+        ),
+        FormModel(
+            key=f"{process_id}RequesterReworkForm",
+            name="Requester Rework",
+            fields=[
+                FormField("reworkSummary", "Rework summary", "string", True),
+                FormField("businessPurpose", "Updated business purpose", "string", True),
+                FormField("consumerAssetId", "Updated consumer asset UUID", "string"),
+            ],
+        ),
+        FormModel(
+            key=f"{process_id}StewardTriageForm",
+            name="Steward Triage",
+            fields=[
+                FormField(
+                    "stewardDecision",
+                    "Steward decision",
+                    "enum",
+                    True,
+                    values=[
+                        {"id": "approve", "name": "Approve"},
+                        {"id": "rework", "name": "Request rework"},
+                        {"id": "reject", "name": "Reject"},
+                    ],
+                ),
+                FormField("stewardNotes", "Steward notes", "string", True),
+                FormField("riskRating", "Confirmed risk rating", "enum", True),
+            ],
+        ),
+        FormModel(
+            key=f"{process_id}BusinessApprovalForm",
+            name="Business Owner Approval",
+            fields=[
+                FormField(
+                    "businessDecision",
+                    "Business decision",
+                    "enum",
+                    True,
+                    values=[
+                        {"id": "approve", "name": "Approve"},
+                        {"id": "rework", "name": "Request rework"},
+                        {"id": "reject", "name": "Reject"},
+                    ],
+                ),
+                FormField("businessNotes", "Business approval notes", "string", True),
+            ],
+        ),
+        FormModel(
+            key=f"{process_id}ComplianceReviewForm",
+            name="Risk and Compliance Review",
+            fields=[
+                FormField(
+                    "complianceDecision",
+                    "Compliance decision",
+                    "enum",
+                    True,
+                    values=[
+                        {"id": "approve", "name": "Approve"},
+                        {"id": "rework", "name": "Request rework"},
+                        {"id": "reject", "name": "Reject"},
+                    ],
+                ),
+                FormField("policyExceptionRequired", "Policy exception required", "boolean"),
+                FormField("securityControls", "Security controls", "string", True),
+            ],
+        ),
+        FormModel(
+            key=f"{process_id}TechnicalRemediationForm",
+            name="Technical Remediation",
+            fields=[
+                FormField("provisioningStatus", "Provisioning status", "string", True),
+                FormField("provisioningError", "Provisioning error", "string"),
+                FormField("remediationAction", "Remediation action", "string", True),
+            ],
+        ),
+    ]
+
+
+def _complex_prompt_scripts() -> dict[str, str]:
+    return {
+        "validate_context": """import java.util.UUID
+
+String requestId = (execution.getVariable("requestId") ?: UUID.randomUUID().toString()) as String
+String requesterId = (execution.getVariable("requesterId") ?: "") as String
+String assetId = (execution.getVariable("assetId") ?: "") as String
+String purpose = (execution.getVariable("businessPurpose") ?: "") as String
+String workflowKey = (execution.getVariable("provisioningWorkflowKey") ?: "") as String
+Boolean complete = requesterId.trim() && assetId.trim() && purpose.trim().length() > 15 && workflowKey.trim()
+execution.setVariable("requestId", requestId)
+execution.setVariable("requesterIdNormalized", requesterId.trim())
+execution.setVariable("assetIdNormalized", assetId.trim())
+execution.setVariable("businessPurposeNormalized", purpose.trim())
+execution.setVariable("validationPassed", complete)
+execution.setVariable("validationMessage", complete ? "Request is complete." : "Requester, asset, purpose and provisioning workflow key are required.")
+""",
+        "create_policy_exception": """import java.util.UUID
+import com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest
+
+String assetId = execution.getVariable("assetIdNormalized") as String
+String requestId = execution.getVariable("requestId") as String
+String controls = (execution.getVariable("securityControls") ?: "Controls must be confirmed before provisioning.") as String
+UUID attributeTypeId = UUID.fromString(execution.getVariable("policyExceptionAttributeTypeId") as String)
+AddAttributeRequest request = AddAttributeRequest.builder()
+    .assetId(UUID.fromString(assetId))
+    .typeId(attributeTypeId)
+    .value("Policy exception for request " + requestId + ": " + controls)
+    .build()
+attributeApi.addAttribute(request)
+execution.setVariable("policyExceptionCreated", true)
+""",
+        "create_relations": """import java.util.UUID
+import com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest
+import com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest
+
+String assetId = execution.getVariable("assetIdNormalized") as String
+String consumerAssetId = (execution.getVariable("consumerAssetId") ?: "") as String
+String requesterId = execution.getVariable("requesterIdNormalized") as String
+UUID relationTypeId = UUID.fromString(execution.getVariable("consumerRelationTypeId") as String)
+UUID consumerRoleId = UUID.fromString(execution.getVariable("consumerRoleId") as String)
+if (consumerAssetId.trim()) {
+    relationApi.addRelation(AddRelationRequest.builder()
+        .sourceId(UUID.fromString(assetId))
+        .targetId(UUID.fromString(consumerAssetId.trim()))
+        .typeId(relationTypeId)
+        .build())
+}
+responsibilityApi.addResponsibility(AddResponsibilityRequest.builder()
+    .resourceId(UUID.fromString(assetId))
+    .roleId(consumerRoleId)
+    .ownerId(UUID.fromString(requesterId))
+    .build())
+execution.setVariable("relationAndResponsibilityCreated", true)
+""",
+        "update_access_status": """import java.util.UUID
+import com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest
+
+String assetId = execution.getVariable("assetIdNormalized") as String
+UUID approvedStatusId = UUID.fromString(execution.getVariable("approvedStatusId") as String)
+assetApi.changeAsset(ChangeAssetRequest.builder()
+    .id(UUID.fromString(assetId))
+    .statusId(approvedStatusId)
+    .build())
+execution.setVariable("assetStatusUpdated", true)
+execution.setVariable("finalDecision", "approved")
+""",
+        "notify_success": """import java.util.UUID
+
+String requestId = execution.getVariable("requestId") as String
+String recipient = (execution.getVariable("requesterEmail") ?: execution.getVariable("requesterIdNormalized") ?: "requester") as String
+execution.setVariable("notificationRecipient", recipient)
+execution.setVariable("notificationSubject", "Collibra governed access request " + requestId + " approved and provisioned")
+execution.setVariable("notificationQueued", true)
+""",
+        "notify_rejection": """import java.util.UUID
+
+String requestId = execution.getVariable("requestId") as String
+String reason = (execution.getVariable("stewardNotes") ?: execution.getVariable("businessNotes") ?: "Request rejected or withdrawn.") as String
+execution.setVariable("finalDecision", "rejected")
+execution.setVariable("notificationSubject", "Collibra governed access request " + requestId + " rejected")
+execution.setVariable("notificationBody", reason)
+execution.setVariable("notificationQueued", true)
+""",
+    }

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Database, FileUp, RefreshCw, Search, UploadCloud, FolderSync, ListFilter } from 'lucide-react';
-import { generateRagIndex, getRagStatus, ingestFiles, ragChat, ragQuery, reindexRag, uploadRagFiles } from '../api.js';
+import { Database, FileSpreadsheet, FileUp, RefreshCw, Search, UploadCloud, FolderSync, ListFilter } from 'lucide-react';
+import { downloadRagTemplate, generateRagIndex, getRagStatus, ingestFiles, ragChat, ragQuery, reindexRag, uploadRagFiles } from '../api.js';
 
 export default function RagPanel({ addConsole }) {
   const [status, setStatus] = useState(null);
@@ -44,6 +44,15 @@ export default function RagPanel({ addConsole }) {
       setMessages(prev => [...prev, { role: 'agent', text: `Upload failed: ${err.message}` }]);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function downloadTemplate() {
+    try {
+      await downloadRagTemplate();
+      addConsole?.({ level: 'info', message: 'Relation UUID Excel template downloaded', detail: 'Collibra_Relation_UUID_Template.xlsx' });
+    } catch (err) {
+      addConsole?.({ level: 'error', message: 'Template download failed', detail: err.message });
     }
   }
 
@@ -133,6 +142,7 @@ export default function RagPanel({ addConsole }) {
       <div className="rag-hero">
         <b>Enterprise RAG Knowledge Base</b>
         <span>Upload and index Collibra APIs, exported workflow packages, BPMN, form/app XML, Groovy, Excel mappings, PDFs, Word docs and table-level relation sheets.</span>
+        <button onClick={downloadTemplate}><FileSpreadsheet size={15}/> Relation UUID template</button>
       </div>
 
       <div className="rag-status-grid">

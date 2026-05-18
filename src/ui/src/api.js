@@ -34,6 +34,11 @@ export async function designWorkflow(payload) {
   return checkedJson(res);
 }
 
+export async function runAutonomousAgent(payload) {
+  const res = await fetch(apiPath('/api/agent/autonomous-run'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+  return checkedJson(res);
+}
+
 export async function compileGroovy(payload) {
   const res = await fetch(apiPath('/api/compile/groovy'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
   return checkedJson(res);
@@ -51,6 +56,11 @@ export async function generateDocumentation(payload) {
 
 export async function testWorkflowPackage(payload) {
   const res = await fetch(apiPath('/api/workflow/test-package'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+  return checkedJson(res);
+}
+
+export async function runWorkflowTestCases(payload) {
+  const res = await fetch(apiPath('/api/workflow/test-cases'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
   return checkedJson(res);
 }
 
@@ -81,6 +91,18 @@ export async function reindexRag() {
 export async function getRagStatus() {
   const res = await fetch(apiPath('/api/rag/status'));
   return checkedJson(res);
+}
+
+export async function downloadRagTemplate() {
+  const res = await fetch(apiPath('/api/rag/template'));
+  if (!res.ok) throw new Error(await res.text());
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'Collibra_Relation_UUID_Template.xlsx';
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export async function ragChat(payload) {

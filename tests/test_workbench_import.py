@@ -38,6 +38,55 @@ def test_workbench_import_extracts_collibra_scripts_forms_and_properties() -> No
     assert test_response.json()["ok"] is True
 
 
+def test_autonomous_agent_canvas_mode_exports_imported_workflow() -> None:
+    client = TestClient(app)
+    package = _sample_collibra_zip()
+
+    import_response = client.post(
+        "/api/workflow/import",
+        files={"file": ("sampleCollibraApp.zip", package, "application/zip")},
+    )
+    assert import_response.status_code == 200
+    imported = import_response.json()
+
+    response = client.post(
+        "/api/agent/autonomous-run",
+        json={
+            "mode": "canvas",
+            "prompt": "Production-check this imported Collibra workflow and preserve its form and script task.",
+            "bpmnXml": imported["bpmnXml"],
+            "appModel": imported["appModel"],
+            "forms": imported["forms"],
+            "userTestCases": "Scenario: imported sample workflow\nExpected: package quality and generated business tests pass.",
+            "packageName": "pytest_autonomous_imported_sample",
+            "maxIterations": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["quality"]["summary"]["blockingIssues"] == 0
+    assert payload["cases"]["summary"]["failedCases"] == 0
+    assert payload["zipPath"].endswith("_autonomous_package.zip")
+
+
+def test_import_rejects_unsafe_zip_member_paths() -> None:
+    client = TestClient(app)
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
+        package.writestr("../escape.bpmn", "<definitions />")
+    buffer.seek(0)
+
+    response = client.post(
+        "/api/workflow/import",
+        files={"file": ("unsafe.zip", buffer.getvalue(), "application/zip")},
+    )
+
+    assert response.status_code == 400
+    assert "Unsafe ZIP member path" in response.text
+
+
 def _sample_collibra_zip() -> bytes:
     bpmn = """<?xml version="1.0" encoding="UTF-8"?>
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:flowable="http://flowable.org/bpmn" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC" targetNamespace="http://www.collibra.com/apiv2">

@@ -1,0 +1,104 @@
+{
+  "description": "",
+  "fields": [
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "provisioningStatus",
+      "label": "Provisioning status",
+      "name": "Provisioning status",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "provisioningError",
+      "label": "Provisioning error",
+      "name": "Provisioning error",
+      "readable": true,
+      "required": false,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "remediationAction",
+      "label": "Remediation action",
+      "name": "Remediation action",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowTechnicalRemediationForm",
+  "metadata": {},
+  "modelType": "form",
+  "name": "Technical Remediation",
+  "outcomes": [],
+  "palette": "",
+  "raw": {
+    "fields": [
+      {
+        "default": null,
+        "id": "provisioningStatus",
+        "name": "Provisioning status",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "provisioningError",
+        "name": "Provisioning error",
+        "readable": true,
+        "required": false,
+        "type": "string",
+        "values": [],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "remediationAction",
+        "name": "Remediation action",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      }
+    ],
+    "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowTechnicalRemediationForm",
+    "name": "Technical Remediation"
+  },
+  "rows": [],
+  "source": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowTechnicalRemediationForm.form",
+  "version": ""
+}

@@ -75,8 +75,9 @@ def _coerce_scalar(value: str) -> Any:
 
 @dataclass(frozen=True)
 class ModelConfig:
-    chat_model: str = "gpt-5-4-2026"
+    chat_model: str = "gpt-5-4-2026-03-05"
     embedding_model: str = "text-embedding-3-large"
+    embedding_provider: str = "hashing"
     temperature: float = 0.1
     max_output_tokens: int = 8192
     request_timeout_seconds: int = 90
@@ -85,6 +86,13 @@ class ModelConfig:
 @dataclass(frozen=True)
 class PathConfig:
     docs_dir: Path = PROJECT_ROOT / "docs" / "rag_training"
+    rag_templates_dir: Path = PROJECT_ROOT / "docs" / "rag_training" / "00_templates"
+    rag_user_dropzone_dir: Path = PROJECT_ROOT / "docs" / "rag_training" / "01_user_dropzone"
+    rag_ootb_workflows_dir: Path = PROJECT_ROOT / "docs" / "rag_training" / "02_ootb_workflows"
+    rag_official_docs_dir: Path = PROJECT_ROOT / "docs" / "rag_training" / "03_collibra_official_docs"
+    rag_organization_standards_dir: Path = PROJECT_ROOT / "docs" / "rag_training" / "04_organization_standards"
+    rag_generated_training_dir: Path = PROJECT_ROOT / "docs" / "rag_training" / "05_generated_training"
+    relation_template_file: Path = PROJECT_ROOT / "docs" / "rag_training" / "00_templates" / "Collibra_Relation_UUID_Template.xlsx"
     jars_dir: Path = PROJECT_ROOT / "jars"
     output_dir: Path = PROJECT_ROOT / "output"
     vector_store: Path = PROJECT_ROOT / "output" / "vector_store.sqlite3"
@@ -106,15 +114,24 @@ class RuntimeConfig:
 
 @dataclass(frozen=True)
 class OpenAIConfig:
+    provider: str = "custom_chat_completions"
     api_key: str = ""
+    api_key_env: str = "MERCK_API_KEY"
+    api_key_header: str = "X-Merck-APIKey"
+    api_key_prefix: str = ""
     organization: str = ""
     project: str = ""
-    base_url: str = ""
+    base_url: str = "https://iapi-test.proj.com/gpt/v2"
+    chat_completions_path: str = "/gpt-5-4-2026-03-05/chat/completions"
+    embedding_enabled: bool = False
 
 
 @dataclass(frozen=True)
 class GroovyConfig:
     executable: str = "groovy"
+    java_executable: str = "java"
+    use_embedded_jars: bool = True
+    java_options: list[str] = field(default_factory=lambda: ["-Xms32m", "-Xmx384m", "-XX:ReservedCodeCacheSize=96m"])
     compile_timeout_seconds: int = 20
     default_classpath: list[str] = field(default_factory=lambda: ["./jars/*"])
 
@@ -175,14 +192,29 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
     models = ModelConfig(
         chat_model=_deep_get(data, "models.chat_model", ModelConfig.chat_model),
         embedding_model=_deep_get(data, "models.embedding_model", ModelConfig.embedding_model),
+        embedding_provider=_deep_get(data, "models.embedding_provider", ModelConfig.embedding_provider),
         temperature=float(_deep_get(data, "models.temperature", ModelConfig.temperature)),
         max_output_tokens=int(_deep_get(data, "models.max_output_tokens", ModelConfig.max_output_tokens)),
         request_timeout_seconds=int(
             _deep_get(data, "models.request_timeout_seconds", ModelConfig.request_timeout_seconds)
         ),
     )
+    docs_dir = resolve_path(_deep_get(data, "paths.docs_dir", "./docs/rag_training"))
     paths = PathConfig(
-        docs_dir=resolve_path(_deep_get(data, "paths.docs_dir", "./docs/rag_training")),
+        docs_dir=docs_dir,
+        rag_templates_dir=resolve_path(_deep_get(data, "paths.rag_templates_dir", docs_dir / "00_templates")),
+        rag_user_dropzone_dir=resolve_path(_deep_get(data, "paths.rag_user_dropzone_dir", docs_dir / "01_user_dropzone")),
+        rag_ootb_workflows_dir=resolve_path(_deep_get(data, "paths.rag_ootb_workflows_dir", docs_dir / "02_ootb_workflows")),
+        rag_official_docs_dir=resolve_path(_deep_get(data, "paths.rag_official_docs_dir", docs_dir / "03_collibra_official_docs")),
+        rag_organization_standards_dir=resolve_path(
+            _deep_get(data, "paths.rag_organization_standards_dir", docs_dir / "04_organization_standards")
+        ),
+        rag_generated_training_dir=resolve_path(
+            _deep_get(data, "paths.rag_generated_training_dir", docs_dir / "05_generated_training")
+        ),
+        relation_template_file=resolve_path(
+            _deep_get(data, "paths.relation_template_file", docs_dir / "00_templates" / "Collibra_Relation_UUID_Template.xlsx")
+        ),
         jars_dir=resolve_path(_deep_get(data, "paths.jars_dir", "./jars")),
         output_dir=resolve_path(_deep_get(data, "paths.output_dir", "./output")),
         vector_store=resolve_path(_deep_get(data, "paths.vector_store", "./output/vector_store.sqlite3")),
@@ -204,13 +236,26 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         ),
     )
     openai = OpenAIConfig(
+        provider=_deep_get(data, "openai.provider", OpenAIConfig.provider),
         api_key=_deep_get(data, "openai.api_key", OpenAIConfig.api_key),
+        api_key_env=_deep_get(data, "openai.api_key_env", OpenAIConfig.api_key_env),
+        api_key_header=_deep_get(data, "openai.api_key_header", OpenAIConfig.api_key_header),
+        api_key_prefix=_deep_get(data, "openai.api_key_prefix", OpenAIConfig.api_key_prefix),
         organization=_deep_get(data, "openai.organization", OpenAIConfig.organization),
         project=_deep_get(data, "openai.project", OpenAIConfig.project),
         base_url=_deep_get(data, "openai.base_url", OpenAIConfig.base_url),
+        chat_completions_path=_deep_get(
+            data, "openai.chat_completions_path", OpenAIConfig.chat_completions_path
+        ),
+        embedding_enabled=bool(_deep_get(data, "openai.embedding_enabled", OpenAIConfig.embedding_enabled)),
     )
     groovy = GroovyConfig(
         executable=_deep_get(data, "groovy.executable", GroovyConfig.executable),
+        java_executable=_deep_get(data, "groovy.java_executable", GroovyConfig.java_executable),
+        use_embedded_jars=bool(_deep_get(data, "groovy.use_embedded_jars", GroovyConfig.use_embedded_jars)),
+        java_options=list(
+            _deep_get(data, "groovy.java_options", ["-Xms32m", "-Xmx384m", "-XX:ReservedCodeCacheSize=96m"])
+        ),
         compile_timeout_seconds=int(
             _deep_get(data, "groovy.compile_timeout_seconds", GroovyConfig.compile_timeout_seconds)
         ),
@@ -235,7 +280,17 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
             _deep_get(data, "quality.max_self_heal_iterations", QualityConfig.max_self_heal_iterations)
         ),
     )
-    for folder in (paths.docs_dir, paths.jars_dir, paths.output_dir):
+    for folder in (
+        paths.docs_dir,
+        paths.rag_templates_dir,
+        paths.rag_user_dropzone_dir,
+        paths.rag_ootb_workflows_dir,
+        paths.rag_official_docs_dir,
+        paths.rag_organization_standards_dir,
+        paths.rag_generated_training_dir,
+        paths.jars_dir,
+        paths.output_dir,
+    ):
         folder.mkdir(parents=True, exist_ok=True)
     return Settings(
         app=app,

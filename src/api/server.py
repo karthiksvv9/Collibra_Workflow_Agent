@@ -38,6 +38,28 @@ from src.workflow.package import WorkflowPackage
 from src.workflow.simulator import WorkflowSimulator
 
 
+MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+MAX_ZIP_MEMBERS = 400
+MAX_ZIP_MEMBER_BYTES = 15 * 1024 * 1024
+ALLOWED_UPLOAD_SUFFIXES = {
+    ".zip",
+    ".bpmn",
+    ".bpmn20.xml",
+    ".xml",
+    ".form",
+    ".app",
+    ".groovy",
+    ".docx",
+    ".pdf",
+    ".xlsx",
+    ".xlsm",
+    ".csv",
+    ".txt",
+    ".md",
+    ".json",
+}
+
+
 configure_logging()
 
 app = FastAPI(title=settings.app.name)
@@ -85,7 +107,7 @@ def rag_stats() -> dict:
 
 @app.post("/api/docs/scrape")
 def scrape_official_docs() -> dict:
-    target = settings.paths.docs_dir / "collibra_official"
+    target = settings.paths.rag_official_docs_dir
     mirror = CollibraDocsMirror(
         target,
         max_pages=settings.runtime.docs_scrape_max_pages,
@@ -158,7 +180,8 @@ async def import_workflow(file: UploadFile = File(...)) -> dict:
     if suffix not in {".zip", ".bpmn"}:
         raise HTTPException(status_code=400, detail="Only .zip and .bpmn imports are supported.")
     target = settings.paths.output_dir / f"imported_{Path(file.filename or 'workflow').name}"
-    target.write_bytes(await file.read())
+    raw = await _read_upload_limited(file)
+    target.write_bytes(raw)
     package = WorkflowPackage.import_file(target)
     return {
         "process": asdict(package.process),
@@ -200,7 +223,7 @@ def download(path: str) -> FileResponse:
 
 @app.post("/api/workflow/import")
 async def import_workflow_workbench(file: UploadFile = File(...)) -> dict:
-    raw = await file.read()
+    raw = await _read_upload_limited(file)
     filename = file.filename or "workflow"
     suffix = Path(filename).suffix.lower()
     app_model = _empty_app_model(filename)
@@ -212,7 +235,7 @@ async def import_workflow_workbench(file: UploadFile = File(...)) -> dict:
     if suffix == ".zip":
         try:
             with zipfile.ZipFile(io.BytesIO(raw)) as package:
-                members = [name for name in package.namelist() if not name.endswith("/")]
+                members = _validated_zip_member_names(package)
                 for member in members:
                     data = package.read(member)
                     text = _decode_text(data)
@@ -262,11 +285,19 @@ async def import_workflow_workbench(file: UploadFile = File(...)) -> dict:
         app_model["scripts"] = _deep_merge(app_model.get("scripts") or {}, extracted["scripts"])
         app_model["elementProperties"] = _deep_merge(app_model.get("elementProperties") or {}, extracted["elementProperties"])
         forms = _deep_merge(forms, extracted["forms"])
-        app_model["forms"] = _deep_merge(app_model.get("forms") or {}, forms)
+        existing_forms = app_model.get("forms") or {}
+        if not isinstance(existing_forms, dict):
+            app_model["manifestForms"] = existing_forms
+            existing_forms = {}
+        app_model["forms"] = _deep_merge(existing_forms, forms)
         app_model["importDiagnostics"] = extracted["diagnostics"]
         warnings.extend(extracted["warnings"])
     elif forms:
-        app_model["forms"] = _deep_merge(app_model.get("forms") or {}, forms)
+        existing_forms = app_model.get("forms") or {}
+        if not isinstance(existing_forms, dict):
+            app_model["manifestForms"] = existing_forms
+            existing_forms = {}
+        app_model["forms"] = _deep_merge(existing_forms, forms)
     return {
         "bpmnXml": chosen[2] if chosen else None,
         "chosenBpmn": chosen[1] if chosen else None,
@@ -365,22 +396,194 @@ def generate_code_workbench(payload: dict) -> dict:
     }
 
 
+@app.post("/api/agent/autonomous-run")
+def autonomous_agent_run(payload: dict) -> dict:
+    mode = str(payload.get("mode") or "prompt").lower()
+    prompt = str(payload.get("prompt") or payload.get("businessUseCase") or "").strip()
+    max_iterations = max(1, min(8, int(payload.get("maxIterations") or 5)))
+    output_name = _safe_filename(payload.get("packageName") or payload.get("outputName") or "autonomous_collibra_workflow")
+    if output_name.lower().endswith(".zip"):
+        output_name = output_name[:-4]
+
+    rag_query = " ".join(
+        filter(
+            None,
+            [
+                prompt,
+                "Collibra workflow BPMN forms Groovy Java API v2 relation UUID roles organization standards OOTB workflow",
+            ],
+        )
+    )
+    rag_context = rag_engine.retrieve(rag_query, limit=14)
+    trace: list[dict] = [
+        {
+            "step": "rag_retrieval",
+            "status": "completed",
+            "sources": [_search_result_payload(result) for result in rag_context.results[:10]],
+            "relations": len(rag_context.relation_graph.relations),
+        }
+    ]
+
+    if mode == "prompt":
+        if not prompt:
+            raise HTTPException(status_code=400, detail="prompt is required for autonomous prompt mode.")
+        build_result = agent.build(prompt, f"{output_name}_draft")
+        model = build_result.package.process
+        forms = _forms_dict_from_package(build_result.package)
+        app_model = _app_model_from_package(build_result.package, rag_context.render())
+        trace.append(
+            {
+                "step": "design_from_prompt",
+                "status": "completed",
+                "nodes": len(model.nodes),
+                "flows": len(model.flows),
+                "forms": len(forms),
+                "scripts": len(app_model.get("scripts") or {}),
+            }
+        )
+    elif mode in {"canvas", "import", "imported"}:
+        bpmn_xml = payload.get("bpmnXml") or payload.get("bpmn_xml") or ""
+        if not str(bpmn_xml).strip():
+            raise HTTPException(status_code=400, detail="bpmnXml is required for autonomous canvas/import mode.")
+        try:
+            model = BpmnModel.from_xml(_sanitize_bpmn_xml(str(bpmn_xml)))
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Could not parse BPMN XML: {exc}") from exc
+        forms = dict(_workbench_form_items(payload.get("forms") or (payload.get("appModel") or {}).get("forms") or {}))
+        app_model = payload.get("appModel") or {}
+        trace.append(
+            {
+                "step": "load_canvas_or_import",
+                "status": "completed",
+                "nodes": len(model.nodes),
+                "flows": len(model.flows),
+                "forms": len(forms),
+                "scripts": len(app_model.get("scripts") or {}),
+            }
+        )
+    else:
+        raise HTTPException(status_code=400, detail="mode must be prompt, canvas, or import.")
+
+    user_test_cases = str(payload.get("userTestCases") or "")
+    business_use_case = prompt or str(payload.get("businessUseCase") or f"Validate {model.name} end to end.")
+    final_quality: dict = {}
+    final_cases: dict = {}
+    for iteration in range(1, max_iterations + 1):
+        final_quality = _run_package_quality_loop(model, app_model, forms, max_iterations=1)
+        app_model = final_quality.get("repairedAppModel") or app_model
+        generated_cases = _generate_business_test_cases(model, app_model, forms, business_use_case)
+        parsed_user_cases = _parse_user_test_cases(user_test_cases)
+        case_results = _execute_business_test_cases(
+            model,
+            app_model,
+            forms,
+            generated_cases + parsed_user_cases,
+            final_quality,
+        )
+        failed_cases = [case for case in case_results if case["status"] != "passed"]
+        final_cases = {
+            "ok": final_quality["ok"] and not failed_cases,
+            "status": "passed" if final_quality["ok"] and not failed_cases else "failed",
+            "businessUseCase": business_use_case,
+            "packageResult": final_quality,
+            "generatedCases": generated_cases,
+            "userCases": parsed_user_cases,
+            "caseResults": case_results,
+            "summary": {
+                "generatedCases": len(generated_cases),
+                "userCases": len(parsed_user_cases),
+                "passedCases": len([case for case in case_results if case["status"] == "passed"]),
+                "failedCases": len(failed_cases),
+                "packageOk": final_quality["ok"],
+            },
+        }
+        trace.append(
+            {
+                "step": "compile_test_repair",
+                "iteration": iteration,
+                "packageStatus": final_quality["status"],
+                "blockingIssues": len(final_quality.get("blockingIssues") or []),
+                "failedCases": len(failed_cases),
+            }
+        )
+        if final_cases["ok"]:
+            break
+
+    bpmn_xml = model.to_xml()
+    markdown = _workbench_documentation_markdown(
+        model,
+        app_model,
+        forms,
+        (
+            "Autonomous Agent Mode documentation. Include prompt analysis, RAG evidence, organization mappings, "
+            "BPMN design, forms, Groovy scripts, sequence-flow conditions, compilation, repairs and test cases.\n\n"
+            + business_use_case
+        ),
+    )
+    settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
+    doc_path = settings.paths.output_dir / f"{output_name}_autonomous_documentation.md"
+    report_path = settings.paths.output_dir / f"{output_name}_autonomous_report.json"
+    zip_path = settings.paths.output_dir / f"{output_name}_autonomous_package.zip"
+    doc_path.write_text(markdown, encoding="utf-8")
+    _write_workbench_zip(zip_path, bpmn_xml, app_model, forms, doc_path, report_path)
+    report = {
+        "mode": mode,
+        "ok": bool(final_cases.get("ok")),
+        "status": final_cases.get("status", "failed"),
+        "trace": trace,
+        "quality": final_quality,
+        "cases": final_cases,
+        "documentationPath": str(doc_path),
+        "zipPath": str(zip_path),
+        "ragContextPreview": rag_context.render()[:6000],
+    }
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    _write_workbench_zip(zip_path, bpmn_xml, app_model, forms, doc_path, report_path)
+    return {
+        "ok": report["ok"],
+        "status": report["status"],
+        "mode": mode,
+        "bpmnXml": bpmn_xml,
+        "appModel": app_model,
+        "forms": forms,
+        "quality": final_quality,
+        "cases": final_cases,
+        "documentation": {"path": str(doc_path), "markdown": markdown},
+        "zipPath": str(zip_path),
+        "downloadUrl": f"/api/workflows/download?path={zip_path}",
+        "reportPath": str(report_path),
+        "trace": trace,
+    }
+
+
 @app.get("/api/rag/status")
 def rag_status_workbench() -> dict:
     stats = rag_stats()
     return _workbench_rag_status(stats)
 
 
+@app.get("/api/rag/template")
+def download_rag_relation_template() -> FileResponse:
+    template = settings.paths.relation_template_file
+    if not template.exists():
+        raise HTTPException(status_code=404, detail="Relation UUID Excel template was not found.")
+    return FileResponse(
+        template,
+        filename=template.name,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
 @app.post("/api/rag/index")
 def rag_index_workbench() -> dict:
-    report = ingest()
-    return {"status": _workbench_rag_status(_pydantic_dict(report))}
+    ingest()
+    return {"status": _workbench_rag_status(rag_stats())}
 
 
 @app.post("/api/rag/reindex")
 def rag_reindex_workbench() -> dict:
-    report = ingest()
-    return {"status": _workbench_rag_status(_pydantic_dict(report))}
+    ingest()
+    return {"status": _workbench_rag_status(rag_stats())}
 
 
 @app.post("/api/rag/upload")
@@ -392,8 +595,8 @@ async def rag_upload_workbench(files: list[UploadFile] = File(...)) -> dict:
 @app.post("/api/rag/ingest")
 async def rag_ingest_workbench(files: list[UploadFile] = File(...)) -> dict:
     await _save_rag_uploads(files)
-    report = ingest()
-    return {"status": _workbench_rag_status(_pydantic_dict(report))}
+    ingest()
+    return {"status": _workbench_rag_status(rag_stats())}
 
 
 @app.post("/api/rag/query")
@@ -548,6 +751,42 @@ def test_workbench_package(payload: dict) -> dict:
     return _run_package_quality_loop(model, app_model, forms, int(payload.get("maxIterations") or 3))
 
 
+@app.post("/api/workflow/test-cases")
+def test_workbench_cases(payload: dict) -> dict:
+    bpmn_xml = payload.get("bpmnXml") or payload.get("bpmn_xml") or ""
+    if not bpmn_xml.strip():
+        raise HTTPException(status_code=400, detail="bpmnXml is required.")
+    app_model = payload.get("appModel") or {}
+    forms = payload.get("forms") or app_model.get("forms") or {}
+    business_use_case = payload.get("businessUseCase") or payload.get("prompt") or ""
+    user_test_cases = payload.get("userTestCases") or ""
+    try:
+        model = BpmnModel.from_xml(_sanitize_bpmn_xml(bpmn_xml))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not parse BPMN XML: {exc}") from exc
+    package_result = _run_package_quality_loop(model, app_model, forms, int(payload.get("maxIterations") or 3))
+    generated_cases = _generate_business_test_cases(model, app_model, forms, business_use_case)
+    user_cases = _parse_user_test_cases(user_test_cases)
+    case_results = _execute_business_test_cases(model, app_model, forms, generated_cases + user_cases, package_result)
+    blocking = [result for result in case_results if result["status"] != "passed"]
+    return {
+        "ok": package_result["ok"] and not blocking,
+        "status": "passed" if package_result["ok"] and not blocking else "failed",
+        "businessUseCase": business_use_case,
+        "packageResult": package_result,
+        "generatedCases": generated_cases,
+        "userCases": user_cases,
+        "caseResults": case_results,
+        "summary": {
+            "generatedCases": len(generated_cases),
+            "userCases": len(user_cases),
+            "passedCases": len([result for result in case_results if result["status"] == "passed"]),
+            "failedCases": len(blocking),
+            "packageOk": package_result["ok"],
+        },
+    }
+
+
 @app.post("/api/compile/groovy")
 def compile_groovy(request: CompileGroovyRequest) -> dict:
     return _compile_result_dict(groovy_compiler.compile_script(request.code or request.script))
@@ -610,6 +849,98 @@ def _model_from_payload(data: dict) -> BpmnModel:
         documentation=data.get("documentation", ""),
         executable=bool(data.get("executable", True)),
     )
+
+
+def _forms_dict_from_package(package: WorkflowPackage) -> dict[str, dict]:
+    return {form.key: asdict(form) for form in package.forms}
+
+
+def _app_model_from_package(package: WorkflowPackage, rag_context: str = "") -> dict:
+    model = package.process
+    scripts = {
+        node.id: {
+            "groovy": node.script,
+            "elementId": node.id,
+            "elementType": f"bpmn:{node.type[:1].upper()}{node.type[1:]}",
+            "elementName": node.name,
+            "scriptFormat": "groovy",
+            "source": "autonomous-agent",
+        }
+        for node in model.nodes
+        if node.script.strip()
+    }
+    element_properties: dict[str, dict] = {}
+    for node in model.nodes:
+        props = {
+            "elementId": node.id,
+            "elementType": f"bpmn:{node.type[:1].upper()}{node.type[1:]}",
+            "elementName": node.name,
+            "lane": node.lane,
+            "documentation": node.documentation,
+            **(node.properties or {}),
+        }
+        if node.form_key:
+            props["formKey"] = node.form_key
+        if node.candidate_users:
+            props["candidateUsers"] = node.candidate_users
+        if node.candidate_groups:
+            props["candidateGroups"] = node.candidate_groups
+        if node.type == "scriptTask":
+            props["scriptFormat"] = "groovy"
+        element_properties[node.id] = props
+    for flow in model.flows:
+        element_properties[flow.id] = {
+            "elementId": flow.id,
+            "elementType": "bpmn:SequenceFlow",
+            "elementName": flow.name,
+            "sourceRef": flow.source_ref,
+            "targetRef": flow.target_ref,
+            "condition": flow.condition,
+            "skipExpression": flow.skip_expression,
+            "flowType": flow.flow_type,
+            "isDefault": flow.is_default,
+            "listenerCode": flow.listener_code,
+        }
+    return {
+        "metadata": {
+            "name": model.name,
+            "format": "DSC_AUTONOMOUS_AGENT_APP_V1",
+            "processId": model.process_id,
+            "generator": "DSC Collibra Workflow Automation Agent",
+        },
+        "scripts": scripts,
+        "forms": _forms_dict_from_package(package),
+        "elementProperties": element_properties,
+        "uuidMappings": {},
+        "ragContextPreview": rag_context[:4000],
+        "validationRules": package.validate(),
+    }
+
+
+def _write_workbench_zip(
+    output_path: Path,
+    bpmn_xml: str,
+    app_model: dict,
+    forms: dict | list,
+    documentation_path: Path | None = None,
+    report_path: Path | None = None,
+) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    form_items = _workbench_form_items(forms)
+    with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as package:
+        package.writestr("workflow.bpmn", bpmn_xml)
+        package.writestr("workflow.app", json.dumps(app_model, indent=2, sort_keys=True))
+        for key, value in form_items:
+            package.writestr(f"forms/{_safe_filename(str(key))}.form", json.dumps(value, indent=2, sort_keys=True))
+        for element_id, script_info in (app_model.get("scripts") or {}).items():
+            groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
+            if groovy.strip():
+                package.writestr(f"scripts/{_safe_filename(str(element_id))}.groovy", groovy)
+        if documentation_path and documentation_path.exists():
+            package.writestr(f"docs/{documentation_path.name}", documentation_path.read_text(encoding="utf-8"))
+        if report_path and report_path.exists():
+            package.writestr("test-report.json", report_path.read_text(encoding="utf-8"))
+    return output_path
 
 
 def _node_from_payload(data: dict) -> BpmnNode:
@@ -1121,6 +1452,187 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
     }
 
 
+def _generate_business_test_cases(model: BpmnModel, app_model: dict, forms: dict | list, business_use_case: str) -> list[dict]:
+    form_map = dict(_workbench_form_items(forms))
+    scripts = app_model.get("scripts") or {}
+    element_properties = app_model.get("elementProperties") or {}
+    cases: list[dict] = [
+        {
+            "id": "ai_happy_path",
+            "source": "ai-business",
+            "name": f"Happy path - {model.name}",
+            "objective": business_use_case or "Validate the primary successful workflow path.",
+            "steps": [
+                "Start the workflow.",
+                "Complete every required start/user form field with valid values.",
+                "Take the approval or completion path through all required service/script tasks.",
+                "Verify the workflow reaches an expected end event.",
+            ],
+            "expected": [
+                "BPMN structure is valid.",
+                "All referenced forms are available.",
+                "All extracted Groovy scripts pass the autonomous compile/lint loop.",
+            ],
+            "requires": ["bpmn", "forms", "scripts"],
+        }
+    ]
+    if any(flow.flow_type in {"conditional", "default"} or flow.condition for flow in model.flows):
+        cases.append(
+            {
+                "id": "ai_gateway_paths",
+                "source": "ai-business",
+                "name": "Gateway and alternate-path coverage",
+                "objective": "Validate approval, rejection, fallback and conditional sequence-flow behavior.",
+                "steps": [
+                    "Exercise each named conditional sequence flow.",
+                    "Exercise default or otherwise paths where available.",
+                    "Confirm every path has a target and reaches a terminal or follow-up task.",
+                ],
+                "expected": ["No missing source/target references.", "Conditional expressions are preserved in BPMN metadata."],
+                "requires": ["bpmn"],
+            }
+        )
+    if form_map:
+        cases.append(
+            {
+                "id": "ai_required_forms",
+                "source": "ai-business",
+                "name": "Required form field validation",
+                "objective": "Validate that imported Collibra forms expose required fields, labels, field IDs and outcomes.",
+                "steps": [
+                    "Open each form task from the BPMN canvas.",
+                    "Render linked form fields.",
+                    "Submit with valid values and verify task completion metadata.",
+                    "Submit with missing required values and verify validation prevents completion.",
+                ],
+                "expected": ["Every form task references an imported or inline form.", "Required fields are visible in the rendered form preview."],
+                "requires": ["forms"],
+            }
+        )
+    if scripts:
+        cases.append(
+            {
+                "id": "ai_script_compile",
+                "source": "ai-business",
+                "name": "Groovy script compile and standards validation",
+                "objective": "Validate all imported and generated Groovy scripts before export.",
+                "steps": [
+                    "Extract scripts from BPMN script tasks and sidecar Groovy files.",
+                    "Run static Collibra workflow standards checks.",
+                    "Run Groovy shell compilation when Groovy is configured.",
+                    "Apply deterministic repair and rerun until no blocking issues remain.",
+                ],
+                "expected": ["Every script task has extracted Groovy.", "No blocking compile or standards issues remain."],
+                "requires": ["scripts"],
+            }
+        )
+    if element_properties:
+        cases.append(
+            {
+                "id": "ai_import_roundtrip",
+                "source": "ai-business",
+                "name": "Import/export package fidelity",
+                "objective": "Validate imported Collibra metadata survives export and re-import.",
+                "steps": [
+                    "Import the Collibra ZIP.",
+                    "Verify BPMN, forms, app metadata and scripts appear in the workbench.",
+                    "Export the package.",
+                    "Re-import exported package and compare BPMN/forms/scripts counts.",
+                ],
+                "expected": ["The package can be exported without losing scripts, forms or element properties."],
+                "requires": ["bpmn", "forms", "scripts"],
+            }
+        )
+    return cases
+
+
+def _parse_user_test_cases(text: str) -> list[dict]:
+    lines = [line.strip(" -\t") for line in str(text or "").splitlines() if line.strip(" -\t")]
+    cases: list[dict] = []
+    current: dict | None = None
+    for line in lines:
+        lowered = line.lower()
+        is_new = lowered.startswith(("test:", "case:", "scenario:", "tc")) or (line[:2].isdigit() and "." in line[:4])
+        if is_new or current is None:
+            if current:
+                cases.append(current)
+            name = line.split(":", 1)[1].strip() if ":" in line else line
+            current = {
+                "id": f"user_case_{len(cases) + 1}",
+                "source": "user",
+                "name": name or f"User test case {len(cases) + 1}",
+                "objective": name or line,
+                "steps": [],
+                "expected": [],
+                "requires": ["bpmn"],
+            }
+            continue
+        if lowered.startswith(("expect", "expected", "then", "verify")):
+            current["expected"].append(line)
+        else:
+            current["steps"].append(line)
+    if current:
+        cases.append(current)
+    return cases
+
+
+def _execute_business_test_cases(
+    model: BpmnModel,
+    app_model: dict,
+    forms: dict | list,
+    cases: list[dict],
+    package_result: dict,
+) -> list[dict]:
+    form_map = dict(_workbench_form_items(forms))
+    scripts = app_model.get("scripts") or {}
+    element_properties = app_model.get("elementProperties") or {}
+    form_refs = {
+        element_id: props.get("formKey")
+        for element_id, props in element_properties.items()
+        if isinstance(props, dict) and props.get("formKey")
+    }
+    results: list[dict] = []
+    for case in cases:
+        failures: list[str] = []
+        warnings: list[str] = []
+        requires = set(case.get("requires") or [])
+        if "bpmn" in requires and model.validate():
+            failures.extend(model.validate())
+        if "forms" in requires:
+            missing_forms = [f"{element_id}->{form_key}" for element_id, form_key in form_refs.items() if form_key not in form_map]
+            if missing_forms:
+                failures.append("Missing linked forms: " + ", ".join(missing_forms[:8]))
+            required_fields = [
+                f"{key}.{field.get('id')}"
+                for key, form in form_map.items()
+                for field in (form.get("fields") or [])
+                if field.get("required")
+            ]
+            if not required_fields:
+                warnings.append("No required fields were found in imported forms.")
+        if "scripts" in requires:
+            script_task_ids = [node.id for node in model.nodes if node.type == "scriptTask"]
+            missing_scripts = [node_id for node_id in script_task_ids if node_id not in scripts]
+            if missing_scripts:
+                failures.append("Missing Groovy for script tasks: " + ", ".join(missing_scripts[:8]))
+            if not package_result.get("ok"):
+                failures.extend(package_result.get("blockingIssues") or ["Package quality loop failed."])
+        if case.get("source") == "user" and not (case.get("steps") or case.get("expected")):
+            warnings.append("User test has no explicit steps or expectations; treated as a named scenario.")
+        results.append(
+            {
+                "id": case.get("id"),
+                "name": case.get("name"),
+                "source": case.get("source"),
+                "status": "failed" if failures else "passed",
+                "failures": failures,
+                "warnings": warnings,
+                "executedChecks": sorted(requires),
+            }
+        )
+    return results
+
+
 def _validate_workbench_forms(forms: dict[str, dict], element_properties: dict) -> list[dict]:
     issues: list[dict] = []
     for key, form in forms.items():
@@ -1385,10 +1897,44 @@ async def _save_rag_uploads(files: list[UploadFile]) -> list[Path]:
     upload_dir.mkdir(parents=True, exist_ok=True)
     saved: list[Path] = []
     for file in files:
-        target = upload_dir / _safe_filename(file.filename or "upload")
-        target.write_bytes(await file.read())
+        filename = _safe_filename(file.filename or "upload")
+        if not _allowed_upload_name(filename):
+            raise HTTPException(status_code=400, detail=f"Unsupported upload type: {filename}")
+        target = upload_dir / filename
+        target.write_bytes(await _read_upload_limited(file))
         saved.append(target)
     return saved
+
+
+async def _read_upload_limited(file: UploadFile) -> bytes:
+    data = await file.read()
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Upload exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.",
+        )
+    return data
+
+
+def _allowed_upload_name(filename: str) -> bool:
+    lower = filename.lower()
+    return any(lower.endswith(suffix) for suffix in ALLOWED_UPLOAD_SUFFIXES)
+
+
+def _validated_zip_member_names(package: zipfile.ZipFile) -> list[str]:
+    names: list[str] = []
+    for info in package.infolist():
+        name = info.filename.replace("\\", "/")
+        if not name or name.endswith("/"):
+            continue
+        if name.startswith("/") or ".." in Path(name).parts:
+            raise HTTPException(status_code=400, detail=f"Unsafe ZIP member path: {info.filename}")
+        if info.file_size > MAX_ZIP_MEMBER_BYTES:
+            raise HTTPException(status_code=413, detail=f"ZIP member is too large: {info.filename}")
+        names.append(info.filename)
+        if len(names) > MAX_ZIP_MEMBERS:
+            raise HTTPException(status_code=413, detail="ZIP contains too many files.")
+    return names
 
 
 def _workbench_rag_status(stats: dict) -> dict:

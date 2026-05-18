@@ -248,6 +248,18 @@ class RelationMapper:
                                 "name": node.attrib.get("name", ""),
                             }
                             temp_graph.sequence_flows.append(flow)
+                            if flow["sourceRef"] and flow["targetRef"]:
+                                temp_graph.relations.append(
+                                    SemanticRelation(
+                                        source=flow["sourceRef"],
+                                        target=flow["targetRef"],
+                                        relation_type="sequenceFlow",
+                                        evidence=flow["id"] or f"{path}:{name}",
+                                        source_file=f"{path}:{name}",
+                                        confidence=1.0,
+                                        metadata=flow,
+                                    )
+                                )
                 graph.merge(temp_graph)
         return graph
 
@@ -297,4 +309,3 @@ def _documentation(node: ET.Element) -> str:
         if strip_ns(child.tag) == "documentation":
             return " ".join(child.itertext()).strip()
     return ""
-

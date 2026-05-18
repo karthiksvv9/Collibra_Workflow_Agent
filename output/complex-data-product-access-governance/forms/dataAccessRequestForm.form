@@ -1,0 +1,128 @@
+{
+  "description": "Requester intake form for governed data product access.",
+  "fields": [
+    {
+      "enabled": true,
+      "id": "requesterId",
+      "label": "Requester UUID",
+      "name": "Requester UUID",
+      "readable": true,
+      "required": true,
+      "type": "string",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "requesterEmail",
+      "label": "Requester email",
+      "name": "Requester email",
+      "readable": true,
+      "required": true,
+      "type": "string",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "assetId",
+      "label": "Data product asset UUID",
+      "name": "Data product asset UUID",
+      "readable": true,
+      "required": true,
+      "type": "string",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "consumerAssetId",
+      "label": "Consuming application asset UUID",
+      "name": "Consuming application asset UUID",
+      "readable": true,
+      "required": false,
+      "type": "string",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "businessPurpose",
+      "label": "Business purpose",
+      "name": "Business purpose",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "riskRating",
+      "label": "Risk rating",
+      "name": "Risk rating",
+      "readable": true,
+      "required": true,
+      "type": "dropdown",
+      "values": [
+        {
+          "label": "Standard",
+          "value": "standard"
+        },
+        {
+          "label": "High",
+          "value": "high"
+        },
+        {
+          "label": "Restricted",
+          "value": "restricted"
+        }
+      ],
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "requestedAccessEndDate",
+      "label": "Access end date",
+      "name": "Access end date",
+      "readable": true,
+      "required": true,
+      "type": "date",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "acceptUsagePolicy",
+      "label": "Accept usage policy",
+      "name": "Accept usage policy",
+      "readable": true,
+      "required": true,
+      "type": "checkbox",
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "dataAccessRequestForm",
+  "metadata": {
+    "description": "Requester intake form for governed data product access.",
+    "key": "dataAccessRequestForm",
+    "modelType": "form",
+    "name": "Data Product Access Request",
+    "version": "1.0.0"
+  },
+  "name": "Data Product Access Request",
+  "outcomes": [
+    {
+      "label": "Submit",
+      "primary": true,
+      "value": "submit"
+    },
+    {
+      "label": "Save draft",
+      "primary": false,
+      "value": "save_draft"
+    }
+  ]
+}

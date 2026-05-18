@@ -1,0 +1,51 @@
+{
+  "promptGenerated": {
+    "nodes": 23,
+    "flows": 31,
+    "forms": 6,
+    "scripts": 6,
+    "callActivities": [
+      "call_provisioning_workflow"
+    ],
+    "quality": {
+      "processId": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflow",
+      "nodes": 23,
+      "flows": 31,
+      "forms": 6,
+      "scripts": 6,
+      "iterations": 1,
+      "blockingIssues": 0
+    },
+    "caseSummary": {
+      "generatedCases": 5,
+      "userCases": 5,
+      "passedCases": 10,
+      "failedCases": 0,
+      "packageOk": true
+    }
+  },
+  "previousSample": {
+    "nodes": 23,
+    "flows": 31,
+    "forms": 6,
+    "scripts": 7,
+    "callActivities": [],
+    "quality": {
+      "processId": "complexDataProductAccessGovernance",
+      "nodes": 23,
+      "flows": 31,
+      "forms": 6,
+      "scripts": 7,
+      "iterations": 1,
+      "blockingIssues": 0
+    },
+    "caseSummary": {
+      "generatedCases": 5,
+      "userCases": 5,
+      "passedCases": 10,
+      "failedCases": 0,
+      "packageOk": true
+    }
+  },
+  "result": "prompt-generated workflow includes the requested downstream call activity; both packages passed quality and business/user test loops."
+}

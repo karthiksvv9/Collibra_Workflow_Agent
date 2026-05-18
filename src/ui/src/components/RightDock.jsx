@@ -82,7 +82,16 @@ export default function RightDock({
             addConsole={addConsole}
           />
         )}
-        {activeTab === 'console' && <RunConsole entries={consoleEntries} onClear={clearConsole} />}
+        {activeTab === 'console' && (
+          <RunConsole
+            entries={consoleEntries}
+            onClear={clearConsole}
+            getBpmnXml={getBpmnXml}
+            appModel={appModel}
+            forms={forms || appModel?.forms || {}}
+            addConsole={addConsole}
+          />
+        )}
       </div>
     </aside>
   );

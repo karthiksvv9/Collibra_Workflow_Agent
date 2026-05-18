@@ -1,0 +1,32 @@
+# Collibra Workflow Documentation Source Summary
+
+- Workflows_at_Collibra.md
+- Creating_workflows.md
+- Designing_workflows.md
+- Forms.md
+- Script_task.md
+- All_Packages_dgc-api_22.1.10_API.md
+- AddRelationRequest_dgc-api_22.1.10_API.md
+- AddAssetRequest_dgc-api_22.1.10_API.md
+- Workflows_at_Collibra_1.md
+- About_the_Workflow_Designer.md
+- Enable_the_Workflow_Designer.md
+- Workflow_permissions.md
+- Workflow_basic_configuration_elements.md
+- Model_keys.md
+- Workflow_description.md
+- Process_variables.md
+- Workflow_dialog_boxes.md
+- Create_a_pool_and_lanes.md
+- Create_start_and_end_events.md
+- Add_workflow_elements.md
+- Workspaces.md
+- Models.md
+- Apps.md
+- Create_a_new_app.md
+- Import_apps.md
+- Move_apps.md
+- App_revisions.md
+- Add_models_to_an_app.md
+- App_editor.md
+- Processes.md

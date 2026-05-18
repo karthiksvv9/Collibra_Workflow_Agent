@@ -9,3 +9,10 @@ output/*.err.log
 output/vector_store.sqlite3
 output/_run_smoke_build.py
 npm-debug.log*
+.env
+.env.*
+config.local.yaml
+secrets*.yaml
+hs_err_pid*.log
+replay_pid*.log
+*.hprof

@@ -1,0 +1,104 @@
+{
+  "description": "",
+  "fields": [
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "reworkSummary",
+      "label": "Rework summary",
+      "name": "Rework summary",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "businessPurpose",
+      "label": "Updated business purpose",
+      "name": "Updated business purpose",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "consumerAssetId",
+      "label": "Updated consumer asset UUID",
+      "name": "Updated consumer asset UUID",
+      "readable": true,
+      "required": false,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowRequesterReworkForm",
+  "metadata": {},
+  "modelType": "form",
+  "name": "Requester Rework",
+  "outcomes": [],
+  "palette": "",
+  "raw": {
+    "fields": [
+      {
+        "default": null,
+        "id": "reworkSummary",
+        "name": "Rework summary",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "businessPurpose",
+        "name": "Updated business purpose",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "consumerAssetId",
+        "name": "Updated consumer asset UUID",
+        "readable": true,
+        "required": false,
+        "type": "string",
+        "values": [],
+        "writable": true
+      }
+    ],
+    "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowRequesterReworkForm",
+    "name": "Requester Rework"
+  },
+  "rows": [],
+  "source": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowRequesterReworkForm.form",
+  "version": ""
+}

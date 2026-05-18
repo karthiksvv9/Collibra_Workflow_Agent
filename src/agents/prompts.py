@@ -5,6 +5,7 @@ and organization-specific metadata maps as grounding.
 Design rules:
 - Prefer one process pool and one lane per stakeholder or system role.
 - Use user tasks for human decisions and script/API/service tasks for automated Collibra actions.
+- Use call activities when the prompt asks to invoke another workflow or subprocess; include calledElement metadata.
 - Script tasks are independent Groovy scripts; every script must include explicit imports.
 - Use Java API v2 builder DTOs for Collibra resources when available.
 - Keep generated BPMN executable, with one clear start event, at least one end event, named sequence flows,
@@ -23,7 +24,6 @@ User master prompt:
 Retrieved Collibra and organization context:
 {retrieved_context}
 
-Return a compact JSON design with lanes, nodes, sequence flows, forms, Groovy scripts, assumptions,
-and test scenarios. Do not invent UUIDs; use retrieved UUIDs or configuration placeholders.
+Return a compact JSON design with lanes, nodes, sequence flows, forms, Groovy scripts, call activities,
+assumptions, and test scenarios. Do not invent UUIDs; use retrieved UUIDs or configuration placeholders.
 """
-

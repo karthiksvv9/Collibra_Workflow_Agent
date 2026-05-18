@@ -1,0 +1,50 @@
+﻿[
+    {
+        "groupId":  "org.apache.groovy",
+        "artifactId":  "groovy",
+        "version":  "4.0.32",
+        "file":  "groovy-4.0.32.jar",
+        "url":  "https://repo1.maven.org/maven2/org/apache/groovy/groovy/4.0.32/groovy-4.0.32.jar",
+        "sha256":  "d77815c8f31d503bc50129f28892e60b64e339b490f7babf9df70848ce465698"
+    },
+    {
+        "groupId":  "org.apache.groovy",
+        "artifactId":  "groovy-jsr223",
+        "version":  "4.0.32",
+        "file":  "groovy-jsr223-4.0.32.jar",
+        "url":  "https://repo1.maven.org/maven2/org/apache/groovy/groovy-jsr223/4.0.32/groovy-jsr223-4.0.32.jar",
+        "sha256":  "73b24efc770f471d11fb33afde0105765467b21f62db89336259b593c79de745"
+    },
+    {
+        "groupId":  "org.apache.groovy",
+        "artifactId":  "groovy-json",
+        "version":  "4.0.32",
+        "file":  "groovy-json-4.0.32.jar",
+        "url":  "https://repo1.maven.org/maven2/org/apache/groovy/groovy-json/4.0.32/groovy-json-4.0.32.jar",
+        "sha256":  "4e57a3b28e40e646746063e8deb8863a7672f07d3e3fcbb7b408e0962905000c"
+    },
+    {
+        "groupId":  "org.apache.groovy",
+        "artifactId":  "groovy-xml",
+        "version":  "4.0.32",
+        "file":  "groovy-xml-4.0.32.jar",
+        "url":  "https://repo1.maven.org/maven2/org/apache/groovy/groovy-xml/4.0.32/groovy-xml-4.0.32.jar",
+        "sha256":  "ac4b2dbdad90c07db7565770a0749982df04af39c33e11b7f2330aa8a9cb56e2"
+    },
+    {
+        "groupId":  "org.apache.groovy",
+        "artifactId":  "groovy-dateutil",
+        "version":  "4.0.32",
+        "file":  "groovy-dateutil-4.0.32.jar",
+        "url":  "https://repo1.maven.org/maven2/org/apache/groovy/groovy-dateutil/4.0.32/groovy-dateutil-4.0.32.jar",
+        "sha256":  "6c6b068813b3a412464e67998e61adb9f3128531c06704e938618612d9f17391"
+    },
+    {
+        "groupId":  "org.apache.groovy",
+        "artifactId":  "groovy-nio",
+        "version":  "4.0.32",
+        "file":  "groovy-nio-4.0.32.jar",
+        "url":  "https://repo1.maven.org/maven2/org/apache/groovy/groovy-nio/4.0.32/groovy-nio-4.0.32.jar",
+        "sha256":  "5f74f8f8bb390744887334d3c0803007d7bac224003e03ba1658f2c1c794e4d9"
+    }
+]

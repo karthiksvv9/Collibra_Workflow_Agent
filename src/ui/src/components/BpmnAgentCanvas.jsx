@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
-import { Bot, Code2, Database, Download, EyeOff, FileText, Maximize, Play, RefreshCw, Search, ShieldCheck, Terminal } from 'lucide-react';
+import { Bot, Code2, Database, Download, EyeOff, FileText, Maximize, Play, RefreshCw, Rocket, Search, ShieldCheck, Terminal } from 'lucide-react';
 import { compileGroovy, exportWorkflow, simulateWorkflow, testWorkflowPackage } from '../api.js';
 import BlockLibrary from './BlockLibrary.jsx';
 import PackageImporter from './PackageImporter.jsx';
 import RightDock from './RightDock.jsx';
+import AutonomousAgentModal from './AutonomousAgentModal.jsx';
 
 const STARTER_BPMN = `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_1" targetNamespace="http://collibra.com/workflow-agent">
@@ -69,6 +70,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   const [importSummary, setImportSummary] = useState('Ready');
   const [rightTab, setRightTab] = useState('properties');
   const [hideHandles, setHideHandles] = useState(true);
+  const [autonomousOpen, setAutonomousOpen] = useState(false);
 
   useEffect(() => {
     const modeler = new BpmnModeler({
@@ -233,6 +235,24 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
     }
   }
 
+  async function onAutonomousResult(result) {
+    if (result.bpmnXml) {
+      await importBpmnXml(result.bpmnXml, 'autonomous agent output');
+    }
+    if (result.appModel) {
+      setAppModel(prev => deepMerge(prev, {
+        ...result.appModel,
+        scripts: { ...(prev.scripts || {}), ...(result.appModel.scripts || {}) },
+        forms: { ...(prev.forms || {}), ...(result.forms || {}), ...(result.appModel.forms || {}) },
+        elementProperties: { ...(prev.elementProperties || {}), ...(result.appModel.elementProperties || {}) }
+      }));
+    }
+    if (result.forms) setForms(prev => ({ ...prev, ...result.forms }));
+    if (result.zipPath) setPackageName(result.zipPath.split(/[\\/]/).pop() || packageName);
+    setImportSummary(`Autonomous Agent Mode ${result.status}. ZIP: ${result.zipPath || 'not exported'}`);
+    setRightTab('console');
+  }
+
   async function reloadStarter() {
     await importBpmnXml(STARTER_BPMN, 'starter workflow');
   }
@@ -252,6 +272,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
           <input value={packageName} onChange={e => setPackageName(e.target.value)} aria-label="Export package name" />
           <button onClick={() => setRightTab('rag')} className="accent-button"><Database size={16}/> RAG / Train</button>
           <button onClick={() => setRightTab('agent')}><Bot size={16}/> Generate BPMN</button>
+          <button onClick={() => setAutonomousOpen(true)} className="accent-button"><Rocket size={16}/> Autonomous Agent Mode</button>
           <button onClick={compileSelected}><Code2 size={16}/> Compile selected</button>
           <button onClick={simulate}><Play size={16}/> Run simulation</button>
           <button onClick={testPackage}><ShieldCheck size={16}/> Test all</button>
@@ -297,6 +318,15 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
         consoleEntries={consoleEntries}
         clearConsole={clearConsole}
         forms={forms}
+      />
+      <AutonomousAgentModal
+        open={autonomousOpen}
+        onClose={() => setAutonomousOpen(false)}
+        getBpmnXml={getBpmnXml}
+        appModel={appModel}
+        forms={forms}
+        onResult={onAutonomousResult}
+        addConsole={addConsole}
       />
       <footer className="app-footer">karthik.v</footer>
     </div>

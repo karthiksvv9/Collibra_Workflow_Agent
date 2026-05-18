@@ -69,11 +69,16 @@ def default_embedding_provider(
     model: str,
     timeout_seconds: int,
     api_key: str = "",
+    api_key_env: str = "OPENAI_API_KEY",
     organization: str = "",
     project: str = "",
     base_url: str = "",
+    provider: str = "openai",
+    enabled: bool = True,
 ) -> EmbeddingProvider:
-    resolved_key = api_key or os.getenv("OPENAI_API_KEY", "")
+    if provider.lower() == "hashing" or not enabled:
+        return HashingEmbeddingProvider()
+    resolved_key = api_key or os.getenv(api_key_env or "OPENAI_API_KEY", "")
     if resolved_key:
         return OpenAIEmbeddingProvider(
             model=model,

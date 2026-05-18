@@ -1,0 +1,57 @@
+{
+  "description": "Business owner approval with reject and rework reroutes.",
+  "fields": [
+    {
+      "enabled": true,
+      "id": "businessOwnerDecision",
+      "label": "Business owner decision",
+      "name": "Business owner decision",
+      "readable": true,
+      "required": true,
+      "type": "dropdown",
+      "values": [
+        {
+          "label": "Approve",
+          "value": "approve"
+        },
+        {
+          "label": "Rework",
+          "value": "rework"
+        },
+        {
+          "label": "Reject",
+          "value": "reject"
+        }
+      ],
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "approvalNotes",
+      "label": "Approval notes",
+      "name": "Approval notes",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "businessApprovalForm",
+  "metadata": {
+    "description": "Business owner approval with reject and rework reroutes.",
+    "key": "businessApprovalForm",
+    "modelType": "form",
+    "name": "Business Owner Approval",
+    "version": "1.0.0"
+  },
+  "name": "Business Owner Approval",
+  "outcomes": [
+    {
+      "label": "Submit decision",
+      "primary": true,
+      "value": "submit_decision"
+    }
+  ]
+}

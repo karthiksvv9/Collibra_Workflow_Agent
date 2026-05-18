@@ -1,0 +1,89 @@
+{
+  "description": "",
+  "fields": [
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "businessDecision",
+      "label": "Business decision",
+      "name": "Business decision",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "enum",
+      "value": null,
+      "visible": true,
+      "writable": true
+    },
+    {
+      "column": 0,
+      "enabled": true,
+      "extraSettings": {},
+      "id": "businessNotes",
+      "label": "Business approval notes",
+      "name": "Business approval notes",
+      "readable": true,
+      "required": true,
+      "row": 0,
+      "size": null,
+      "stencilId": null,
+      "stencilSuperIds": [],
+      "type": "string",
+      "value": null,
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowBusinessApprovalForm",
+  "metadata": {},
+  "modelType": "form",
+  "name": "Business Owner Approval",
+  "outcomes": [],
+  "palette": "",
+  "raw": {
+    "fields": [
+      {
+        "default": null,
+        "id": "businessDecision",
+        "name": "Business decision",
+        "readable": true,
+        "required": true,
+        "type": "enum",
+        "values": [
+          {
+            "id": "approve",
+            "name": "Approve"
+          },
+          {
+            "id": "rework",
+            "name": "Request rework"
+          },
+          {
+            "id": "reject",
+            "name": "Reject"
+          }
+        ],
+        "writable": true
+      },
+      {
+        "default": null,
+        "id": "businessNotes",
+        "name": "Business approval notes",
+        "readable": true,
+        "required": true,
+        "type": "string",
+        "values": [],
+        "writable": true
+      }
+    ],
+    "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowBusinessApprovalForm",
+    "name": "Business Owner Approval"
+  },
+  "rows": [],
+  "source": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowBusinessApprovalForm.form",
+  "version": ""
+}

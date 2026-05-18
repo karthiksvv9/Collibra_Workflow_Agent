@@ -1,0 +1,82 @@
+{
+  "description": "Data steward routing and completeness decision.",
+  "fields": [
+    {
+      "enabled": true,
+      "id": "triageDecision",
+      "label": "Triage decision",
+      "name": "Triage decision",
+      "readable": true,
+      "required": true,
+      "type": "dropdown",
+      "values": [
+        {
+          "label": "Approve",
+          "value": "approve"
+        },
+        {
+          "label": "Rework",
+          "value": "rework"
+        },
+        {
+          "label": "Reject",
+          "value": "reject"
+        }
+      ],
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "triageNotes",
+      "label": "Triage notes",
+      "name": "Triage notes",
+      "readable": true,
+      "required": true,
+      "type": "multiLineText",
+      "visible": true,
+      "writable": true
+    },
+    {
+      "enabled": true,
+      "id": "riskRating",
+      "label": "Confirmed risk rating",
+      "name": "Confirmed risk rating",
+      "readable": true,
+      "required": true,
+      "type": "dropdown",
+      "values": [
+        {
+          "label": "Standard",
+          "value": "standard"
+        },
+        {
+          "label": "High",
+          "value": "high"
+        },
+        {
+          "label": "Restricted",
+          "value": "restricted"
+        }
+      ],
+      "visible": true,
+      "writable": true
+    }
+  ],
+  "key": "stewardTriageForm",
+  "metadata": {
+    "description": "Data steward routing and completeness decision.",
+    "key": "stewardTriageForm",
+    "modelType": "form",
+    "name": "Steward Triage",
+    "version": "1.0.0"
+  },
+  "name": "Steward Triage",
+  "outcomes": [
+    {
+      "label": "Route",
+      "primary": true,
+      "value": "route"
+    }
+  ]
+}

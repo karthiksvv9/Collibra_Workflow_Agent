@@ -1,0 +1,1141 @@
+{
+  "zip_path": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\prompt_driven_ai_complex_workflow.zip",
+  "bpmn_xml": "<?xml version=\"1.0\" ?>\n<definitions xmlns=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:flowable=\"http://flowable.org/bpmn\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions\" targetNamespace=\"https://dsc.local/collibra/workflows\">\n  <collaboration id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\">\n    <participant id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool\" name=\"Create A Production Collibra Governed Access And Policy\" processRef=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\"/>\n  </collaboration>\n  <process id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\" name=\"Create A Production Collibra Governed Access And Policy\" isExecutable=\"true\">\n    <documentation>Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow.\n\nMaster prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone.\nThe workflow must contain multiple forms, multiple approval and rejection flows, requester rework reroutes, steward triage, business owner approval, risk/compliance review for restricted assets, policy exception metadata creation, relation and responsibility creation through Collibra Java API v2 Groovy scripts, a BPMN call activity that invokes a downstream provisioning workflow, technical remediation when the called workflow fails, final status update, completion notification, rejection notification, and full documentation. Use RAG context for Collibra best practices, Java API imports, organization UUID placeholders, existing package patterns, and sequence-flow conditions. It must be upload-ready for Collibra after tenant-specific UUIDs and JARs are configured.\n\nRetrieved RAG context excerpt:\nQuestion: Create a production Collibra governed access and policy exception workflow from this prompt alone.\nThe workflow must contain multiple forms, multiple approval and rejection flows, requester rework reroutes, steward triage, business owner approval, risk/compliance review for restricted assets, policy exception metadata creation, relation and responsibility creation through Collibra Java API v2 Groovy scripts, a BPMN call activity that invokes a downstream provisioning workflow, technical remediation when the called workflow fails, final status update, completion notification, rejection notification, and full documentation. Use RAG context for Collibra best practices, Java API imports, organization UUID placeholders, existing package patterns, and sequence-flow conditions. It must be upload-ready for Collibra after tenant-specific UUIDs and JARs are configured.\n\nRetrieved context:\n\n- score=0.432 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Upgrading_your_scripts_for_Collibra_2024.02_compatibility.md kind=md\nkflow, the running workflow continues to use the old version until it completes. If there is a Javax EE \njavax.*\n function that still needs to be executed and that is not compatible with Jakarta EE, the workflow fails.\n\nAfter you have identified and deployed the workflows that require an update, check if any of the workflows that are currently running need to be restarted:\n\nView the running wo</documentation>\n    <laneSet id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_lanes\">\n      <lane id=\"lane_Requester\" name=\"Requester\">\n        <flowNodeRef>start_request</flowNodeRef>\n        <flowNodeRef>submit_request</flowNodeRef>\n        <flowNodeRef>requester_rework</flowNodeRef>\n        <flowNodeRef>end_approved</flowNodeRef>\n        <flowNodeRef>end_rejected</flowNodeRef>\n      </lane>\n      <lane id=\"lane_Data_Steward\" name=\"Data Steward\">\n        <flowNodeRef>steward_triage</flowNodeRef>\n        <flowNodeRef>gateway_steward_decision</flowNodeRef>\n      </lane>\n      <lane id=\"lane_Business_Owner\" name=\"Business Owner\">\n        <flowNodeRef>business_approval</flowNodeRef>\n        <flowNodeRef>gateway_business_decision</flowNodeRef>\n      </lane>\n      <lane id=\"lane_Risk_and_Compliance\" name=\"Risk and Compliance\">\n        <flowNodeRef>risk_compliance_review</flowNodeRef>\n        <flowNodeRef>gateway_compliance_decision</flowNodeRef>\n      </lane>\n      <lane id=\"lane_Collibra_Automation\" name=\"Collibra Automation\">\n        <flowNodeRef>validate_context</flowNodeRef>\n        <flowNodeRef>gateway_request_complete</flowNodeRef>\n        <flowNodeRef>gateway_risk_route</flowNodeRef>\n        <flowNodeRef>gateway_policy_exception</flowNodeRef>\n        <flowNodeRef>create_policy_exception</flowNodeRef>\n        <flowNodeRef>create_relations</flowNodeRef>\n        <flowNodeRef>update_access_status</flowNodeRef>\n        <flowNodeRef>notify_success</flowNodeRef>\n        <flowNodeRef>notify_rejection</flowNodeRef>\n      </lane>\n      <lane id=\"lane_Provisioning_Workflow\" name=\"Provisioning Workflow\">\n        <flowNodeRef>call_provisioning_workflow</flowNodeRef>\n        <flowNodeRef>gateway_provisioning_result</flowNodeRef>\n        <flowNodeRef>technical_remediation</flowNodeRef>\n      </lane>\n    </laneSet>\n    <startEvent id=\"start_request\" name=\"Start governed access request\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowAccessRequestForm\">\n      <documentation>Start event with request form for governed asset access.</documentation>\n    </startEvent>\n    <userTask id=\"submit_request\" name=\"Submit governed access request\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowAccessRequestForm\" flowable:candidateGroups=\"${requesterGroup}\">\n      <documentation>Requester supplies asset, purpose, access window, relation and provisioning intent.</documentation>\n    </userTask>\n    <scriptTask id=\"validate_context\" name=\"Validate request and RAG mappings\" scriptFormat=\"groovy\">\n      <documentation>Normalize UUIDs and validate required organization mapping variables from RAG/config.</documentation>\n      <script>import java.util.UUID\n\nString requestId = (execution.getVariable(\"requestId\") ?: UUID.randomUUID().toString()) as String\nString requesterId = (execution.getVariable(\"requesterId\") ?: \"\") as String\nString assetId = (execution.getVariable(\"assetId\") ?: \"\") as String\nString purpose = (execution.getVariable(\"businessPurpose\") ?: \"\") as String\nString workflowKey = (execution.getVariable(\"provisioningWorkflowKey\") ?: \"\") as String\nBoolean complete = requesterId.trim() &amp;&amp; assetId.trim() &amp;&amp; purpose.trim().length() &gt; 15 &amp;&amp; workflowKey.trim()\nexecution.setVariable(\"requestId\", requestId)\nexecution.setVariable(\"requesterIdNormalized\", requesterId.trim())\nexecution.setVariable(\"assetIdNormalized\", assetId.trim())\nexecution.setVariable(\"businessPurposeNormalized\", purpose.trim())\nexecution.setVariable(\"validationPassed\", complete)\nexecution.setVariable(\"validationMessage\", complete ? \"Request is complete.\" : \"Requester, asset, purpose and provisioning workflow key are required.\")\n</script>\n    </scriptTask>\n    <exclusiveGateway id=\"gateway_request_complete\" name=\"Request complete?\" default=\"flow_incomplete_to_rework\"/>\n    <userTask id=\"requester_rework\" name=\"Requester rework\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowRequesterReworkForm\" flowable:candidateGroups=\"${requesterGroup}\">\n      <documentation>Requester corrects missing purpose, UUIDs, relation details or access constraints.</documentation>\n    </userTask>\n    <userTask id=\"steward_triage\" name=\"Data steward triage\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowStewardTriageForm\" flowable:candidateGroups=\"${dataStewardRole}\">\n      <documentation>Steward confirms ownership, domain, asset status, relation intent and routing decision.</documentation>\n    </userTask>\n    <exclusiveGateway id=\"gateway_steward_decision\" name=\"Steward decision\" default=\"flow_steward_rework\"/>\n    <exclusiveGateway id=\"gateway_risk_route\" name=\"Risk route\" default=\"flow_risk_standard\"/>\n    <userTask id=\"business_approval\" name=\"Business owner approval\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowBusinessApprovalForm\" flowable:candidateGroups=\"${businessOwnerRole}\">\n      <documentation>Business owner approves, rejects or requests rework.</documentation>\n    </userTask>\n    <exclusiveGateway id=\"gateway_business_decision\" name=\"Business decision\" default=\"flow_business_rework\"/>\n    <userTask id=\"risk_compliance_review\" name=\"Risk and compliance review\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowComplianceReviewForm\" flowable:candidateGroups=\"${riskComplianceRole}\">\n      <documentation>Compliance owner reviews high-risk access and approves policy exception where required.</documentation>\n    </userTask>\n    <exclusiveGateway id=\"gateway_compliance_decision\" name=\"Compliance decision\" default=\"flow_compliance_rework\"/>\n    <exclusiveGateway id=\"gateway_policy_exception\" name=\"Policy exception?\" default=\"flow_no_exception\"/>\n    <scriptTask id=\"create_policy_exception\" name=\"Create policy exception metadata\" scriptFormat=\"groovy\">\n      <documentation>Create Collibra policy exception attribute and audit variables using Java API v2 builders.</documentation>\n      <script>import java.util.UUID\nimport com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nString requestId = execution.getVariable(\"requestId\") as String\nString controls = (execution.getVariable(\"securityControls\") ?: \"Controls must be confirmed before provisioning.\") as String\nUUID attributeTypeId = UUID.fromString(execution.getVariable(\"policyExceptionAttributeTypeId\") as String)\nAddAttributeRequest request = AddAttributeRequest.builder()\n    .assetId(UUID.fromString(assetId))\n    .typeId(attributeTypeId)\n    .value(\"Policy exception for request \" + requestId + \": \" + controls)\n    .build()\nattributeApi.addAttribute(request)\nexecution.setVariable(\"policyExceptionCreated\", true)\n</script>\n    </scriptTask>\n    <scriptTask id=\"create_relations\" name=\"Create relation and responsibility\" scriptFormat=\"groovy\">\n      <documentation>Create relation/responsibility using organization UUID mappings retrieved from RAG.</documentation>\n      <script>import java.util.UUID\nimport com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest\nimport com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nString consumerAssetId = (execution.getVariable(\"consumerAssetId\") ?: \"\") as String\nString requesterId = execution.getVariable(\"requesterIdNormalized\") as String\nUUID relationTypeId = UUID.fromString(execution.getVariable(\"consumerRelationTypeId\") as String)\nUUID consumerRoleId = UUID.fromString(execution.getVariable(\"consumerRoleId\") as String)\nif (consumerAssetId.trim()) {\n    relationApi.addRelation(AddRelationRequest.builder()\n        .sourceId(UUID.fromString(assetId))\n        .targetId(UUID.fromString(consumerAssetId.trim()))\n        .typeId(relationTypeId)\n        .build())\n}\nresponsibilityApi.addResponsibility(AddResponsibilityRequest.builder()\n    .resourceId(UUID.fromString(assetId))\n    .roleId(consumerRoleId)\n    .ownerId(UUID.fromString(requesterId))\n    .build())\nexecution.setVariable(\"relationAndResponsibilityCreated\", true)\n</script>\n    </scriptTask>\n    <callActivity id=\"call_provisioning_workflow\" name=\"Call downstream provisioning workflow\" calledElement=\"${provisioningWorkflowKey}\" flowable:calledElementType=\"key\" flowable:inheritVariables=\"true\" flowable:businessKey=\"${requestId}\">\n      <documentation>Calls a separate Collibra/Flowable workflow to provision access after governance approval.</documentation>\n    </callActivity>\n    <exclusiveGateway id=\"gateway_provisioning_result\" name=\"Provisioning result\" default=\"flow_provision_failure\"/>\n    <userTask id=\"technical_remediation\" name=\"Technical remediation\" flowable:formKey=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflowTechnicalRemediationForm\" flowable:candidateGroups=\"${technicalStewardRole}\">\n      <documentation>Technical owner fixes failed provisioning and retries the called workflow.</documentation>\n    </userTask>\n    <scriptTask id=\"update_access_status\" name=\"Update asset status and audit\" scriptFormat=\"groovy\">\n      <documentation>Apply final Collibra status and audit attributes after downstream workflow success.</documentation>\n      <script>import java.util.UUID\nimport com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nUUID approvedStatusId = UUID.fromString(execution.getVariable(\"approvedStatusId\") as String)\nassetApi.changeAsset(ChangeAssetRequest.builder()\n    .id(UUID.fromString(assetId))\n    .statusId(approvedStatusId)\n    .build())\nexecution.setVariable(\"assetStatusUpdated\", true)\nexecution.setVariable(\"finalDecision\", \"approved\")\n</script>\n    </scriptTask>\n    <scriptTask id=\"notify_success\" name=\"Notify approval completion\" scriptFormat=\"groovy\">\n      <documentation>Queue final notification variables for completion mail task or integration.</documentation>\n      <script>import java.util.UUID\n\nString requestId = execution.getVariable(\"requestId\") as String\nString recipient = (execution.getVariable(\"requesterEmail\") ?: execution.getVariable(\"requesterIdNormalized\") ?: \"requester\") as String\nexecution.setVariable(\"notificationRecipient\", recipient)\nexecution.setVariable(\"notificationSubject\", \"Collibra governed access request \" + requestId + \" approved and provisioned\")\nexecution.setVariable(\"notificationQueued\", true)\n</script>\n    </scriptTask>\n    <scriptTask id=\"notify_rejection\" name=\"Notify rejection or withdrawal\" scriptFormat=\"groovy\">\n      <documentation>Queue rejection notification variables for rejected and withdrawn paths.</documentation>\n      <script>import java.util.UUID\n\nString requestId = execution.getVariable(\"requestId\") as String\nString reason = (execution.getVariable(\"stewardNotes\") ?: execution.getVariable(\"businessNotes\") ?: \"Request rejected or withdrawn.\") as String\nexecution.setVariable(\"finalDecision\", \"rejected\")\nexecution.setVariable(\"notificationSubject\", \"Collibra governed access request \" + requestId + \" rejected\")\nexecution.setVariable(\"notificationBody\", reason)\nexecution.setVariable(\"notificationQueued\", true)\n</script>\n    </scriptTask>\n    <endEvent id=\"end_approved\" name=\"Approved and provisioned\"/>\n    <endEvent id=\"end_rejected\" name=\"Rejected or withdrawn\"/>\n    <sequenceFlow id=\"flow_start_submit\" sourceRef=\"start_request\" targetRef=\"submit_request\" name=\"Start\"/>\n    <sequenceFlow id=\"flow_submit_validate\" sourceRef=\"submit_request\" targetRef=\"validate_context\" name=\"Submit\"/>\n    <sequenceFlow id=\"flow_validate_complete_gateway\" sourceRef=\"validate_context\" targetRef=\"gateway_request_complete\" name=\"Validated\"/>\n    <sequenceFlow id=\"flow_complete_to_steward\" sourceRef=\"gateway_request_complete\" targetRef=\"steward_triage\" name=\"Complete\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${validationPassed == true}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_incomplete_to_rework\" sourceRef=\"gateway_request_complete\" targetRef=\"requester_rework\" name=\"Incomplete\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${validationPassed != true}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_rework_validate\" sourceRef=\"requester_rework\" targetRef=\"validate_context\" name=\"Resubmit\"/>\n    <sequenceFlow id=\"flow_steward_gateway\" sourceRef=\"steward_triage\" targetRef=\"gateway_steward_decision\" name=\"Route\"/>\n    <sequenceFlow id=\"flow_steward_approve\" sourceRef=\"gateway_steward_decision\" targetRef=\"gateway_risk_route\" name=\"Approve\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${stewardDecision == 'approve'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_steward_rework\" sourceRef=\"gateway_steward_decision\" targetRef=\"requester_rework\" name=\"Rework\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${stewardDecision == 'rework'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_steward_reject\" sourceRef=\"gateway_steward_decision\" targetRef=\"notify_rejection\" name=\"Reject\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${stewardDecision == 'reject'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_risk_standard\" sourceRef=\"gateway_risk_route\" targetRef=\"business_approval\" name=\"Standard risk\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${riskRating == 'standard'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_risk_compliance\" sourceRef=\"gateway_risk_route\" targetRef=\"risk_compliance_review\" name=\"High risk\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${riskRating == 'high' || riskRating == 'restricted'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_business_gateway\" sourceRef=\"business_approval\" targetRef=\"gateway_business_decision\" name=\"Decision\"/>\n    <sequenceFlow id=\"flow_business_approve\" sourceRef=\"gateway_business_decision\" targetRef=\"gateway_policy_exception\" name=\"Approve\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${businessDecision == 'approve'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_business_rework\" sourceRef=\"gateway_business_decision\" targetRef=\"requester_rework\" name=\"Rework\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${businessDecision == 'rework'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_business_reject\" sourceRef=\"gateway_business_decision\" targetRef=\"notify_rejection\" name=\"Reject\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${businessDecision == 'reject'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_compliance_gateway\" sourceRef=\"risk_compliance_review\" targetRef=\"gateway_compliance_decision\" name=\"Decision\"/>\n    <sequenceFlow id=\"flow_compliance_approve\" sourceRef=\"gateway_compliance_decision\" targetRef=\"gateway_policy_exception\" name=\"Approve\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${complianceDecision == 'approve'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_compliance_rework\" sourceRef=\"gateway_compliance_decision\" targetRef=\"requester_rework\" name=\"Rework\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${complianceDecision == 'rework'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_compliance_reject\" sourceRef=\"gateway_compliance_decision\" targetRef=\"notify_rejection\" name=\"Reject\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${complianceDecision == 'reject'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_exception_required\" sourceRef=\"gateway_policy_exception\" targetRef=\"create_policy_exception\" name=\"Exception required\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${policyExceptionRequired == true}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_no_exception\" sourceRef=\"gateway_policy_exception\" targetRef=\"create_relations\" name=\"No exception\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${policyExceptionRequired != true}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_exception_relations\" sourceRef=\"create_policy_exception\" targetRef=\"create_relations\" name=\"Exception logged\"/>\n    <sequenceFlow id=\"flow_relations_call\" sourceRef=\"create_relations\" targetRef=\"call_provisioning_workflow\" name=\"Invoke provisioning\"/>\n    <sequenceFlow id=\"flow_call_result\" sourceRef=\"call_provisioning_workflow\" targetRef=\"gateway_provisioning_result\" name=\"Provisioning returned\"/>\n    <sequenceFlow id=\"flow_provision_success\" sourceRef=\"gateway_provisioning_result\" targetRef=\"update_access_status\" name=\"Provisioned\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${provisioningStatus == 'success'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_provision_failure\" sourceRef=\"gateway_provisioning_result\" targetRef=\"technical_remediation\" name=\"Provisioning failed\">\n      <conditionExpression xsi:type=\"tFormalExpression\">${provisioningStatus != 'success'}</conditionExpression>\n    </sequenceFlow>\n    <sequenceFlow id=\"flow_remediation_retry\" sourceRef=\"technical_remediation\" targetRef=\"call_provisioning_workflow\" name=\"Retry\"/>\n    <sequenceFlow id=\"flow_status_notify\" sourceRef=\"update_access_status\" targetRef=\"notify_success\" name=\"Status updated\"/>\n    <sequenceFlow id=\"flow_notify_success_end\" sourceRef=\"notify_success\" targetRef=\"end_approved\" name=\"Done\"/>\n    <sequenceFlow id=\"flow_notify_reject_end\" sourceRef=\"notify_rejection\" targetRef=\"end_rejected\" name=\"Done\"/>\n  </process>\n  <bpmndi:BPMNDiagram id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_diagram\">\n    <bpmndi:BPMNPlane id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_plane\" bpmnElement=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\">\n      <bpmndi:BPMNShape id=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool_di\" bpmnElement=\"CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool\" isHorizontal=\"true\">\n        <dc:Bounds x=\"40\" y=\"40\" width=\"1240\" height=\"1020\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"start_request_di\" bpmnElement=\"start_request\">\n        <dc:Bounds x=\"80\" y=\"120\" width=\"36\" height=\"36\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"submit_request_di\" bpmnElement=\"submit_request\">\n        <dc:Bounds x=\"220\" y=\"120\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"validate_context_di\" bpmnElement=\"validate_context\">\n        <dc:Bounds x=\"430\" y=\"720\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_request_complete_di\" bpmnElement=\"gateway_request_complete\">\n        <dc:Bounds x=\"640\" y=\"735\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"requester_rework_di\" bpmnElement=\"requester_rework\">\n        <dc:Bounds x=\"760\" y=\"120\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"steward_triage_di\" bpmnElement=\"steward_triage\">\n        <dc:Bounds x=\"850\" y=\"270\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_steward_decision_di\" bpmnElement=\"gateway_steward_decision\">\n        <dc:Bounds x=\"1060\" y=\"285\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_risk_route_di\" bpmnElement=\"gateway_risk_route\">\n        <dc:Bounds x=\"1170\" y=\"735\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"business_approval_di\" bpmnElement=\"business_approval\">\n        <dc:Bounds x=\"1310\" y=\"420\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_business_decision_di\" bpmnElement=\"gateway_business_decision\">\n        <dc:Bounds x=\"1530\" y=\"435\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"risk_compliance_review_di\" bpmnElement=\"risk_compliance_review\">\n        <dc:Bounds x=\"1310\" y=\"570\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_compliance_decision_di\" bpmnElement=\"gateway_compliance_decision\">\n        <dc:Bounds x=\"1530\" y=\"585\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_policy_exception_di\" bpmnElement=\"gateway_policy_exception\">\n        <dc:Bounds x=\"1650\" y=\"735\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"create_policy_exception_di\" bpmnElement=\"create_policy_exception\">\n        <dc:Bounds x=\"1760\" y=\"720\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"create_relations_di\" bpmnElement=\"create_relations\">\n        <dc:Bounds x=\"1990\" y=\"720\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"call_provisioning_workflow_di\" bpmnElement=\"call_provisioning_workflow\">\n        <dc:Bounds x=\"2240\" y=\"875\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"gateway_provisioning_result_di\" bpmnElement=\"gateway_provisioning_result\">\n        <dc:Bounds x=\"2490\" y=\"890\" width=\"50\" height=\"50\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"technical_remediation_di\" bpmnElement=\"technical_remediation\">\n        <dc:Bounds x=\"2240\" y=\"1000\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"update_access_status_di\" bpmnElement=\"update_access_status\">\n        <dc:Bounds x=\"2630\" y=\"720\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"notify_success_di\" bpmnElement=\"notify_success\">\n        <dc:Bounds x=\"2840\" y=\"720\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"notify_rejection_di\" bpmnElement=\"notify_rejection\">\n        <dc:Bounds x=\"1310\" y=\"835\" width=\"128\" height=\"80\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"end_approved_di\" bpmnElement=\"end_approved\">\n        <dc:Bounds x=\"3060\" y=\"120\" width=\"36\" height=\"36\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"end_rejected_di\" bpmnElement=\"end_rejected\">\n        <dc:Bounds x=\"1530\" y=\"120\" width=\"36\" height=\"36\"/>\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"flow_start_submit_di\" bpmnElement=\"flow_start_submit\">\n        <di:waypoint x=\"180\" y=\"160\"/>\n        <di:waypoint x=\"220\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_submit_validate_di\" bpmnElement=\"flow_submit_validate\">\n        <di:waypoint x=\"320\" y=\"160\"/>\n        <di:waypoint x=\"430\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_validate_complete_gateway_di\" bpmnElement=\"flow_validate_complete_gateway\">\n        <di:waypoint x=\"530\" y=\"760\"/>\n        <di:waypoint x=\"640\" y=\"775\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_complete_to_steward_di\" bpmnElement=\"flow_complete_to_steward\">\n        <di:waypoint x=\"740\" y=\"775\"/>\n        <di:waypoint x=\"850\" y=\"310\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_incomplete_to_rework_di\" bpmnElement=\"flow_incomplete_to_rework\">\n        <di:waypoint x=\"740\" y=\"775\"/>\n        <di:waypoint x=\"760\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_rework_validate_di\" bpmnElement=\"flow_rework_validate\">\n        <di:waypoint x=\"860\" y=\"160\"/>\n        <di:waypoint x=\"430\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_steward_gateway_di\" bpmnElement=\"flow_steward_gateway\">\n        <di:waypoint x=\"950\" y=\"310\"/>\n        <di:waypoint x=\"1060\" y=\"325\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_steward_approve_di\" bpmnElement=\"flow_steward_approve\">\n        <di:waypoint x=\"1160\" y=\"325\"/>\n        <di:waypoint x=\"1170\" y=\"775\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_steward_rework_di\" bpmnElement=\"flow_steward_rework\">\n        <di:waypoint x=\"1160\" y=\"325\"/>\n        <di:waypoint x=\"760\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_steward_reject_di\" bpmnElement=\"flow_steward_reject\">\n        <di:waypoint x=\"1160\" y=\"325\"/>\n        <di:waypoint x=\"1310\" y=\"875\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_risk_standard_di\" bpmnElement=\"flow_risk_standard\">\n        <di:waypoint x=\"1270\" y=\"775\"/>\n        <di:waypoint x=\"1310\" y=\"460\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_risk_compliance_di\" bpmnElement=\"flow_risk_compliance\">\n        <di:waypoint x=\"1270\" y=\"775\"/>\n        <di:waypoint x=\"1310\" y=\"610\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_business_gateway_di\" bpmnElement=\"flow_business_gateway\">\n        <di:waypoint x=\"1410\" y=\"460\"/>\n        <di:waypoint x=\"1530\" y=\"475\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_business_approve_di\" bpmnElement=\"flow_business_approve\">\n        <di:waypoint x=\"1630\" y=\"475\"/>\n        <di:waypoint x=\"1650\" y=\"775\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_business_rework_di\" bpmnElement=\"flow_business_rework\">\n        <di:waypoint x=\"1630\" y=\"475\"/>\n        <di:waypoint x=\"760\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_business_reject_di\" bpmnElement=\"flow_business_reject\">\n        <di:waypoint x=\"1630\" y=\"475\"/>\n        <di:waypoint x=\"1310\" y=\"875\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_compliance_gateway_di\" bpmnElement=\"flow_compliance_gateway\">\n        <di:waypoint x=\"1410\" y=\"610\"/>\n        <di:waypoint x=\"1530\" y=\"625\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_compliance_approve_di\" bpmnElement=\"flow_compliance_approve\">\n        <di:waypoint x=\"1630\" y=\"625\"/>\n        <di:waypoint x=\"1650\" y=\"775\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_compliance_rework_di\" bpmnElement=\"flow_compliance_rework\">\n        <di:waypoint x=\"1630\" y=\"625\"/>\n        <di:waypoint x=\"760\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_compliance_reject_di\" bpmnElement=\"flow_compliance_reject\">\n        <di:waypoint x=\"1630\" y=\"625\"/>\n        <di:waypoint x=\"1310\" y=\"875\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_exception_required_di\" bpmnElement=\"flow_exception_required\">\n        <di:waypoint x=\"1750\" y=\"775\"/>\n        <di:waypoint x=\"1760\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_no_exception_di\" bpmnElement=\"flow_no_exception\">\n        <di:waypoint x=\"1750\" y=\"775\"/>\n        <di:waypoint x=\"1990\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_exception_relations_di\" bpmnElement=\"flow_exception_relations\">\n        <di:waypoint x=\"1860\" y=\"760\"/>\n        <di:waypoint x=\"1990\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_relations_call_di\" bpmnElement=\"flow_relations_call\">\n        <di:waypoint x=\"2090\" y=\"760\"/>\n        <di:waypoint x=\"2240\" y=\"915\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_call_result_di\" bpmnElement=\"flow_call_result\">\n        <di:waypoint x=\"2340\" y=\"915\"/>\n        <di:waypoint x=\"2490\" y=\"930\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_provision_success_di\" bpmnElement=\"flow_provision_success\">\n        <di:waypoint x=\"2590\" y=\"930\"/>\n        <di:waypoint x=\"2630\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_provision_failure_di\" bpmnElement=\"flow_provision_failure\">\n        <di:waypoint x=\"2590\" y=\"930\"/>\n        <di:waypoint x=\"2240\" y=\"1040\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_remediation_retry_di\" bpmnElement=\"flow_remediation_retry\">\n        <di:waypoint x=\"2340\" y=\"1040\"/>\n        <di:waypoint x=\"2240\" y=\"915\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_status_notify_di\" bpmnElement=\"flow_status_notify\">\n        <di:waypoint x=\"2730\" y=\"760\"/>\n        <di:waypoint x=\"2840\" y=\"760\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_notify_success_end_di\" bpmnElement=\"flow_notify_success_end\">\n        <di:waypoint x=\"2940\" y=\"760\"/>\n        <di:waypoint x=\"3060\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"flow_notify_reject_end_di\" bpmnElement=\"flow_notify_reject_end\">\n        <di:waypoint x=\"1410\" y=\"875\"/>\n        <di:waypoint x=\"1530\" y=\"160\"/>\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</definitions>\n",
+  "process": {
+    "process_id": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflow",
+    "name": "Create A Production Collibra Governed Access And Policy",
+    "pools": [],
+    "lanes": [
+      "Requester",
+      "Data Steward",
+      "Business Owner",
+      "Risk and Compliance",
+      "Collibra Automation",
+      "Provisioning Workflow"
+    ],
+    "nodes": [
+      {
+        "id": "start_request",
+        "type": "startEvent",
+        "name": "Start governed access request",
+        "lane": "Requester",
+        "documentation": "Start event with request form for governed asset access.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowAccessRequestForm",
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 80,
+        "y": 120
+      },
+      {
+        "id": "submit_request",
+        "type": "userTask",
+        "name": "Submit governed access request",
+        "lane": "Requester",
+        "documentation": "Requester supplies asset, purpose, access window, relation and provisioning intent.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowAccessRequestForm",
+        "candidate_users": null,
+        "candidate_groups": "${requesterGroup}",
+        "properties": {},
+        "x": 220,
+        "y": 120
+      },
+      {
+        "id": "validate_context",
+        "type": "scriptTask",
+        "name": "Validate request and RAG mappings",
+        "lane": "Collibra Automation",
+        "documentation": "Normalize UUIDs and validate required organization mapping variables from RAG/config.",
+        "script": "import java.util.UUID\n\nString requestId = (execution.getVariable(\"requestId\") ?: UUID.randomUUID().toString()) as String\nString requesterId = (execution.getVariable(\"requesterId\") ?: \"\") as String\nString assetId = (execution.getVariable(\"assetId\") ?: \"\") as String\nString purpose = (execution.getVariable(\"businessPurpose\") ?: \"\") as String\nString workflowKey = (execution.getVariable(\"provisioningWorkflowKey\") ?: \"\") as String\nBoolean complete = requesterId.trim() && assetId.trim() && purpose.trim().length() > 15 && workflowKey.trim()\nexecution.setVariable(\"requestId\", requestId)\nexecution.setVariable(\"requesterIdNormalized\", requesterId.trim())\nexecution.setVariable(\"assetIdNormalized\", assetId.trim())\nexecution.setVariable(\"businessPurposeNormalized\", purpose.trim())\nexecution.setVariable(\"validationPassed\", complete)\nexecution.setVariable(\"validationMessage\", complete ? \"Request is complete.\" : \"Requester, asset, purpose and provisioning workflow key are required.\")\n",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 430,
+        "y": 720
+      },
+      {
+        "id": "gateway_request_complete",
+        "type": "exclusiveGateway",
+        "name": "Request complete?",
+        "lane": "Collibra Automation",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 640,
+        "y": 735
+      },
+      {
+        "id": "requester_rework",
+        "type": "userTask",
+        "name": "Requester rework",
+        "lane": "Requester",
+        "documentation": "Requester corrects missing purpose, UUIDs, relation details or access constraints.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowRequesterReworkForm",
+        "candidate_users": null,
+        "candidate_groups": "${requesterGroup}",
+        "properties": {},
+        "x": 760,
+        "y": 120
+      },
+      {
+        "id": "steward_triage",
+        "type": "userTask",
+        "name": "Data steward triage",
+        "lane": "Data Steward",
+        "documentation": "Steward confirms ownership, domain, asset status, relation intent and routing decision.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowStewardTriageForm",
+        "candidate_users": null,
+        "candidate_groups": "${dataStewardRole}",
+        "properties": {},
+        "x": 850,
+        "y": 270
+      },
+      {
+        "id": "gateway_steward_decision",
+        "type": "exclusiveGateway",
+        "name": "Steward decision",
+        "lane": "Data Steward",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1060,
+        "y": 285
+      },
+      {
+        "id": "gateway_risk_route",
+        "type": "exclusiveGateway",
+        "name": "Risk route",
+        "lane": "Collibra Automation",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1170,
+        "y": 735
+      },
+      {
+        "id": "business_approval",
+        "type": "userTask",
+        "name": "Business owner approval",
+        "lane": "Business Owner",
+        "documentation": "Business owner approves, rejects or requests rework.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowBusinessApprovalForm",
+        "candidate_users": null,
+        "candidate_groups": "${businessOwnerRole}",
+        "properties": {},
+        "x": 1310,
+        "y": 420
+      },
+      {
+        "id": "gateway_business_decision",
+        "type": "exclusiveGateway",
+        "name": "Business decision",
+        "lane": "Business Owner",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1530,
+        "y": 435
+      },
+      {
+        "id": "risk_compliance_review",
+        "type": "userTask",
+        "name": "Risk and compliance review",
+        "lane": "Risk and Compliance",
+        "documentation": "Compliance owner reviews high-risk access and approves policy exception where required.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowComplianceReviewForm",
+        "candidate_users": null,
+        "candidate_groups": "${riskComplianceRole}",
+        "properties": {},
+        "x": 1310,
+        "y": 570
+      },
+      {
+        "id": "gateway_compliance_decision",
+        "type": "exclusiveGateway",
+        "name": "Compliance decision",
+        "lane": "Risk and Compliance",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1530,
+        "y": 585
+      },
+      {
+        "id": "gateway_policy_exception",
+        "type": "exclusiveGateway",
+        "name": "Policy exception?",
+        "lane": "Collibra Automation",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1650,
+        "y": 735
+      },
+      {
+        "id": "create_policy_exception",
+        "type": "scriptTask",
+        "name": "Create policy exception metadata",
+        "lane": "Collibra Automation",
+        "documentation": "Create Collibra policy exception attribute and audit variables using Java API v2 builders.",
+        "script": "import java.util.UUID\nimport com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nString requestId = execution.getVariable(\"requestId\") as String\nString controls = (execution.getVariable(\"securityControls\") ?: \"Controls must be confirmed before provisioning.\") as String\nUUID attributeTypeId = UUID.fromString(execution.getVariable(\"policyExceptionAttributeTypeId\") as String)\nAddAttributeRequest request = AddAttributeRequest.builder()\n    .assetId(UUID.fromString(assetId))\n    .typeId(attributeTypeId)\n    .value(\"Policy exception for request \" + requestId + \": \" + controls)\n    .build()\nattributeApi.addAttribute(request)\nexecution.setVariable(\"policyExceptionCreated\", true)\n",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1760,
+        "y": 720
+      },
+      {
+        "id": "create_relations",
+        "type": "scriptTask",
+        "name": "Create relation and responsibility",
+        "lane": "Collibra Automation",
+        "documentation": "Create relation/responsibility using organization UUID mappings retrieved from RAG.",
+        "script": "import java.util.UUID\nimport com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest\nimport com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nString consumerAssetId = (execution.getVariable(\"consumerAssetId\") ?: \"\") as String\nString requesterId = execution.getVariable(\"requesterIdNormalized\") as String\nUUID relationTypeId = UUID.fromString(execution.getVariable(\"consumerRelationTypeId\") as String)\nUUID consumerRoleId = UUID.fromString(execution.getVariable(\"consumerRoleId\") as String)\nif (consumerAssetId.trim()) {\n    relationApi.addRelation(AddRelationRequest.builder()\n        .sourceId(UUID.fromString(assetId))\n        .targetId(UUID.fromString(consumerAssetId.trim()))\n        .typeId(relationTypeId)\n        .build())\n}\nresponsibilityApi.addResponsibility(AddResponsibilityRequest.builder()\n    .resourceId(UUID.fromString(assetId))\n    .roleId(consumerRoleId)\n    .ownerId(UUID.fromString(requesterId))\n    .build())\nexecution.setVariable(\"relationAndResponsibilityCreated\", true)\n",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1990,
+        "y": 720
+      },
+      {
+        "id": "call_provisioning_workflow",
+        "type": "callActivity",
+        "name": "Call downstream provisioning workflow",
+        "lane": "Provisioning Workflow",
+        "documentation": "Calls a separate Collibra/Flowable workflow to provision access after governance approval.",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {
+          "calledElement": "${provisioningWorkflowKey}",
+          "calledElementType": "key",
+          "inheritVariables": "true",
+          "businessKey": "${requestId}"
+        },
+        "x": 2240,
+        "y": 875
+      },
+      {
+        "id": "gateway_provisioning_result",
+        "type": "exclusiveGateway",
+        "name": "Provisioning result",
+        "lane": "Provisioning Workflow",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 2490,
+        "y": 890
+      },
+      {
+        "id": "technical_remediation",
+        "type": "userTask",
+        "name": "Technical remediation",
+        "lane": "Provisioning Workflow",
+        "documentation": "Technical owner fixes failed provisioning and retries the called workflow.",
+        "script": "",
+        "form_key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowTechnicalRemediationForm",
+        "candidate_users": null,
+        "candidate_groups": "${technicalStewardRole}",
+        "properties": {},
+        "x": 2240,
+        "y": 1000
+      },
+      {
+        "id": "update_access_status",
+        "type": "scriptTask",
+        "name": "Update asset status and audit",
+        "lane": "Collibra Automation",
+        "documentation": "Apply final Collibra status and audit attributes after downstream workflow success.",
+        "script": "import java.util.UUID\nimport com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nUUID approvedStatusId = UUID.fromString(execution.getVariable(\"approvedStatusId\") as String)\nassetApi.changeAsset(ChangeAssetRequest.builder()\n    .id(UUID.fromString(assetId))\n    .statusId(approvedStatusId)\n    .build())\nexecution.setVariable(\"assetStatusUpdated\", true)\nexecution.setVariable(\"finalDecision\", \"approved\")\n",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 2630,
+        "y": 720
+      },
+      {
+        "id": "notify_success",
+        "type": "scriptTask",
+        "name": "Notify approval completion",
+        "lane": "Collibra Automation",
+        "documentation": "Queue final notification variables for completion mail task or integration.",
+        "script": "import java.util.UUID\n\nString requestId = execution.getVariable(\"requestId\") as String\nString recipient = (execution.getVariable(\"requesterEmail\") ?: execution.getVariable(\"requesterIdNormalized\") ?: \"requester\") as String\nexecution.setVariable(\"notificationRecipient\", recipient)\nexecution.setVariable(\"notificationSubject\", \"Collibra governed access request \" + requestId + \" approved and provisioned\")\nexecution.setVariable(\"notificationQueued\", true)\n",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 2840,
+        "y": 720
+      },
+      {
+        "id": "notify_rejection",
+        "type": "scriptTask",
+        "name": "Notify rejection or withdrawal",
+        "lane": "Collibra Automation",
+        "documentation": "Queue rejection notification variables for rejected and withdrawn paths.",
+        "script": "import java.util.UUID\n\nString requestId = execution.getVariable(\"requestId\") as String\nString reason = (execution.getVariable(\"stewardNotes\") ?: execution.getVariable(\"businessNotes\") ?: \"Request rejected or withdrawn.\") as String\nexecution.setVariable(\"finalDecision\", \"rejected\")\nexecution.setVariable(\"notificationSubject\", \"Collibra governed access request \" + requestId + \" rejected\")\nexecution.setVariable(\"notificationBody\", reason)\nexecution.setVariable(\"notificationQueued\", true)\n",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1310,
+        "y": 835
+      },
+      {
+        "id": "end_approved",
+        "type": "endEvent",
+        "name": "Approved and provisioned",
+        "lane": "Requester",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 3060,
+        "y": 120
+      },
+      {
+        "id": "end_rejected",
+        "type": "endEvent",
+        "name": "Rejected or withdrawn",
+        "lane": "Requester",
+        "documentation": "",
+        "script": "",
+        "form_key": null,
+        "candidate_users": null,
+        "candidate_groups": null,
+        "properties": {},
+        "x": 1530,
+        "y": 120
+      }
+    ],
+    "flows": [
+      {
+        "id": "flow_start_submit",
+        "source_ref": "start_request",
+        "target_ref": "submit_request",
+        "name": "Start",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_submit_validate",
+        "source_ref": "submit_request",
+        "target_ref": "validate_context",
+        "name": "Submit",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_validate_complete_gateway",
+        "source_ref": "validate_context",
+        "target_ref": "gateway_request_complete",
+        "name": "Validated",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_complete_to_steward",
+        "source_ref": "gateway_request_complete",
+        "target_ref": "steward_triage",
+        "name": "Complete",
+        "condition": "${validationPassed == true}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_incomplete_to_rework",
+        "source_ref": "gateway_request_complete",
+        "target_ref": "requester_rework",
+        "name": "Incomplete",
+        "condition": "${validationPassed != true}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_rework_validate",
+        "source_ref": "requester_rework",
+        "target_ref": "validate_context",
+        "name": "Resubmit",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_steward_gateway",
+        "source_ref": "steward_triage",
+        "target_ref": "gateway_steward_decision",
+        "name": "Route",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_steward_approve",
+        "source_ref": "gateway_steward_decision",
+        "target_ref": "gateway_risk_route",
+        "name": "Approve",
+        "condition": "${stewardDecision == 'approve'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_steward_rework",
+        "source_ref": "gateway_steward_decision",
+        "target_ref": "requester_rework",
+        "name": "Rework",
+        "condition": "${stewardDecision == 'rework'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_steward_reject",
+        "source_ref": "gateway_steward_decision",
+        "target_ref": "notify_rejection",
+        "name": "Reject",
+        "condition": "${stewardDecision == 'reject'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_risk_standard",
+        "source_ref": "gateway_risk_route",
+        "target_ref": "business_approval",
+        "name": "Standard risk",
+        "condition": "${riskRating == 'standard'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_risk_compliance",
+        "source_ref": "gateway_risk_route",
+        "target_ref": "risk_compliance_review",
+        "name": "High risk",
+        "condition": "${riskRating == 'high' || riskRating == 'restricted'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_business_gateway",
+        "source_ref": "business_approval",
+        "target_ref": "gateway_business_decision",
+        "name": "Decision",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_business_approve",
+        "source_ref": "gateway_business_decision",
+        "target_ref": "gateway_policy_exception",
+        "name": "Approve",
+        "condition": "${businessDecision == 'approve'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_business_rework",
+        "source_ref": "gateway_business_decision",
+        "target_ref": "requester_rework",
+        "name": "Rework",
+        "condition": "${businessDecision == 'rework'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_business_reject",
+        "source_ref": "gateway_business_decision",
+        "target_ref": "notify_rejection",
+        "name": "Reject",
+        "condition": "${businessDecision == 'reject'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_compliance_gateway",
+        "source_ref": "risk_compliance_review",
+        "target_ref": "gateway_compliance_decision",
+        "name": "Decision",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_compliance_approve",
+        "source_ref": "gateway_compliance_decision",
+        "target_ref": "gateway_policy_exception",
+        "name": "Approve",
+        "condition": "${complianceDecision == 'approve'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_compliance_rework",
+        "source_ref": "gateway_compliance_decision",
+        "target_ref": "requester_rework",
+        "name": "Rework",
+        "condition": "${complianceDecision == 'rework'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_compliance_reject",
+        "source_ref": "gateway_compliance_decision",
+        "target_ref": "notify_rejection",
+        "name": "Reject",
+        "condition": "${complianceDecision == 'reject'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_exception_required",
+        "source_ref": "gateway_policy_exception",
+        "target_ref": "create_policy_exception",
+        "name": "Exception required",
+        "condition": "${policyExceptionRequired == true}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_no_exception",
+        "source_ref": "gateway_policy_exception",
+        "target_ref": "create_relations",
+        "name": "No exception",
+        "condition": "${policyExceptionRequired != true}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_exception_relations",
+        "source_ref": "create_policy_exception",
+        "target_ref": "create_relations",
+        "name": "Exception logged",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_relations_call",
+        "source_ref": "create_relations",
+        "target_ref": "call_provisioning_workflow",
+        "name": "Invoke provisioning",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_call_result",
+        "source_ref": "call_provisioning_workflow",
+        "target_ref": "gateway_provisioning_result",
+        "name": "Provisioning returned",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_provision_success",
+        "source_ref": "gateway_provisioning_result",
+        "target_ref": "update_access_status",
+        "name": "Provisioned",
+        "condition": "${provisioningStatus == 'success'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_provision_failure",
+        "source_ref": "gateway_provisioning_result",
+        "target_ref": "technical_remediation",
+        "name": "Provisioning failed",
+        "condition": "${provisioningStatus != 'success'}",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": true,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_remediation_retry",
+        "source_ref": "technical_remediation",
+        "target_ref": "call_provisioning_workflow",
+        "name": "Retry",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_status_notify",
+        "source_ref": "update_access_status",
+        "target_ref": "notify_success",
+        "name": "Status updated",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_notify_success_end",
+        "source_ref": "notify_success",
+        "target_ref": "end_approved",
+        "name": "Done",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      },
+      {
+        "id": "flow_notify_reject_end",
+        "source_ref": "notify_rejection",
+        "target_ref": "end_rejected",
+        "name": "Done",
+        "condition": "",
+        "skip_expression": "",
+        "flow_type": "normal",
+        "is_default": false,
+        "documentation": "",
+        "listener_code": "",
+        "properties": {}
+      }
+    ],
+    "documentation": "Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow.\n\nMaster prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone.\nThe workflow must contain multiple forms, multiple approval and rejection flows, requester rework reroutes, steward triage, business owner approval, risk/compliance review for restricted assets, policy exception metadata creation, relation and responsibility creation through Collibra Java API v2 Groovy scripts, a BPMN call activity that invokes a downstream provisioning workflow, technical remediation when the called workflow fails, final status update, completion notification, rejection notification, and full documentation. Use RAG context for Collibra best practices, Java API imports, organization UUID placeholders, existing package patterns, and sequence-flow conditions. It must be upload-ready for Collibra after tenant-specific UUIDs and JARs are configured.\n\nRetrieved RAG context excerpt:\nQuestion: Create a production Collibra governed access and policy exception workflow from this prompt alone.\nThe workflow must contain multiple forms, multiple approval and rejection flows, requester rework reroutes, steward triage, business owner approval, risk/compliance review for restricted assets, policy exception metadata creation, relation and responsibility creation through Collibra Java API v2 Groovy scripts, a BPMN call activity that invokes a downstream provisioning workflow, technical remediation when the called workflow fails, final status update, completion notification, rejection notification, and full documentation. Use RAG context for Collibra best practices, Java API imports, organization UUID placeholders, existing package patterns, and sequence-flow conditions. It must be upload-ready for Collibra after tenant-specific UUIDs and JARs are configured.\n\nRetrieved context:\n\n- score=0.432 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Upgrading_your_scripts_for_Collibra_2024.02_compatibility.md kind=md\nkflow, the running workflow continues to use the old version until it completes. If there is a Javax EE \njavax.*\n function that still needs to be executed and that is not compatible with Jakarta EE, the workflow fails.\n\nAfter you have identified and deployed the workflows that require an update, check if any of the workflows that are currently running need to be restarted:\n\nView the running wo",
+    "executable": true
+  },
+  "forms": [
+    {
+      "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowAccessRequestForm",
+      "name": "Governed Access Request",
+      "fields": [
+        {
+          "id": "requesterId",
+          "name": "Requester UUID",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "requesterEmail",
+          "name": "Requester email",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "assetId",
+          "name": "Asset UUID",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "consumerAssetId",
+          "name": "Consumer asset UUID",
+          "type": "string",
+          "required": false,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "businessPurpose",
+          "name": "Business purpose",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "riskRating",
+          "name": "Risk rating",
+          "type": "enum",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": [
+            {
+              "id": "standard",
+              "name": "Standard"
+            },
+            {
+              "id": "high",
+              "name": "High"
+            },
+            {
+              "id": "restricted",
+              "name": "Restricted"
+            }
+          ]
+        },
+        {
+          "id": "requestedAccessEndDate",
+          "name": "Requested access end date",
+          "type": "date",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "provisioningWorkflowKey",
+          "name": "Downstream provisioning workflow key",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        }
+      ]
+    },
+    {
+      "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowRequesterReworkForm",
+      "name": "Requester Rework",
+      "fields": [
+        {
+          "id": "reworkSummary",
+          "name": "Rework summary",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "businessPurpose",
+          "name": "Updated business purpose",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "consumerAssetId",
+          "name": "Updated consumer asset UUID",
+          "type": "string",
+          "required": false,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        }
+      ]
+    },
+    {
+      "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowStewardTriageForm",
+      "name": "Steward Triage",
+      "fields": [
+        {
+          "id": "stewardDecision",
+          "name": "Steward decision",
+          "type": "enum",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "rework",
+              "name": "Request rework"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ]
+        },
+        {
+          "id": "stewardNotes",
+          "name": "Steward notes",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "riskRating",
+          "name": "Confirmed risk rating",
+          "type": "enum",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        }
+      ]
+    },
+    {
+      "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowBusinessApprovalForm",
+      "name": "Business Owner Approval",
+      "fields": [
+        {
+          "id": "businessDecision",
+          "name": "Business decision",
+          "type": "enum",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "rework",
+              "name": "Request rework"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ]
+        },
+        {
+          "id": "businessNotes",
+          "name": "Business approval notes",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        }
+      ]
+    },
+    {
+      "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowComplianceReviewForm",
+      "name": "Risk and Compliance Review",
+      "fields": [
+        {
+          "id": "complianceDecision",
+          "name": "Compliance decision",
+          "type": "enum",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "rework",
+              "name": "Request rework"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ]
+        },
+        {
+          "id": "policyExceptionRequired",
+          "name": "Policy exception required",
+          "type": "boolean",
+          "required": false,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "securityControls",
+          "name": "Security controls",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        }
+      ]
+    },
+    {
+      "key": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflowTechnicalRemediationForm",
+      "name": "Technical Remediation",
+      "fields": [
+        {
+          "id": "provisioningStatus",
+          "name": "Provisioning status",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "provisioningError",
+          "name": "Provisioning error",
+          "type": "string",
+          "required": false,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        },
+        {
+          "id": "remediationAction",
+          "name": "Remediation action",
+          "type": "string",
+          "required": true,
+          "readable": true,
+          "writable": true,
+          "default": null,
+          "values": []
+        }
+      ]
+    }
+  ],
+  "validation_errors": [],
+  "compile_results": {
+    "validate_context": {
+      "ok": true,
+      "stdout": "",
+      "stderr": "Groovy executable not found; syntax compilation skipped after static standards lint.",
+      "skipped": true,
+      "standards": []
+    },
+    "create_policy_exception": {
+      "ok": true,
+      "stdout": "",
+      "stderr": "Groovy executable not found; syntax compilation skipped after static standards lint.",
+      "skipped": true,
+      "standards": []
+    },
+    "create_relations": {
+      "ok": true,
+      "stdout": "",
+      "stderr": "Groovy executable not found; syntax compilation skipped after static standards lint.",
+      "skipped": true,
+      "standards": []
+    },
+    "update_access_status": {
+      "ok": true,
+      "stdout": "",
+      "stderr": "Groovy executable not found; syntax compilation skipped after static standards lint.",
+      "skipped": true,
+      "standards": []
+    },
+    "notify_success": {
+      "ok": true,
+      "stdout": "",
+      "stderr": "Groovy executable not found; syntax compilation skipped after static standards lint.",
+      "skipped": true,
+      "standards": []
+    },
+    "notify_rejection": {
+      "ok": true,
+      "stdout": "",
+      "stderr": "Groovy executable not found; syntax compilation skipped after static standards lint.",
+      "skipped": true,
+      "standards": []
+    }
+  },
+  "simulation": {
+    "steps": [
+      {
+        "node_id": "start_request",
+        "node_type": "startEvent",
+        "name": "Start governed access request",
+        "status": "completed",
+        "detail": ""
+      },
+      {
+        "node_id": "submit_request",
+        "node_type": "userTask",
+        "name": "Submit governed access request",
+        "status": "waiting",
+        "detail": "Form Governed Access Request; missing required: requesterId, requesterEmail, assetId, businessPurpose, riskRating, requestedAccessEndDate, provisioningWorkflowKey"
+      }
+    ],
+    "variables": {
+      "requesterId": null,
+      "requesterEmail": null,
+      "assetId": null,
+      "consumerAssetId": null,
+      "businessPurpose": null,
+      "riskRating": null,
+      "requestedAccessEndDate": null,
+      "provisioningWorkflowKey": null
+    },
+    "errors": []
+  },
+  "assumptions": [
+    "Organization-specific UUIDs, roles, domains, and relation type IDs are resolved from the loaded RAG corpus or left as configuration variables.",
+    "Local Groovy compilation validates syntax and imports when Groovy plus Collibra JARs are present in /jars."
+  ]
+}

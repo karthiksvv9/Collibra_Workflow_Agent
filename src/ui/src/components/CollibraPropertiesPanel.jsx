@@ -226,16 +226,66 @@ function LinkedFormPreview({ form }) {
         <b>{form.name || form.key}</b>
         <small>{form.key} - {fields.length} fields - {outcomes.length} outcomes</small>
       </div>
-      {fields.slice(0, 6).map(field => (
-        <div className="mini-field-row" key={`${form.key}-${field.id}`}>
-          <code>{field.id}</code>
-          <span>{field.label || field.name}</span>
-          <small>{field.type}{field.required ? ' required' : ''}</small>
-        </div>
-      ))}
-      {fields.length > 6 && <small>{fields.length - 6} more field(s) in the Forms tab.</small>}
+      <RenderedForm form={form} />
     </div>
   );
+}
+
+function RenderedForm({ form }) {
+  const fields = Array.isArray(form.fields) ? form.fields : [];
+  const outcomes = Array.isArray(form.outcomes) ? form.outcomes : [];
+  if (!fields.length && !outcomes.length) {
+    return <small>This form has no fields or outcomes in the imported metadata.</small>;
+  }
+  return (
+    <div className="rendered-form">
+      {fields.map(field => (
+        <label key={`${form.key}-${field.id}`} className="rendered-field">
+          <span>{field.label || field.name || field.id}{field.required ? ' *' : ''}</span>
+          {renderInput(field)}
+          <small>{field.id} - {field.type}{field.value ? ` - ${field.value}` : ''}</small>
+        </label>
+      ))}
+      {outcomes.length > 0 && (
+        <div className="rendered-outcomes">
+          {outcomes.map(outcome => (
+            <button key={`${form.key}-${outcome.value || outcome.label}`} className={outcome.primary ? 'primary-button' : ''}>
+              {outcome.label || outcome.value}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function renderInput(field) {
+  const type = String(field.type || '').toLowerCase();
+  const values = Array.isArray(field.values) ? field.values : Array.isArray(field.extraSettings?.values) ? field.extraSettings.values : [];
+  if (type.includes('richtext') || type.includes('textarea')) {
+    return <textarea placeholder={field.value || field.label || field.id} readOnly />;
+  }
+  if (type.includes('date')) {
+    return <input type="date" readOnly />;
+  }
+  if (type.includes('boolean')) {
+    return <input type="checkbox" readOnly />;
+  }
+  if (type.includes('dropdown') || type.includes('select') || values.length) {
+    return (
+      <select value="" onChange={() => {}}>
+        <option value="">Select...</option>
+        {values.map(value => {
+          const optionValue = value.value || value.id || value.name || value.label || String(value);
+          return <option key={optionValue} value={optionValue}>{value.label || value.name || optionValue}</option>;
+        })}
+      </select>
+    );
+  }
+  if (type.includes('long') || type.includes('number') || type.includes('integer')) {
+    return <input type="number" placeholder={field.value || field.id} readOnly />;
+  }
+  return <input placeholder={field.value || field.label || field.id} readOnly />;
 }
 
 function defaultExecution(type) {
