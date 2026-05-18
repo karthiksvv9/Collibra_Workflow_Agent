@@ -12,18 +12,18 @@ $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Pa
 $RunAll = Join-Path $ProjectRoot "run_all.ps1"
 
 function Set-SessionApiKey {
-    if ($NoApiKeyPrompt -or -not [string]::IsNullOrWhiteSpace($env:MERCK_API_KEY)) {
+    if ($NoApiKeyPrompt -or -not [string]::IsNullOrWhiteSpace($env:AI_GATEWAY_API_KEY)) {
         return
     }
-    Write-Host "MERCK_API_KEY is not set. Paste the API key from your approved gateway access." -ForegroundColor Yellow
+    Write-Host "AI_GATEWAY_API_KEY is not set. Paste the API key from your approved gateway access." -ForegroundColor Yellow
     Write-Host "It will only be stored in this PowerShell process and inherited by the localhost server." -ForegroundColor Yellow
-    $secure = Read-Host "MERCK_API_KEY" -AsSecureString
+    $secure = Read-Host "AI_GATEWAY_API_KEY" -AsSecureString
     if ($secure.Length -eq 0) {
         return
     }
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try {
-        $env:MERCK_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+        $env:AI_GATEWAY_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
     } finally {
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
     }

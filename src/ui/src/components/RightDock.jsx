@@ -27,7 +27,9 @@ export default function RightDock({
   addConsole,
   consoleEntries,
   clearConsole,
-  forms
+  forms,
+  modelId,
+  modeler
 }) {
   return (
     <aside className="right-dock">
@@ -63,15 +65,18 @@ export default function RightDock({
             getBpmnXml={getBpmnXml}
             addConsole={addConsole}
             forms={forms}
+            modelId={modelId}
+            modeler={modeler}
           />
         )}
-        {activeTab === 'rag' && <RagPanel addConsole={addConsole} />}
+        {activeTab === 'rag' && <RagPanel addConsole={addConsole} modelId={modelId} />}
         {activeTab === 'forms' && <FormsPanel forms={{ ...(appModel?.forms || {}), ...(forms || {}) }} appModel={appModel} selectedElement={selectedElement} />}
         {activeTab === 'docs' && (
           <DocumentationPanel
             appModel={appModel}
             getBpmnXml={getBpmnXml}
             addConsole={addConsole}
+            modelId={modelId}
           />
         )}
         {activeTab === 'agent' && (
@@ -80,6 +85,7 @@ export default function RightDock({
             setAppModel={setAppModel}
             importBpmnXml={importBpmnXml}
             addConsole={addConsole}
+            modelId={modelId}
           />
         )}
         {activeTab === 'console' && (
@@ -90,6 +96,7 @@ export default function RightDock({
             appModel={appModel}
             forms={forms || appModel?.forms || {}}
             addConsole={addConsole}
+            modelId={modelId}
           />
         )}
       </div>

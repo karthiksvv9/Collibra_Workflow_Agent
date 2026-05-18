@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PlayCircle, Trash2 } from 'lucide-react';
 import { runWorkflowTestCases } from '../api.js';
 
-export default function RunConsole({ entries, onClear, getBpmnXml, appModel, forms, addConsole }) {
+export default function RunConsole({ entries, onClear, getBpmnXml, appModel, forms, addConsole, modelId }) {
   const [businessUseCase, setBusinessUseCase] = useState('Validate the imported Collibra workflow business process end to end: happy path, rejection/default paths, form validation, Groovy execution, API failure handling and export readiness.');
   const [userTestCases, setUserTestCases] = useState('Scenario: Required form validation\nOpen each user/form task and verify required fields are rendered before completion.\nExpected: Missing required values are reported before task completion.\n\nScenario: Approval happy path\nComplete requester and approver tasks with valid values.\nExpected: Workflow reaches the successful end event.');
   const [busy, setBusy] = useState(false);
@@ -12,10 +12,10 @@ export default function RunConsole({ entries, onClear, getBpmnXml, appModel, for
     setBusy(true);
     try {
       const bpmnXml = await getBpmnXml();
-      const result = await runWorkflowTestCases({ bpmnXml, appModel, forms, businessUseCase, userTestCases, maxIterations: 3 });
+      const result = await runWorkflowTestCases({ bpmnXml, appModel, forms, businessUseCase, userTestCases, maxIterations: 3, modelId });
       addConsole?.({
         level: result.ok ? 'success' : 'error',
-        message: `AI + user test cases ${result.status}`,
+        message: result.summaryText || `AI + user test cases ${result.status}`,
         detail: result
       });
     } catch (err) {
@@ -56,6 +56,8 @@ export default function RunConsole({ entries, onClear, getBpmnXml, appModel, for
       {entries.map((entry, idx) => (
         <details key={idx} open={idx === entries.length - 1} className={`console-entry ${entry.level || 'info'}`}>
           <summary>{entry.at || new Date().toLocaleTimeString()} - {entry.message}</summary>
+          {entry.detail?.summaryText && <p className="console-free-text">{entry.detail.summaryText}</p>}
+          {entry.detail?.metrics && <p className="console-free-text">Status: {entry.detail.status || 'n/a'} | Metric: {entry.detail.metrics.passPercent ?? entry.detail.metrics.casePassPercent ?? entry.detail.metrics.completionPercent ?? 'n/a'}%</p>}
           <pre>{typeof entry.detail === 'string' ? entry.detail : JSON.stringify(entry.detail, null, 2)}</pre>
         </details>
       ))}

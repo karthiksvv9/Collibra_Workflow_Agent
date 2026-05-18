@@ -5,8 +5,8 @@ This workbench is designed as a local-only engineering tool for Collibra workflo
 ## Secrets
 
 - Do not commit API keys in `config.yaml`.
-- Runtime API keys should come from `MERCK_API_KEY` or another approved environment variable.
-- `scripts/start_localhost_non_admin.ps1` prompts for `MERCK_API_KEY` and keeps it only in the process environment.
+- Runtime API keys should come from `AI_GATEWAY_API_KEY`, `CLAUDE_API_KEY`, `GEMINI_API_KEY`, or another approved environment variable.
+- `scripts/start_localhost_non_admin.ps1` prompts for `AI_GATEWAY_API_KEY` and keeps it only in the process environment.
 - `.gitignore` excludes `.env`, `.env.*`, `config.local.yaml`, `secrets*.yaml`, JVM crash logs, heap dumps, and replay logs.
 
 ## Localhost Boundary
@@ -32,7 +32,7 @@ This workbench is designed as a local-only engineering tool for Collibra workflo
 - Search for leaked keys before publishing:
 
 ```powershell
-rg -n "API_KEY|MERCK_API_KEY|X-Merck-APIKey|sk-|secret|password|token" .
+rg -n "API_KEY|sk-|secret|password|token" .
 ```
 
 - Confirm non-admin requirements:

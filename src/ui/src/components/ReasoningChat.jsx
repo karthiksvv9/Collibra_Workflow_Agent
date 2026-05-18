@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { designWorkflow } from '../api.js';
 
-export default function ReasoningChat({ appModel, setAppModel, importBpmnXml, addConsole }) {
+export default function ReasoningChat({ appModel, setAppModel, importBpmnXml, addConsole, modelId }) {
   const [messages, setMessages] = useState([{ role: 'agent', text: 'Describe a Collibra workflow use case. I can generate a BPMN file, forms, and element scripts using the current RAG index.' }]);
   const [text, setText] = useState('Generate a BPMN workflow for data governance asset approval with requester form, steward review, business owner approval, update asset status, rejection path, and notification task.');
   const [busy, setBusy] = useState(false);
@@ -13,7 +13,7 @@ export default function ReasoningChat({ appModel, setAppModel, importBpmnXml, ad
     setText('');
     setBusy(true);
     try {
-      const result = await designWorkflow({ prompt: userText, appModel });
+      const result = await designWorkflow({ prompt: userText, appModel, modelId });
       if (result.bpmnXml) await importBpmnXml(result.bpmnXml);
       if (result.appModel) {
         setAppModel(prev => ({

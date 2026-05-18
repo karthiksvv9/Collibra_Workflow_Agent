@@ -85,8 +85,8 @@ Write-Check "Port $Port" (-not $portInUse) $(if ($portInUse) { "Already used by 
 $jarCount = @(Get-ChildItem -Path (Join-Path $ProjectRoot "jars") -Filter "*.jar" -ErrorAction SilentlyContinue).Count
 Write-Check "JAR folder" ($jarCount -gt 0) "$jarCount jar file(s) found under jars."
 
-$apiKeyPresent = -not [string]::IsNullOrWhiteSpace($env:MERCK_API_KEY)
-Write-Check "MERCK_API_KEY" $apiKeyPresent "Set in current user/session environment or enter it when start script prompts."
+$apiKeyPresent = -not [string]::IsNullOrWhiteSpace($env:AI_GATEWAY_API_KEY)
+Write-Check "AI_GATEWAY_API_KEY" $apiKeyPresent "Set in current user/session environment or enter it when start script prompts."
 
 Write-Host ""
 Write-Host "This check does not require administrator permissions." -ForegroundColor Cyan

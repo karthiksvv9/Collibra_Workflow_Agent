@@ -13,6 +13,7 @@ class FormField:
     name: str
     type: str = "string"
     required: bool = False
+    label: str = ""
     readable: bool = True
     writable: bool = True
     default: Any = None
@@ -50,8 +51,37 @@ class FormModel:
     @classmethod
     def from_json(cls, text: str) -> "FormModel":
         data = json.loads(text)
-        fields = [FormField(**field) for field in data.get("fields", [])]
+        fields = [form_field_from_mapping(field) for field in data.get("fields", []) if isinstance(field, dict)]
         return cls(key=data["key"], name=data.get("name", data["key"]), fields=fields)
+
+
+def form_field_from_mapping(field: dict[str, Any]) -> FormField:
+    field_id = str(field.get("id") or field.get("key") or field.get("name") or "field").strip()
+    field_id = re.sub(r"[^A-Za-z0-9_]+", "_", field_id).strip("_") or "field"
+    if field_id[0].isdigit():
+        field_id = f"field_{field_id}"
+    label = str(field.get("label") or field.get("name") or field_id)
+    values = field.get("values")
+    if not isinstance(values, list):
+        extra_settings = field.get("extraSettings") if isinstance(field.get("extraSettings"), dict) else {}
+        values = extra_settings.get("values") if isinstance(extra_settings.get("values"), list) else []
+    return FormField(
+        id=field_id,
+        name=str(field.get("name") or label or field_id),
+        type=str(field.get("type") or "string"),
+        required=_coerce_bool(field.get("required", field.get("isRequired", False))),
+        label=label,
+        readable=_coerce_bool(field.get("readable", field.get("visible", True))),
+        writable=_coerce_bool(field.get("writable", field.get("enabled", True))),
+        default=field.get("default", field.get("value")),
+        values=[value for value in values if isinstance(value, dict)],
+    )
+
+
+def _coerce_bool(value: Any) -> bool:
+    if isinstance(value, str):
+        return value.strip().lower() not in {"", "0", "false", "no", "off"}
+    return bool(value)
 
 
 def write_form_file(form: FormModel, path: str | Path) -> Path:
@@ -59,4 +89,3 @@ def write_form_file(form: FormModel, path: str | Path) -> Path:
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(form.to_json(), encoding="utf-8")
     return output
-

@@ -144,6 +144,10 @@
         ]
       }
     ],
+    "metrics": {
+      "casePassPercent": 100.0,
+      "packagePassPercent": 100.0
+    },
     "ok": true,
     "packageResult": {
       "blockingIssues": [],
@@ -165,7 +169,13 @@
           "structuralErrors": []
         }
       ],
-      "message": "Autonomous package test completed.",
+      "message": "Autonomous package test passed. Pass rate 100.0% (9/9 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+      "metrics": {
+        "failedChecks": 0,
+        "passPercent": 100.0,
+        "passedChecks": 9,
+        "totalChecks": 9
+      },
       "ok": true,
       "repairedAppModel": {
         "elementProperties": {
@@ -406,9 +416,11 @@
         "forms": 1,
         "iterations": 1,
         "nodes": 4,
+        "passPercent": 100.0,
         "processId": "sampleWorkflow",
         "scripts": 1
-      }
+      },
+      "summaryText": "Autonomous package test passed. Pass rate 100.0% (9/9 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
     },
     "status": "passed",
     "summary": {
@@ -418,6 +430,7 @@
       "passedCases": 5,
       "userCases": 1
     },
+    "summaryText": "Autonomous Agent Mode passed. Case pass rate 100.0% (5/5 cases). Package pass rate 100.0%.",
     "userCases": [
       {
         "expected": [
@@ -457,7 +470,13 @@
         "structuralErrors": []
       }
     ],
-    "message": "Autonomous package test completed.",
+    "message": "Autonomous package test passed. Pass rate 100.0% (9/9 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+    "metrics": {
+      "failedChecks": 0,
+      "passPercent": 100.0,
+      "passedChecks": 9,
+      "totalChecks": 9
+    },
     "ok": true,
     "repairedAppModel": {
       "elementProperties": {
@@ -698,9 +717,11 @@
       "forms": 1,
       "iterations": 1,
       "nodes": 4,
+      "passPercent": 100.0,
       "processId": "sampleWorkflow",
       "scripts": 1
-    }
+    },
+    "summaryText": "Autonomous package test passed. Pass rate 100.0% (9/9 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
   },
   "ragContextPreview": "Question: Production-check this imported Collibra workflow and preserve its form and script task. Collibra workflow BPMN forms Groovy Java API v2 relation UUID roles organization standards OOTB workflow\n\nRetrieved context:\n\n- score=0.505 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-ai-complex-workflow-final.zip kind=zip\n# Workflow ZIP: prompt-driven-ai-complex-workflow-final.zip\n\n## BPMN/XML: workflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.501 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Creating_workflows.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.501 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Creating_workflows.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.501 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Creating_workflows_1.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.499 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md kind=md\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                        ",
   "status": "passed",

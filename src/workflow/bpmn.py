@@ -95,6 +95,11 @@ class BpmnModel:
                     errors.append(
                         f"Sequence flow {flow.id} {label} should be a Flowable/JUEL expression like ${{approved == true}}."
                     )
+        if not errors and self.nodes:
+            start_ids = [node.id for node in self.nodes if node.type == "startEvent"]
+            end_ids = {node.id for node in self.nodes if node.type == "endEvent"}
+            if start_ids and end_ids and not _has_path_to_end(start_ids, end_ids, self.flows):
+                errors.append("BPMN model must contain at least one complete path from a startEvent to an endEvent.")
         return errors
 
     def to_xml(self) -> str:
@@ -217,12 +222,17 @@ class BpmnModel:
 
     def _append_diagram(self, definitions: ET.Element) -> None:
         diagram = ET.SubElement(definitions, _q(BPMNDI_NS, "BPMNDiagram"), {"id": f"{self.process_id}_diagram"})
+        plane_element = f"{self.process_id}_collaboration"
         plane = ET.SubElement(
             diagram,
             _q(BPMNDI_NS, "BPMNPlane"),
-            {"id": f"{self.process_id}_plane", "bpmnElement": self.process_id},
+            {"id": f"{self.process_id}_plane", "bpmnElement": plane_element},
         )
-        for pool in self.pools or [BpmnPool(id=f"{self.process_id}_pool", name=self.name, process_ref=self.process_id)]:
+        pools = self.pools or [BpmnPool(id=f"{self.process_id}_pool", name=self.name, process_ref=self.process_id)]
+        lane_height = 170
+        for pool in pools:
+            pool_width = max(pool.width, max([node.x for node in self.nodes] or [900]) + 260)
+            pool_height = max(pool.height, 80 + max(1, len(self.lanes)) * lane_height)
             shape = ET.SubElement(
                 plane,
                 _q(BPMNDI_NS, "BPMNShape"),
@@ -234,10 +244,27 @@ class BpmnModel:
                 {
                     "x": str(pool.x),
                     "y": str(pool.y),
-                    "width": str(pool.width),
-                    "height": str(max(pool.height, 120 + len(self.lanes) * 150)),
+                    "width": str(pool_width),
+                    "height": str(pool_height),
                 },
             )
+            for index, lane in enumerate(self.lanes):
+                lane_id = _id("lane", lane)
+                lane_shape = ET.SubElement(
+                    plane,
+                    _q(BPMNDI_NS, "BPMNShape"),
+                    {"id": f"{lane_id}_di", "bpmnElement": lane_id, "isHorizontal": "true"},
+                )
+                ET.SubElement(
+                    lane_shape,
+                    _q(DC_NS, "Bounds"),
+                    {
+                        "x": str(pool.x + 30),
+                        "y": str(pool.y + index * lane_height),
+                        "width": str(max(100, pool_width - 30)),
+                        "height": str(lane_height),
+                    },
+                )
         for node in self.nodes:
             shape = ET.SubElement(
                 plane,
@@ -498,3 +525,20 @@ def _id(prefix: str, label: str) -> str:
 def _looks_like_expression(expression: str) -> bool:
     value = expression.strip()
     return value.startswith("${") and value.endswith("}")
+
+
+def _has_path_to_end(start_ids: list[str], end_ids: set[str], flows: list[SequenceFlow]) -> bool:
+    adjacency: dict[str, list[str]] = {}
+    for flow in flows:
+        adjacency.setdefault(flow.source_ref, []).append(flow.target_ref)
+    visited: set[str] = set()
+    stack = list(start_ids)
+    while stack:
+        node_id = stack.pop()
+        if node_id in visited:
+            continue
+        if node_id in end_ids:
+            return True
+        visited.add(node_id)
+        stack.extend(adjacency.get(node_id, []))
+    return False

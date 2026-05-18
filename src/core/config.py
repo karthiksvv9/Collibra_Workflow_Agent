@@ -74,6 +74,22 @@ def _coerce_scalar(value: str) -> Any:
 
 
 @dataclass(frozen=True)
+class ChatModelOption:
+    id: str
+    label: str
+    provider: str = "custom_chat_completions"
+    model: str = ""
+    base_url: str = ""
+    chat_completions_path: str = ""
+    api_key_env: str = "AI_GATEWAY_API_KEY"
+    api_key_header: str = "X-API-Key"
+    api_key_prefix: str = ""
+    max_output_tokens: int = 8192
+    temperature: float = 0.1
+    enabled: bool = True
+
+
+@dataclass(frozen=True)
 class ModelConfig:
     chat_model: str = "gpt-5-4-2026-03-05"
     embedding_model: str = "text-embedding-3-large"
@@ -81,6 +97,7 @@ class ModelConfig:
     temperature: float = 0.1
     max_output_tokens: int = 8192
     request_timeout_seconds: int = 90
+    available_chat_models: list[ChatModelOption] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -116,8 +133,8 @@ class RuntimeConfig:
 class OpenAIConfig:
     provider: str = "custom_chat_completions"
     api_key: str = ""
-    api_key_env: str = "MERCK_API_KEY"
-    api_key_header: str = "X-Merck-APIKey"
+    api_key_env: str = "AI_GATEWAY_API_KEY"
+    api_key_header: str = "X-API-Key"
     api_key_prefix: str = ""
     organization: str = ""
     project: str = ""
@@ -198,6 +215,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         request_timeout_seconds=int(
             _deep_get(data, "models.request_timeout_seconds", ModelConfig.request_timeout_seconds)
         ),
+        available_chat_models=_load_chat_model_options(data),
     )
     docs_dir = resolve_path(_deep_get(data, "paths.docs_dir", "./docs/rag_training"))
     paths = PathConfig(
@@ -302,6 +320,49 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         collibra=collibra,
         quality=quality,
     )
+
+
+def _load_chat_model_options(data: dict[str, Any]) -> list[ChatModelOption]:
+    raw_options = _deep_get(data, "models.available_chat_models", [])
+    if not isinstance(raw_options, list) or not raw_options:
+        raw_options = [
+            {
+                "id": "openai-gpt-5-4",
+                "label": "OpenAI GPT-5.4",
+                "provider": _deep_get(data, "openai.provider", OpenAIConfig.provider),
+                "model": _deep_get(data, "models.chat_model", ModelConfig.chat_model),
+                "base_url": _deep_get(data, "openai.base_url", OpenAIConfig.base_url),
+                "chat_completions_path": _deep_get(
+                    data, "openai.chat_completions_path", OpenAIConfig.chat_completions_path
+                ),
+                "api_key_env": _deep_get(data, "openai.api_key_env", OpenAIConfig.api_key_env),
+                "api_key_header": _deep_get(data, "openai.api_key_header", OpenAIConfig.api_key_header),
+                "api_key_prefix": _deep_get(data, "openai.api_key_prefix", OpenAIConfig.api_key_prefix),
+            }
+        ]
+    options: list[ChatModelOption] = []
+    for index, item in enumerate(raw_options, start=1):
+        if not isinstance(item, dict):
+            continue
+        model = str(item.get("model") or item.get("id") or ModelConfig.chat_model)
+        option_id = str(item.get("id") or model or f"model_{index}")
+        options.append(
+            ChatModelOption(
+                id=option_id,
+                label=str(item.get("label") or option_id),
+                provider=str(item.get("provider") or OpenAIConfig.provider),
+                model=model,
+                base_url=str(item.get("base_url") or ""),
+                chat_completions_path=str(item.get("chat_completions_path") or item.get("path") or ""),
+                api_key_env=str(item.get("api_key_env") or OpenAIConfig.api_key_env),
+                api_key_header=str(item.get("api_key_header") or OpenAIConfig.api_key_header),
+                api_key_prefix=str(item.get("api_key_prefix") or ""),
+                max_output_tokens=int(item.get("max_output_tokens") or ModelConfig.max_output_tokens),
+                temperature=float(item.get("temperature", ModelConfig.temperature)),
+                enabled=bool(item.get("enabled", True)),
+            )
+        )
+    return [option for option in options if option.enabled]
 
 
 settings = load_settings()

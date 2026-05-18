@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { BookOpen, Copy, FileText, Sparkles } from 'lucide-react';
 import { generateDocumentation } from '../api.js';
 
-export default function DocumentationPanel({ appModel, getBpmnXml, addConsole }) {
+export default function DocumentationPanel({ appModel, getBpmnXml, addConsole, modelId }) {
   const [prompt, setPrompt] = useState('Generate complete production documentation for this Collibra workflow: purpose, BPMN flow, pools, lanes, forms, Groovy scripts, sequence-flow rules, RAG assumptions, test cases, deployment notes and rollback plan.');
   const [markdown, setMarkdown] = useState('');
   const [path, setPath] = useState('');
@@ -12,7 +12,7 @@ export default function DocumentationPanel({ appModel, getBpmnXml, addConsole })
     setBusy(true);
     try {
       const bpmnXml = await getBpmnXml();
-      const result = await generateDocumentation({ bpmnXml, appModel, forms: appModel?.forms || {}, prompt });
+      const result = await generateDocumentation({ bpmnXml, appModel, forms: appModel?.forms || {}, prompt, modelId });
       setMarkdown(result.markdown || '');
       setPath(result.path || '');
       addConsole?.({ level: 'success', message: 'Documentation generated', detail: result });

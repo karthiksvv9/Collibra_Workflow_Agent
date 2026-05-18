@@ -6,6 +6,11 @@ __pycache__/
 .pytest_cache/
 output/*.log
 output/*.err.log
+output/*.zip
+output/*_report.json
+output/*_documentation.md
+output/action_logs/
+output/token_usage.*
 output/vector_store.sqlite3
 output/_run_smoke_build.py
 npm-debug.log*

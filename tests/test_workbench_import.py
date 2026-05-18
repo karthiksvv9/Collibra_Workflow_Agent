@@ -6,6 +6,7 @@ import zipfile
 
 from fastapi.testclient import TestClient
 
+from src.agents.workflow_agent import CollibraWorkflowAgent
 from src.api.server import app
 
 
@@ -85,6 +86,65 @@ def test_import_rejects_unsafe_zip_member_paths() -> None:
 
     assert response.status_code == 400
     assert "Unsafe ZIP member path" in response.text
+
+
+def test_workbench_export_is_flat_ootb_style_zip() -> None:
+    client = TestClient(app)
+    imported = client.post(
+        "/api/workflow/import",
+        files={"file": ("sampleCollibraApp.zip", _sample_collibra_zip(), "application/zip")},
+    ).json()
+
+    response = client.post(
+        "/api/workflow/export",
+        json={
+            "bpmnXml": imported["bpmnXml"],
+            "appModel": imported["appModel"],
+            "forms": imported["forms"],
+            "packageName": "flatExport.zip",
+        },
+    )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as package:
+        names = package.namelist()
+    assert all("/" not in name and "\\" not in name for name in names)
+    assert "flatExport.bpmn" in names
+    assert "flatExport.app" in names
+    assert "approvalForm.form" in names
+    assert "approveScript.groovy" in names
+
+
+def test_prompt_design_accepts_form_field_label_payload() -> None:
+    agent = CollibraWorkflowAgent.__new__(CollibraWorkflowAgent)
+    package = agent._package_from_design(
+        {
+            "process_id": "labelFormWorkflow",
+            "name": "Label Form Workflow",
+            "lanes": ["Requester", "Collibra Automation", "Data Steward"],
+            "nodes": [
+                {"id": "start", "type": "startEvent", "name": "Start", "lane": "Requester", "formKey": "requestForm"},
+                {"id": "script", "type": "scriptTask", "name": "Groovy", "lane": "Collibra Automation", "script": "execution.setVariable('ok', true)"},
+                {"id": "end", "type": "endEvent", "name": "End", "lane": "Requester"},
+            ],
+            "flows": [
+                {"id": "flow1", "sourceRef": "start", "targetRef": "script"},
+                {"id": "flow2", "sourceRef": "script", "targetRef": "end"},
+            ],
+            "forms": [
+                {
+                    "key": "requestForm",
+                    "name": "Request Form",
+                    "fields": [{"id": "approvalDecision", "label": "Approval decision", "type": "dropdown", "required": True}],
+                }
+            ],
+        }
+    )
+
+    assert package.forms[0].fields[0].name == "Approval decision"
+    assert package.forms[0].fields[0].label == "Approval decision"
+    assert package.process.pools
+    assert package.validate() == []
 
 
 def _sample_collibra_zip() -> bytes:

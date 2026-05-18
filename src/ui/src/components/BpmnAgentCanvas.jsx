@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import { Bot, Code2, Database, Download, EyeOff, FileText, Maximize, Play, RefreshCw, Rocket, Search, ShieldCheck, Terminal } from 'lucide-react';
-import { compileGroovy, exportWorkflow, simulateWorkflow, testWorkflowPackage } from '../api.js';
+import { compileGroovy, exportWorkflow, getModelProfiles, selectModelProfile, simulateWorkflow, testWorkflowPackage } from '../api.js';
+import { syncAllLaneMembership, syncLaneMembership } from '../bpmnLaneSync.js';
 import BlockLibrary from './BlockLibrary.jsx';
 import PackageImporter from './PackageImporter.jsx';
 import RightDock from './RightDock.jsx';
@@ -71,6 +72,8 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   const [rightTab, setRightTab] = useState('properties');
   const [hideHandles, setHideHandles] = useState(true);
   const [autonomousOpen, setAutonomousOpen] = useState(false);
+  const [models, setModels] = useState([]);
+  const [activeModelId, setActiveModelId] = useState('');
 
   useEffect(() => {
     const modeler = new BpmnModeler({
@@ -80,7 +83,9 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
     });
     modelerRef.current = modeler;
     modeler.importXML(STARTER_BPMN)
-      .then(({ warnings }) => {
+      .then(async ({ warnings }) => {
+        await loadCalledWorkflowFromSession(modeler);
+        syncAllLaneMembership(modeler);
         modeler.get('canvas').zoom('fit-viewport');
         setModelerReady(true);
         addConsole({ level: warnings?.length ? 'warn' : 'success', message: 'bpmn-js canvas initialized', detail: warnings?.length ? warnings : 'Starter Collibra workflow loaded.' });
@@ -91,8 +96,20 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
       setSelectedElement(e.newSelection?.[0] || null);
       if (e.newSelection?.[0]) setRightTab('properties');
     });
+    eventBus.on('shape.move.end', e => syncLaneMembership(modeler, e.shape));
+    eventBus.on('shape.create.end', e => syncLaneMembership(modeler, e.shape));
+    eventBus.on('commandStack.connection.create.executed', e => applySequenceFlowType(modeler, e.context?.connection));
     eventBus.on('commandStack.changed', () => refreshScriptBadges());
     return () => modeler.destroy();
+  }, []);
+
+  useEffect(() => {
+    getModelProfiles()
+      .then(result => {
+        setModels(result.models || []);
+        setActiveModelId(result.activeModelId || result.models?.[0]?.id || '');
+      })
+      .catch(err => addConsole({ level: 'warn', message: 'Model profiles could not be loaded', detail: err.message }));
   }, []);
 
   useEffect(() => {
@@ -133,6 +150,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
     }
     try {
       const result = await modelerRef.current.importXML(clean);
+      syncAllLaneMembership(modelerRef.current);
       modelerRef.current.get('canvas').zoom('fit-viewport');
       setSelectedElement(null);
       setImportSummary(`Loaded ${sourceName}`);
@@ -173,7 +191,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   async function doExport() {
     try {
       const bpmnXml = await getBpmnXml();
-      await exportWorkflow({ bpmnXml, appModel, forms, packageName });
+      await exportWorkflow({ bpmnXml, appModel, forms, packageName, modelId: activeModelId });
       addConsole({ level: 'success', message: 'Package exported', detail: packageName });
       setRightTab('console');
     } catch (err) {
@@ -185,8 +203,8 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   async function simulate() {
     try {
       const bpmnXml = await getBpmnXml();
-      const result = await simulateWorkflow({ bpmnXml, appModel, formValues: {} });
-      addConsole({ level: 'info', message: 'Simulation completed', detail: result });
+      const result = await simulateWorkflow({ bpmnXml, appModel, formValues: {}, modelId: activeModelId });
+      addConsole({ level: result.status === 'failed' ? 'error' : 'info', message: result.summaryText || 'Simulation completed', detail: result });
       setRightTab('console');
     } catch (err) {
       addConsole({ level: 'error', message: 'Simulation failed', detail: err.message });
@@ -197,13 +215,13 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   async function testPackage() {
     try {
       const bpmnXml = await getBpmnXml();
-      const result = await testWorkflowPackage({ bpmnXml, appModel, forms, maxIterations: 3 });
+      const result = await testWorkflowPackage({ bpmnXml, appModel, forms, maxIterations: 3, modelId: activeModelId });
       if (result.repairedAppModel) {
         setAppModel(prev => deepMerge(prev, result.repairedAppModel));
       }
       addConsole({
         level: result.ok ? 'success' : 'error',
-        message: `Autonomous package test ${result.status || (result.ok ? 'passed' : 'failed')}`,
+        message: result.summaryText || `Autonomous package test ${result.status || (result.ok ? 'passed' : 'failed')}`,
         detail: result
       });
       setRightTab('console');
@@ -226,7 +244,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
       return;
     }
     try {
-      const result = await compileGroovy({ code: groovy, elementId: selectedElement.id });
+      const result = await compileGroovy({ code: groovy, elementId: selectedElement.id, modelId: activeModelId });
       addConsole({ level: result.ok ? 'success' : 'error', message: `Compile ${result.ok ? 'passed' : 'failed'} for ${selectedElement.id}`, detail: result });
       setRightTab('console');
     } catch (err) {
@@ -261,6 +279,17 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
     modelerRef.current?.get('canvas')?.zoom('fit-viewport');
   }
 
+  async function changeModel(event) {
+    const modelId = event.target.value;
+    setActiveModelId(modelId);
+    try {
+      const result = await selectModelProfile(modelId);
+      addConsole({ level: 'info', message: `AI model selected: ${result.model}`, detail: result });
+    } catch (err) {
+      addConsole({ level: 'error', message: 'AI model selection failed', detail: err.message });
+    }
+  }
+
   return (
     <div className={`agent-workbench ${hideHandles ? 'hide-edit-handles' : ''}`}>
       <header className="topbar">
@@ -270,6 +299,10 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
         </div>
         <div className="top-actions">
           <input value={packageName} onChange={e => setPackageName(e.target.value)} aria-label="Export package name" />
+          <select className="model-select" value={activeModelId} onChange={changeModel} aria-label="AI model">
+            {models.length === 0 && <option value="">Loading models...</option>}
+            {models.map(model => <option key={model.id} value={model.id}>{model.label || model.id}</option>)}
+          </select>
           <button onClick={() => setRightTab('rag')} className="accent-button"><Database size={16}/> RAG / Train</button>
           <button onClick={() => setRightTab('agent')}><Bot size={16}/> Generate BPMN</button>
           <button onClick={() => setAutonomousOpen(true)} className="accent-button"><Rocket size={16}/> Autonomous Agent Mode</button>
@@ -318,6 +351,8 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
         consoleEntries={consoleEntries}
         clearConsole={clearConsole}
         forms={forms}
+        modelId={activeModelId}
+        modeler={modelerReady ? modelerRef.current : null}
       />
       <AutonomousAgentModal
         open={autonomousOpen}
@@ -327,6 +362,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
         forms={forms}
         onResult={onAutonomousResult}
         addConsole={addConsole}
+        modelId={activeModelId}
       />
       <footer className="app-footer">karthik.v</footer>
     </div>
@@ -359,4 +395,48 @@ function deepMerge(left, right) {
     }
   });
   return result;
+}
+
+function applySequenceFlowType(modeler, connection) {
+  if (!connection || connection.type !== 'bpmn:SequenceFlow') return;
+  const flowType = modeler.__dscNextSequenceFlowType || 'normal';
+  if (flowType === 'normal') return;
+  try {
+    const modeling = modeler.get('modeling');
+    const moddle = modeler.get('moddle');
+    if (flowType === 'conditional') {
+      modeling.updateProperties(connection, {
+        name: connection.businessObject.name || 'Conditional',
+        conditionExpression: moddle.create('bpmn:FormalExpression', { body: '${approvalDecision == "approve"}' })
+      });
+    } else if (flowType === 'default') {
+      modeling.updateProperties(connection, { name: connection.businessObject.name || 'Default' });
+      if (connection.source) {
+        modeling.updateProperties(connection.source, { default: connection.businessObject });
+      }
+    } else if (flowType === 'skip') {
+      modeling.updateProperties(connection, {
+        name: connection.businessObject.name || 'Skip',
+        conditionExpression: moddle.create('bpmn:FormalExpression', { body: '${skipFlow == true}' })
+      });
+    }
+  } catch {
+    // The connection itself is already valid. If metadata decoration fails, keep the user's sequence flow.
+  }
+}
+
+async function loadCalledWorkflowFromSession(modeler) {
+  const params = new URLSearchParams(window.location.search);
+  const key = params.get('calledWorkflowSession');
+  if (!key) return;
+  try {
+    const raw = window.sessionStorage.getItem(key);
+    if (!raw) return;
+    const payload = JSON.parse(raw);
+    if (payload?.bpmnXml) {
+      await modeler.importXML(payload.bpmnXml);
+    }
+  } catch {
+    // Keep the starter workflow if the session payload cannot be parsed.
+  }
 }

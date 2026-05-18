@@ -2,16 +2,19 @@ from __future__ import annotations
 
 import io
 import json
+import re
+import time
 import zipfile
 from dataclasses import asdict
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.agents.groovy_compiler import GroovyCompiler
+from src.agents.llm_client import model_options_payload, request_text_completion, resolve_model_profile
 from src.agents.workflow_agent import CollibraWorkflowAgent
 from src.api.schemas import (
     AIEnhanceRequest,
@@ -28,12 +31,14 @@ from src.api.schemas import (
     SequenceFlowValidateRequest,
     SimulateRequest,
 )
+from src.core.action_logger import log_action
 from src.core.config import settings
 from src.core.logging import configure_logging
+from src.core.usage_tracker import ensure_usage_workbook
 from src.rag.engine import RAGEngine
 from src.rag.collibra_docs import CollibraDocsMirror
 from src.workflow.bpmn import BpmnModel, BpmnNode, BpmnPool, SequenceFlow
-from src.workflow.form import FormField, FormModel
+from src.workflow.form import FormModel, form_field_from_mapping
 from src.workflow.package import WorkflowPackage
 from src.workflow.simulator import WorkflowSimulator
 
@@ -68,6 +73,8 @@ agent = CollibraWorkflowAgent(rag_engine, config=settings)
 simulator = WorkflowSimulator()
 groovy_compiler = GroovyCompiler(settings.groovy)
 latest_ingest_report: IngestResponse | None = None
+active_model_id = (settings.models.available_chat_models[0].id if settings.models.available_chat_models else settings.models.chat_model)
+ensure_usage_workbook(settings)
 
 UI_ROOT = Path(__file__).resolve().parents[1] / "ui"
 UI_DIR = UI_ROOT / "dist" if (UI_ROOT / "dist").exists() else UI_ROOT
@@ -75,9 +82,54 @@ if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=UI_DIR, html=True), name="ui")
 
 
+@app.middleware("http")
+async def timestamped_action_log(request: Request, call_next):
+    started = time.perf_counter()
+    status = "error"
+    response = None
+    try:
+        response = await call_next(request)
+        status = "ok" if response.status_code < 400 else "error"
+        return response
+    finally:
+        if request.url.path.startswith("/api/"):
+            log_action(
+                f"{request.method} {request.url.path}",
+                status=status,
+                detail={
+                    "statusCode": getattr(response, "status_code", None),
+                    "durationMs": round((time.perf_counter() - started) * 1000, 2),
+                },
+            )
+
+
 @app.get("/")
 def root() -> dict[str, str]:
     return {"name": settings.app.name, "ui": "/ui/index.html"}
+
+
+@app.get("/api/models")
+def list_models() -> dict:
+    return {
+        "activeModelId": active_model_id,
+        "models": model_options_payload(settings),
+        "notes": [
+            "Model profiles are configured in config.yaml.",
+            "API keys are read from environment variables and are never returned by this endpoint.",
+        ],
+    }
+
+
+@app.post("/api/models/select")
+def select_model(payload: dict) -> dict:
+    global active_model_id
+    requested = str(payload.get("modelId") or payload.get("id") or "").strip()
+    if not requested:
+        raise HTTPException(status_code=400, detail="modelId is required.")
+    profile = resolve_model_profile(settings, requested)
+    active_model_id = profile.id
+    log_action("model_selected", detail={"modelId": profile.id, "provider": profile.provider, "model": profile.model})
+    return {"activeModelId": active_model_id, "model": profile.id, "provider": profile.provider}
 
 
 @app.post("/api/ingest", response_model=IngestResponse)
@@ -151,7 +203,7 @@ def retrieve(request: RetrieveRequest) -> RetrieveResponse:
 
 @app.post("/api/workflows/build", response_model=BuildWorkflowResponse)
 def build_workflow(request: BuildWorkflowRequest) -> BuildWorkflowResponse:
-    result = agent.build(request.master_prompt, request.output_name)
+    result = agent.build(request.master_prompt, request.output_name, model_id=active_model_id)
     package = result.package
     return BuildWorkflowResponse(
         zip_path=str(result.output_zip),
@@ -318,17 +370,18 @@ def export_workflow_workbench(payload: dict) -> StreamingResponse:
         package_name = f"{package_name}.zip"
     app_model = payload.get("appModel") or {}
     forms = payload.get("forms") or {}
+    base_name = _safe_filename(Path(package_name).stem or "workflow")
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
-        package.writestr("workflow.bpmn", bpmn_xml)
-        package.writestr("workflow.app", json.dumps(app_model, indent=2, sort_keys=True))
+        package.writestr(f"{base_name}.bpmn", bpmn_xml)
+        package.writestr(f"{base_name}.app", json.dumps(app_model, indent=2, sort_keys=True))
         for key, value in (forms.items() if isinstance(forms, dict) else []):
-            package.writestr(f"forms/{_safe_filename(str(key))}.form", value if isinstance(value, str) else json.dumps(value, indent=2, sort_keys=True))
+            package.writestr(f"{_safe_filename(str(key))}.form", value if isinstance(value, str) else json.dumps(value, indent=2, sort_keys=True))
         for element_id, script_info in (app_model.get("scripts") or {}).items():
             groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
             if groovy.strip():
-                package.writestr(f"scripts/{_safe_filename(str(element_id))}.groovy", groovy)
+                package.writestr(f"{_safe_filename(str(element_id))}.groovy", groovy)
     buffer.seek(0)
     return StreamingResponse(
         buffer,
@@ -344,7 +397,8 @@ def simulate_workbench(payload: dict) -> dict:
         raise HTTPException(status_code=400, detail="bpmnXml is required.")
     try:
         model = BpmnModel.from_xml(bpmn_xml)
-        return asdict(simulator.simulate(model, [], payload.get("formValues") or payload.get("variables") or {}))
+        result = simulator.simulate(model, [], payload.get("formValues") or payload.get("variables") or {})
+        return _simulation_payload(model, result)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -353,7 +407,7 @@ def simulate_workbench(payload: dict) -> dict:
 def design_workflow_workbench(payload: dict) -> dict:
     prompt = payload.get("prompt") or payload.get("master_prompt") or "Create a Collibra governance workflow."
     try:
-        result = agent.build(prompt, "agent_generated_workflow")
+        result = agent.build(prompt, "agent_generated_workflow", model_id=_selected_model_id(payload))
         return {
             "bpmnXml": result.package.process.to_xml(),
             "appModel": {
@@ -378,7 +432,7 @@ def generate_code_workbench(payload: dict) -> dict:
     element = payload.get("element") or {}
     prompt = payload.get("prompt") or "Generate Collibra Groovy for the selected BPMN element."
     context = rag_engine.retrieve(prompt, limit=6).render()
-    groovy = _compat_groovy(element, prompt, context)
+    groovy = _ai_or_compat_groovy(element, prompt, context, _selected_model_id(payload))
     compile_result = groovy_compiler.compile_script(groovy) if groovy.strip() else None
     return {
         "groovy": groovy,
@@ -427,7 +481,7 @@ def autonomous_agent_run(payload: dict) -> dict:
     if mode == "prompt":
         if not prompt:
             raise HTTPException(status_code=400, detail="prompt is required for autonomous prompt mode.")
-        build_result = agent.build(prompt, f"{output_name}_draft")
+        build_result = agent.build(prompt, f"{output_name}_draft", model_id=_selected_model_id(payload))
         model = build_result.package.process
         forms = _forms_dict_from_package(build_result.package)
         app_model = _app_model_from_package(build_result.package, rag_context.render())
@@ -481,9 +535,21 @@ def autonomous_agent_run(payload: dict) -> dict:
             final_quality,
         )
         failed_cases = [case for case in case_results if case["status"] != "passed"]
+        passed_case_count = len([case for case in case_results if case["status"] == "passed"])
+        case_pass_percent = round((passed_case_count / max(1, len(case_results))) * 100, 2)
+        case_status = "passed" if final_quality["ok"] and not failed_cases else "failed"
         final_cases = {
             "ok": final_quality["ok"] and not failed_cases,
-            "status": "passed" if final_quality["ok"] and not failed_cases else "failed",
+            "status": case_status,
+            "summaryText": (
+                f"Autonomous Agent Mode {case_status}. Case pass rate {case_pass_percent}% "
+                f"({passed_case_count}/{len(case_results)} cases). Package pass rate "
+                f"{final_quality.get('metrics', {}).get('passPercent', 0)}%."
+            ),
+            "metrics": {
+                "casePassPercent": case_pass_percent,
+                "packagePassPercent": final_quality.get("metrics", {}).get("passPercent", 0),
+            },
             "businessUseCase": business_use_case,
             "packageResult": final_quality,
             "generatedCases": generated_cases,
@@ -613,7 +679,10 @@ def rag_chat_workbench(payload: dict) -> dict:
     limit = int(payload.get("top_k") or payload.get("limit") or 8)
     context = rag_engine.retrieve(question, limit=limit)
     results = [_search_result_payload(result) for result in context.results]
-    answer = context.render()[:5000] if results else "No RAG results were found. Upload documents and generate the index."
+    if results:
+        answer = _business_rag_answer(question, context.render(), results, _selected_model_id(payload))
+    else:
+        answer = "No RAG results were found. Upload documents and generate the index, then ask again."
     return {"answer": answer, "results": results}
 
 
@@ -625,13 +694,14 @@ def simulate(request: SimulateRequest) -> dict:
             FormModel(
                 key=form["key"],
                 name=form.get("name", form["key"]),
-                fields=[FormField(**field) for field in form.get("fields", [])],
+                fields=[form_field_from_mapping(field) for field in form.get("fields", []) if isinstance(field, dict)],
             )
             for form in request.forms
         ]
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return asdict(simulator.simulate(model, forms, request.variables))
+    result = simulator.simulate(model, forms, request.variables)
+    return _simulation_payload(model, result)
 
 
 @app.post("/api/workflows/debug")
@@ -721,6 +791,9 @@ def generate_workbench_documentation(payload: dict) -> dict:
     forms = payload.get("forms") or app_model.get("forms") or {}
     prompt = payload.get("prompt") or ""
     markdown = _workbench_documentation_markdown(model, app_model, forms, prompt)
+    ai_doc = _ai_documentation_narrative(markdown, prompt, _selected_model_id(payload))
+    if ai_doc:
+        markdown = f"{markdown}\n\n## AI Business Narrative\n\n{ai_doc}\n"
     settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = settings.paths.output_dir / f"{_safe_filename(model.process_id)}_workbench_documentation.md"
     output_path.write_text(markdown, encoding="utf-8")
@@ -769,9 +842,25 @@ def test_workbench_cases(payload: dict) -> dict:
     user_cases = _parse_user_test_cases(user_test_cases)
     case_results = _execute_business_test_cases(model, app_model, forms, generated_cases + user_cases, package_result)
     blocking = [result for result in case_results if result["status"] != "passed"]
+    total_cases = max(1, len(case_results))
+    passed_cases = len([result for result in case_results if result["status"] == "passed"])
+    pass_percent = round((passed_cases / total_cases) * 100, 2)
+    status = "passed" if package_result["ok"] and not blocking else "failed"
     return {
         "ok": package_result["ok"] and not blocking,
-        "status": "passed" if package_result["ok"] and not blocking else "failed",
+        "status": status,
+        "summaryText": (
+            f"AI and user test cases {status}. Case pass rate {pass_percent}% "
+            f"({passed_cases}/{len(case_results)} cases). Package pass rate "
+            f"{package_result.get('metrics', {}).get('passPercent', 0)}%."
+        ),
+        "metrics": {
+            "casePassPercent": pass_percent,
+            "totalCases": len(case_results),
+            "passedCases": passed_cases,
+            "failedCases": len(blocking),
+            "packagePassPercent": package_result.get("metrics", {}).get("passPercent", 0),
+        },
         "businessUseCase": business_use_case,
         "packageResult": package_result,
         "generatedCases": generated_cases,
@@ -927,17 +1016,18 @@ def _write_workbench_zip(
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     form_items = _workbench_form_items(forms)
+    base_name = _safe_filename(output_path.stem.replace("_autonomous_package", "").replace("_package", "") or "workflow")
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as package:
-        package.writestr("workflow.bpmn", bpmn_xml)
-        package.writestr("workflow.app", json.dumps(app_model, indent=2, sort_keys=True))
+        package.writestr(f"{base_name}.bpmn", bpmn_xml)
+        package.writestr(f"{base_name}.app", json.dumps(app_model, indent=2, sort_keys=True))
         for key, value in form_items:
-            package.writestr(f"forms/{_safe_filename(str(key))}.form", json.dumps(value, indent=2, sort_keys=True))
+            package.writestr(f"{_safe_filename(str(key))}.form", json.dumps(value, indent=2, sort_keys=True))
         for element_id, script_info in (app_model.get("scripts") or {}).items():
             groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
             if groovy.strip():
-                package.writestr(f"scripts/{_safe_filename(str(element_id))}.groovy", groovy)
+                package.writestr(f"{_safe_filename(str(element_id))}.groovy", groovy)
         if documentation_path and documentation_path.exists():
-            package.writestr(f"docs/{documentation_path.name}", documentation_path.read_text(encoding="utf-8"))
+            package.writestr(documentation_path.name, documentation_path.read_text(encoding="utf-8"))
         if report_path and report_path.exists():
             package.writestr("test-report.json", report_path.read_text(encoding="utf-8"))
     return output_path
@@ -981,7 +1071,7 @@ def _forms_from_payload(forms: list[dict]) -> list[FormModel]:
         FormModel(
             key=form["key"],
             name=form.get("name", form["key"]),
-            fields=[FormField(**field) for field in form.get("fields", [])],
+            fields=[form_field_from_mapping(field) for field in form.get("fields", []) if isinstance(field, dict)],
         )
         for form in forms
     ]
@@ -1433,10 +1523,26 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
     blocking.extend(final_iteration.get("structuralErrors", []))
     blocking.extend(issue["message"] for issue in final_iteration.get("formIssues", []) if issue["severity"] == "error")
     blocking.extend(_compile_failure_message(element_id, result) for element_id, result in final_compile.items() if not result.get("ok"))
+    total_checks = max(1, len(model.nodes) + len(model.flows) + len(form_map) + max(1, len(repaired_scripts)))
+    passed_checks = max(0, total_checks - len(blocking))
+    pass_percent = round((passed_checks / total_checks) * 100, 2)
+    status = "passed" if not blocking else "failed"
+    summary_text = (
+        f"Autonomous package test {status}. Pass rate {pass_percent}% "
+        f"({passed_checks}/{total_checks} checks). Iterations: {len(iterations)}. "
+        f"{'Blocking issues: ' + '; '.join(blocking[:6]) if blocking else 'No blocking BPMN, form, sequence-flow or Groovy issues remain.'}"
+    )
     return {
         "ok": not blocking,
-        "status": "passed" if not blocking else "failed",
-        "message": "Autonomous package test completed.",
+        "status": status,
+        "message": summary_text,
+        "summaryText": summary_text,
+        "metrics": {
+            "totalChecks": total_checks,
+            "passedChecks": passed_checks,
+            "failedChecks": len(blocking),
+            "passPercent": pass_percent,
+        },
         "summary": {
             "processId": model.process_id,
             "nodes": len(model.nodes),
@@ -1445,6 +1551,7 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
             "scripts": len(repaired_scripts),
             "iterations": len(iterations),
             "blockingIssues": len(blocking),
+            "passPercent": pass_percent,
         },
         "blockingIssues": blocking,
         "iterations": iterations,
@@ -1959,6 +2066,116 @@ def _search_result_payload(result) -> dict:
         "text": result.chunk.text,
         "metadata": result.chunk.metadata,
     }
+
+
+def _selected_model_id(payload: dict | None = None) -> str:
+    requested = ""
+    if isinstance(payload, dict):
+        requested = str(payload.get("modelId") or payload.get("model_id") or payload.get("model") or "").strip()
+    return requested or active_model_id
+
+
+def _simulation_payload(model: BpmnModel, result) -> dict:
+    payload = asdict(result)
+    total_nodes = max(1, len(model.nodes))
+    completed = len([step for step in result.steps if step.status == "completed"])
+    waiting = len([step for step in result.steps if step.status == "waiting"])
+    errored = len(result.errors)
+    percent = round(min(100.0, (completed / total_nodes) * 100), 2)
+    status = "failed" if errored else "waiting" if waiting else "passed" if percent >= 100 or result.steps else "not-run"
+    final_step = result.steps[-1].name if result.steps else "No step executed"
+    summary_text = (
+        f"Simulation {status}. Completed {completed} of {len(model.nodes)} BPMN blocks "
+        f"({percent}%). Final observed step: {final_step}. "
+        f"{'Errors: ' + '; '.join(result.errors[:5]) if result.errors else 'No blocking simulation errors were found.'}"
+    )
+    payload.update(
+        {
+            "status": status,
+            "summaryText": summary_text,
+            "metrics": {
+                "totalBlocks": len(model.nodes),
+                "completedBlocks": completed,
+                "waitingBlocks": waiting,
+                "errorCount": errored,
+                "completionPercent": percent,
+            },
+        }
+    )
+    return payload
+
+
+def _ai_or_compat_groovy(element: dict, prompt: str, context: str, model_id: str) -> str:
+    request = f"""You are generating Collibra Workflow Designer Groovy, not Java.
+Return only compile-safe Groovy code for the selected BPMN element.
+
+Element:
+{json.dumps(element, indent=2, default=str)}
+
+User instruction:
+{prompt}
+
+Retrieved RAG and organization context:
+{context[:8000]}
+
+Rules:
+- Use Groovy syntax and explicit imports.
+- Use Collibra Java API v2 DTO builder classes only when grounded by context or obvious package names.
+- For sequence flows, return Groovy/listener guidance as code comments plus a JUEL condition example.
+- Never output markdown fences.
+"""
+    text = request_text_completion(settings, request, model_id=model_id, action="groovy_generation")
+    code = _strip_code_fence(text or "")
+    return code if code.strip() else _compat_groovy(element, prompt, context)
+
+
+def _business_rag_answer(question: str, context: str, results: list[dict], model_id: str) -> str:
+    prompt = f"""Use the retrieved Collibra workflow knowledge to answer for a business user.
+Explain what the evidence means, the practical workflow impact, and any risks or next steps.
+Do not merely paste search chunks.
+
+Question:
+{question}
+
+Retrieved evidence:
+{context[:9000]}
+
+Sources:
+{json.dumps([{ "file": r.get("fileName"), "score": r.get("score") } for r in results[:8]], indent=2)}
+"""
+    answer = request_text_completion(settings, prompt, model_id=model_id, action="rag_business_answer")
+    if answer and answer.strip():
+        return answer.strip()
+    source_lines = "\n".join(f"- {result.get('fileName')}: score {float(result.get('score') or 0):.3f}" for result in results[:6])
+    return (
+        "Here is the business interpretation from the local RAG evidence.\n\n"
+        f"The most relevant documents point to: {question}. Review the sources below first, then use the retrieved "
+        "BPMN, form, UUID, role and Groovy details as organization-specific design constraints.\n\n"
+        f"Sources:\n{source_lines}\n\n"
+        f"Evidence excerpt:\n{context[:3500]}"
+    )
+
+
+def _ai_documentation_narrative(markdown: str, instruction: str, model_id: str) -> str:
+    prompt = f"""Improve this Collibra workflow documentation for business and platform users.
+Keep it concise, deployment-oriented, and explain the purpose, route logic, forms, Groovy, tests, risks and operating procedure.
+
+User instruction:
+{instruction}
+
+Draft documentation:
+{markdown[:10000]}
+"""
+    answer = request_text_completion(settings, prompt, model_id=model_id, action="workflow_documentation")
+    return (answer or "").strip()
+
+
+def _strip_code_fence(text: str) -> str:
+    value = str(text or "").strip()
+    match = re.search(r"```(?:groovy|java|text)?\s*(.*?)```", value, re.DOTALL | re.IGNORECASE)
+    if match:
+        return match.group(1).strip()
+    return value
 
 
 def _compat_groovy(element: dict, prompt: str, context: str) -> str:

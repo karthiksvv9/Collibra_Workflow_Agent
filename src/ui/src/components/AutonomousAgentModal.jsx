@@ -9,7 +9,8 @@ export default function AutonomousAgentModal({
   appModel,
   forms,
   onResult,
-  addConsole
+  addConsole,
+  modelId
 }) {
   const [mode, setMode] = useState('prompt');
   const [prompt, setPrompt] = useState('Create a production Collibra governed access workflow with requester intake, steward triage, business approval, risk review, rework/rejection reroutes, policy exception automation, relation/responsibility creation, call activity to downstream provisioning workflow, API failure remediation, completion notification, documentation and complete test evidence.');
@@ -29,6 +30,7 @@ export default function AutonomousAgentModal({
         prompt,
         businessUseCase: prompt,
         userTestCases,
+        modelId,
         packageName: mode === 'prompt' ? 'autonomous_prompt_workflow' : 'autonomous_canvas_workflow',
         maxIterations: 5
       };

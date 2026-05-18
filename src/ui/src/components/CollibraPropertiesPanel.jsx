@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Bot, CheckCircle2, Code2, Save, Sparkles } from 'lucide-react';
+import { Bot, CheckCircle2, Code2, ExternalLink, Save, Sparkles } from 'lucide-react';
 import { compileGroovy, generateCode } from '../api.js';
 
-export default function CollibraPropertiesPanel({ selectedElement, appModel, setAppModel, getBpmnXml, addConsole, forms }) {
+export default function CollibraPropertiesPanel({ selectedElement, appModel, setAppModel, getBpmnXml, addConsole, forms, modelId, modeler }) {
   const elementId = selectedElement?.id;
   const elementScript = useMemo(() => appModel?.scripts?.[elementId] || {}, [appModel, elementId]);
   const elementProps = useMemo(() => appModel?.elementProperties?.[elementId] || {}, [appModel, elementId]);
@@ -19,10 +19,11 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
       scope: elementProps.scope || 'asset',
       candidateRole: elementProps.candidateRole || '',
       formKey: elementProps.formKey || flowableAttr(selectedElement, 'formKey') || '',
+      calledElement: elementProps.calledElement || selectedElement?.businessObject?.calledElement || flowableAttr(selectedElement, 'calledElement') || '',
       condition: elementProps.condition || '',
       documentation: elementProps.documentation || ''
     });
-  }, [elementId, elementScript.groovy, elementProps.execution, elementProps.scope, elementProps.candidateRole, elementProps.formKey, elementProps.condition, elementProps.documentation, selectedElement?.type]);
+  }, [elementId, elementScript.groovy, elementProps.execution, elementProps.scope, elementProps.candidateRole, elementProps.formKey, elementProps.calledElement, elementProps.condition, elementProps.documentation, selectedElement?.type]);
 
   if (!selectedElement) {
     return (
@@ -44,6 +45,7 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
   }
 
   function save() {
+    applyBpmnProperties(modeler, selectedElement, props);
     setAppModel(prev => ({
       ...prev,
       scripts: {
@@ -80,6 +82,7 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
         element: toElementPayload(selectedElement),
         prompt,
         appModel,
+        modelId,
         compileAndRepair: true
       });
       const code = result.groovy || result.raw || '';
@@ -112,7 +115,7 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
   async function compile() {
     setBusy(true);
     try {
-      const result = await compileGroovy({ code: groovy, elementId });
+      const result = await compileGroovy({ code: groovy, elementId, modelId });
       addConsole?.({ level: result.ok ? 'success' : 'error', message: `Compile ${result.ok ? 'passed' : 'failed'} for ${elementId}`, detail: result });
     } catch (err) {
       addConsole?.({ level: 'error', message: 'Groovy compile failed', detail: err.message });
@@ -172,7 +175,17 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
               {Object.keys(allForms).sort().map(key => <option key={key} value={key}>{key}</option>)}
             </select>
           </label>
+          {selectedElement.type === 'bpmn:CallActivity' && (
+            <label>Called workflow key
+              <input value={props.calledElement || ''} onChange={e => updateProp('calledElement', e.target.value)} placeholder="Workflow key or calledElement" />
+            </label>
+          )}
         </div>
+        {selectedElement.type === 'bpmn:CallActivity' && (
+          <button className="primary-button" onClick={() => openCalledWorkflowCanvas(props.calledElement || elementId, elementId)}>
+            <ExternalLink size={15}/> Open called workflow in new tab
+          </button>
+        )}
         {linkedForm && <LinkedFormPreview form={linkedForm} />}
         <label>Sequence-flow condition / expression
           <textarea className="condition-box" value={props.condition || ''} onChange={e => updateProp('condition', e.target.value)} placeholder='Example: ${approved == true}' />
@@ -304,6 +317,29 @@ function flowableAttr(element, key) {
   return attrs[`flowable:${key}`] || attrs[key] || element?.businessObject?.[key] || '';
 }
 
+function applyBpmnProperties(modeler, element, props) {
+  if (!modeler || !element) return;
+  try {
+    const modeling = modeler.get('modeling');
+    const moddle = modeler.get('moddle');
+    const update = {};
+    if (element.type === 'bpmn:CallActivity' && props.calledElement) {
+      update.calledElement = props.calledElement;
+    }
+    if (element.type === 'bpmn:SequenceFlow' && props.condition?.trim()) {
+      update.conditionExpression = moddle.create('bpmn:FormalExpression', { body: props.condition.trim() });
+    }
+    if (Object.keys(update).length) {
+      modeling.updateProperties(element, update);
+    }
+    if (props.formKey && element.businessObject) {
+      element.businessObject.$attrs = { ...(element.businessObject.$attrs || {}), 'flowable:formKey': props.formKey };
+    }
+  } catch {
+    // Sidecar metadata is still saved even if bpmn-js cannot apply a vendor extension live.
+  }
+}
+
 function toElementPayload(element) {
   const bo = element?.businessObject || {};
   return {
@@ -314,4 +350,50 @@ function toElementPayload(element) {
     incoming: (bo.incoming || []).map(f => ({ id: f.id, name: f.name, sourceRef: f.sourceRef?.id })),
     outgoing: (bo.outgoing || []).map(f => ({ id: f.id, name: f.name, targetRef: f.targetRef?.id }))
   };
+}
+
+function openCalledWorkflowCanvas(calledElement, sourceElementId) {
+  const key = `called-workflow-${sourceElementId}-${Date.now()}`;
+  const safeName = String(calledElement || 'calledWorkflow').replace(/[^\w.-]+/g, '_');
+  window.sessionStorage.setItem(key, JSON.stringify({
+    bpmnXml: calledWorkflowTemplate(safeName),
+    sourceElementId,
+    calledElement: safeName
+  }));
+  const url = new URL(window.location.href);
+  url.searchParams.set('calledWorkflowSession', key);
+  window.open(url.toString(), '_blank', 'noopener,noreferrer');
+}
+
+function calledWorkflowTemplate(name) {
+  const processId = `${name || 'calledWorkflow'}Process`.replace(/[^\w]+/g, '_');
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="${processId}_definitions" targetNamespace="http://collibra.com/workflow-agent/called">
+  <bpmn:collaboration id="${processId}_collaboration">
+    <bpmn:participant id="${processId}_pool" name="${name}" processRef="${processId}" />
+  </bpmn:collaboration>
+  <bpmn:process id="${processId}" name="${name}" isExecutable="true">
+    <bpmn:laneSet id="${processId}_lanes">
+      <bpmn:lane id="${processId}_lane_requester" name="Requester"><bpmn:flowNodeRef>${processId}_start</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="${processId}_lane_automation" name="Collibra Automation"><bpmn:flowNodeRef>${processId}_task</bpmn:flowNodeRef><bpmn:flowNodeRef>${processId}_end</bpmn:flowNodeRef></bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="${processId}_start" name="Start called workflow" />
+    <bpmn:scriptTask id="${processId}_task" name="Called workflow Groovy task" scriptFormat="groovy"><bpmn:script><![CDATA[execution.setVariable("calledWorkflowReached", true)]]></bpmn:script></bpmn:scriptTask>
+    <bpmn:endEvent id="${processId}_end" name="Called workflow done" />
+    <bpmn:sequenceFlow id="${processId}_flow_1" sourceRef="${processId}_start" targetRef="${processId}_task" />
+    <bpmn:sequenceFlow id="${processId}_flow_2" sourceRef="${processId}_task" targetRef="${processId}_end" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="${processId}_diagram">
+    <bpmndi:BPMNPlane id="${processId}_plane" bpmnElement="${processId}_collaboration">
+      <bpmndi:BPMNShape id="${processId}_pool_di" bpmnElement="${processId}_pool" isHorizontal="true"><dc:Bounds x="80" y="60" width="900" height="360" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_lane_requester_di" bpmnElement="${processId}_lane_requester" isHorizontal="true"><dc:Bounds x="110" y="60" width="870" height="160" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_lane_automation_di" bpmnElement="${processId}_lane_automation" isHorizontal="true"><dc:Bounds x="110" y="220" width="870" height="200" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_start_di" bpmnElement="${processId}_start"><dc:Bounds x="190" y="122" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_task_di" bpmnElement="${processId}_task"><dc:Bounds x="340" y="280" width="180" height="82" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_end_di" bpmnElement="${processId}_end"><dc:Bounds x="650" y="303" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="${processId}_flow_1_di" bpmnElement="${processId}_flow_1"><di:waypoint x="226" y="140" /><di:waypoint x="340" y="321" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="${processId}_flow_2_di" bpmnElement="${processId}_flow_2"><di:waypoint x="520" y="321" /><di:waypoint x="650" y="321" /></bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
 }

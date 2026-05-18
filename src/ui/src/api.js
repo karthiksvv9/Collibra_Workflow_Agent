@@ -64,6 +64,16 @@ export async function runWorkflowTestCases(payload) {
   return checkedJson(res);
 }
 
+export async function getModelProfiles() {
+  const res = await fetch(apiPath('/api/models'));
+  return checkedJson(res);
+}
+
+export async function selectModelProfile(modelId) {
+  const res = await fetch(apiPath('/api/models/select'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify({ modelId }) });
+  return checkedJson(res);
+}
+
 export async function uploadRagFiles(files) {
   const form = new FormData();
   Array.from(files).forEach(f => form.append('files', f));

@@ -1,4 +1,4 @@
-# DSC Collibra Workflow Automation Agent
+﻿# DSC Collibra Workflow Automation Agent
 
 Production workbench for designing, importing, repairing, testing, documenting, and exporting Collibra BPMN workflow packages. The platform combines a local relation-aware RAG engine, a FastAPI automation backend, a bpmn-js React canvas, Groovy standards validation, Collibra form/app parsing, and repeatable package quality loops.
 
@@ -184,12 +184,25 @@ models:
   chat_model: gpt-5-4-2026-03-05
   embedding_model: text-embedding-3-large
   embedding_provider: hashing
+  available_chat_models:
+    - id: openai-gpt-5-4
+      label: OpenAI GPT-5.4
+      provider: custom_chat_completions
+      api_key_env: AI_GATEWAY_API_KEY
+    - id: claude-opus-4-6
+      label: Claude Opus 4.6
+      provider: custom_messages
+      api_key_env: CLAUDE_API_KEY
+    - id: gemini-3-1-pro
+      label: Gemini 3.1 Pro Preview
+      provider: gemini_generate_content
+      api_key_env: GEMINI_API_KEY
 
 openai:
   provider: custom_chat_completions
   api_key: ""
-  api_key_env: MERCK_API_KEY
-  api_key_header: X-Merck-APIKey
+  api_key_env: AI_GATEWAY_API_KEY
+  api_key_header: X-API-Key
   api_key_prefix: ""
   base_url: https://iapi-test.proj.com/gpt/v2
   chat_completions_path: /gpt-5-4-2026-03-05/chat/completions
@@ -234,16 +247,18 @@ The current configuration matches the approved chat-completions gateway shape sh
 
 - Model: `gpt-5-4-2026-03-05`
 - URL shape: `https://iapi-test.proj.com/gpt/v2/gpt-5-4-2026-03-05/chat/completions`
-- Auth header: `X-Merck-APIKey`
+- Auth header: `X-API-Key`
 - Payload style: `messages` plus `max_completion_tokens`
 
 Do not commit the API key. Set it for the current PowerShell session:
 
 ```powershell
-$env:MERCK_API_KEY = "paste-approved-key-here"
+$env:AI_GATEWAY_API_KEY = "paste-approved-key-here"
 ```
 
 The non-admin start script can also prompt for it securely and pass it only to the localhost server process.
+
+The UI model dropdown reads `models.available_chat_models` from `config.yaml`. Set `CLAUDE_API_KEY` before selecting Claude, and set `GEMINI_API_KEY` before selecting Gemini. Token usage is tracked in `output/token_usage.xlsx`; API actions are logged under `output/action_logs/`.
 
 ## Run Locally
 
@@ -279,7 +294,7 @@ Use this section if you only want to start the tool and work in the browser.
 - Python 3.11 or newer.
 - Node.js 20 or newer.
 - Java 17 or newer, or a bundled Java runtime from tools such as PyCharm/IntelliJ.
-- Your approved API key for the gateway in `MERCK_API_KEY`.
+- Your approved API key for the gateway in `AI_GATEWAY_API_KEY`.
 - Collibra/Groovy JAR files already placed in the `jars` folder.
 
 Do not paste the API key into Git, README, screenshots, code, or `config.yaml`.
@@ -303,7 +318,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\check_non_admin_requirements.
 powershell -ExecutionPolicy Bypass -File .\scripts\start_localhost_non_admin.ps1
 ```
 
-6. When prompted for `MERCK_API_KEY`, paste your approved API key and press Enter.
+6. When prompted for `AI_GATEWAY_API_KEY`, paste your approved API key and press Enter.
 7. The script starts the app at:
 
 ```text
@@ -330,14 +345,14 @@ What this script does:
 Temporary setup for the current PowerShell window:
 
 ```powershell
-$env:MERCK_API_KEY = "paste-approved-key-here"
+$env:AI_GATEWAY_API_KEY = "paste-approved-key-here"
 powershell -ExecutionPolicy Bypass -File .\scripts\start_localhost_non_admin.ps1
 ```
 
 User-level setup that survives restart and does not require admin:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("MERCK_API_KEY", "paste-approved-key-here", "User")
+[Environment]::SetEnvironmentVariable("AI_GATEWAY_API_KEY", "paste-approved-key-here", "User")
 ```
 
 After running that command, close PowerShell and open a new PowerShell window so Windows reloads the variable.
@@ -345,7 +360,7 @@ After running that command, close PowerShell and open a new PowerShell window so
 To remove the key later:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("MERCK_API_KEY", $null, "User")
+[Environment]::SetEnvironmentVariable("AI_GATEWAY_API_KEY", $null, "User")
 ```
 
 ### Setting Java Without Admin Permission
@@ -400,7 +415,7 @@ cd "C:\Users\Mohith\Documents\Codex\2026-05-15\role-you-are-a-senior-principal"
 7. Set the API key for your user:
 
 ```powershell
-[Environment]::SetEnvironmentVariable("MERCK_API_KEY", "paste-approved-key-here", "User")
+[Environment]::SetEnvironmentVariable("AI_GATEWAY_API_KEY", "paste-approved-key-here", "User")
 ```
 
 8. Close PowerShell and open a new PowerShell window.
@@ -454,7 +469,7 @@ groovy:
 powershell -ExecutionPolicy Bypass -File .\run_all.ps1 -Mode Serve -Port 8090 -StopExisting
 ```
 
-- If `MERCK_API_KEY` is missing, run the non-admin start script and paste the key when prompted.
+- If `AI_GATEWAY_API_KEY` is missing, run the non-admin start script and paste the key when prompted.
 - If Java is missing, install Java, use a bundled Java runtime, or set `groovy.java_executable` in `config.yaml`.
 - If npm install fails because of corporate certificates, ask IT for the corporate root CA setup for Node.js, or run from a corporate-approved terminal profile.
 - If Python package install fails because of corporate certificates, ask IT for the corporate root CA setup for Python/pip. Do not disable TLS verification for production use.
@@ -622,7 +637,7 @@ Security notes are maintained in `docs/security-hardening.md`.
 Before publishing to Git, run:
 
 ```powershell
-rg -n "API_KEY|MERCK_API_KEY|X-Merck-APIKey|sk-|secret|password|token" .
+rg -n "API_KEY|AI_GATEWAY_API_KEY|X-API-Key|sk-|secret|password|token" .
 ```
 
 Expected matches should be documentation, config keys, tests, or code references only. The actual API key must not appear in any tracked file.
@@ -655,3 +670,4 @@ For a production Collibra environment:
 ## Clean Deliverable
 
 The clean deliverable is generated under `output/collibra-workflow-agent-clean-production.zip`. It contains source, tests, config, README, scripts, RAG data, vector store, the validated generated sample package, the validated prompt-driven workflow package, Apache Groovy runtime JARs, and the Collibra JARs currently present in `jars`. It excludes installation media, `.venv`, `node_modules`, caches, and unrelated old output artifacts.
+

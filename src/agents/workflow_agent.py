@@ -10,8 +10,8 @@ from src.agents.groovy_compiler import CompileResult, GroovyCompiler
 from src.agents.prompts import build_design_prompt
 from src.core.config import Settings, settings
 from src.rag.engine import RAGEngine
-from src.workflow.bpmn import BpmnModel, BpmnNode, SequenceFlow
-from src.workflow.form import FormField, FormModel
+from src.workflow.bpmn import BpmnModel, BpmnNode, BpmnPool, SequenceFlow
+from src.workflow.form import FormField, FormModel, form_field_from_mapping
 from src.workflow.package import WorkflowPackage
 from src.workflow.simulator import SimulationResult, WorkflowSimulator
 
@@ -38,16 +38,16 @@ class CollibraWorkflowAgent:
         self.compiler = compiler or GroovyCompiler(config.groovy)
         self.simulator = WorkflowSimulator()
 
-    def design_from_prompt(self, master_prompt: str) -> WorkflowPackage:
+    def design_from_prompt(self, master_prompt: str, model_id: str | None = None) -> WorkflowPackage:
         context = self.rag.retrieve(master_prompt, limit=10).render()
-        llm_design = self._try_llm_design(master_prompt, context)
+        llm_design = self._try_llm_design(master_prompt, context, model_id=model_id)
         if llm_design:
             return self._package_from_design(llm_design)
         return self._heuristic_design(master_prompt, context)
 
-    def build(self, master_prompt: str, output_name: str | None = None) -> WorkflowBuildResult:
+    def build(self, master_prompt: str, output_name: str | None = None, model_id: str | None = None) -> WorkflowBuildResult:
         context = self.rag.retrieve(master_prompt, limit=10).render()
-        package = self._try_llm_design(master_prompt, context)
+        package = self._try_llm_design(master_prompt, context, model_id=model_id)
         if package:
             workflow_package = self._package_from_design(package)
         else:
@@ -107,33 +107,35 @@ class CollibraWorkflowAgent:
                 results[node.id] = self.compiler.compile_script(script)
         return results
 
-    def _try_llm_design(self, master_prompt: str, context: str) -> dict[str, Any] | None:
+    def _try_llm_design(self, master_prompt: str, context: str, model_id: str | None = None) -> dict[str, Any] | None:
         try:
             prompt = build_design_prompt(master_prompt, context)
-            return request_json_design(self.config, prompt)
+            return request_json_design(self.config, prompt, model_id=model_id, action="workflow_design")
         except Exception:
             return None
 
     def _package_from_design(self, design: dict[str, Any]) -> WorkflowPackage:
         process_id = _safe_id(design.get("process_id") or design.get("key") or "generatedCollibraWorkflow")
-        lanes = list(design.get("lanes") or ["Requester", "Steward", "Collibra Automation"])
+        lanes = [str(lane) for lane in (design.get("lanes") or ["Requester", "Data Steward", "Collibra Automation"]) if str(lane).strip()]
+        lanes = lanes or ["Requester", "Data Steward", "Collibra Automation"]
         nodes = [
             BpmnNode(
                 id=_safe_id(node.get("id", f"node_{index}")),
                 type=node.get("type", "scriptTask"),
                 name=node.get("name", ""),
-                lane=node.get("lane"),
+                lane=_lane_for_node(node, lanes),
                 documentation=node.get("documentation", ""),
                 script=node.get("script", ""),
-                form_key=node.get("form_key"),
+                form_key=node.get("form_key") or node.get("formKey"),
                 candidate_users=node.get("candidate_users"),
                 candidate_groups=node.get("candidate_groups"),
                 properties=node.get("properties", {}),
-                x=120 + index * 170,
-                y=120 + (lanes.index(node.get("lane")) * 130 if node.get("lane") in lanes else 0),
+                x=int(node.get("x") or (180 + index * 180)),
+                y=int(node.get("y") or _lane_y(_lane_for_node(node, lanes), lanes)),
             )
             for index, node in enumerate(design.get("nodes", []))
         ]
+        nodes = _ensure_start_end_nodes(nodes, lanes)
         flows = [
             SequenceFlow(
                 id=_safe_id(flow.get("id", f"flow_{index}")),
@@ -141,21 +143,39 @@ class CollibraWorkflowAgent:
                 target_ref=_safe_id(flow.get("target_ref") or flow.get("targetRef")),
                 name=flow.get("name", ""),
                 condition=flow.get("condition", ""),
+                skip_expression=flow.get("skip_expression") or flow.get("skipExpression", ""),
+                flow_type=flow.get("flow_type") or flow.get("flowType", "normal"),
+                is_default=bool(flow.get("is_default") or flow.get("isDefault", False)),
+                documentation=flow.get("documentation", ""),
+                listener_code=flow.get("listener_code") or flow.get("listenerCode", ""),
+                properties=flow.get("properties", {}),
             )
             for index, flow in enumerate(design.get("flows", []))
         ]
+        flows = _repair_linear_flow_continuity(nodes, flows)
         forms = [
             FormModel(
                 key=_safe_id(form.get("key", f"form_{index}")),
                 name=form.get("name", ""),
-                fields=[FormField(**field) for field in form.get("fields", [])],
+                fields=[form_field_from_mapping(field) for field in form.get("fields", []) if isinstance(field, dict)],
             )
             for index, form in enumerate(design.get("forms", []))
         ]
+        width = max([node.x for node in nodes] or [1000]) + 260
+        height = 80 + len(lanes) * 170
         return WorkflowPackage(
             process=BpmnModel(
                 process_id=process_id,
                 name=design.get("name", "Generated Collibra Workflow"),
+                pools=[
+                    BpmnPool(
+                        id=f"{process_id}_pool",
+                        name=design.get("pool_name") or design.get("name", "Generated Collibra Workflow"),
+                        process_ref=process_id,
+                        width=max(1240, width),
+                        height=max(520, height),
+                    )
+                ],
                 lanes=lanes,
                 nodes=nodes,
                 flows=flows,
@@ -204,6 +224,7 @@ class CollibraWorkflowAgent:
         model = BpmnModel(
             process_id=process_id,
             name=_title(master_prompt),
+            pools=[BpmnPool(id=f"{process_id}_pool", name=_title(master_prompt), process_ref=process_id)],
             lanes=lanes,
             nodes=nodes,
             flows=flows,
@@ -419,6 +440,15 @@ class CollibraWorkflowAgent:
         model = BpmnModel(
             process_id=process_id,
             name=process_name,
+            pools=[
+                BpmnPool(
+                    id=f"{process_id}_pool",
+                    name=process_name,
+                    process_ref=process_id,
+                    width=3420,
+                    height=1180,
+                )
+            ],
             lanes=lanes,
             nodes=nodes,
             flows=flows,
@@ -520,6 +550,63 @@ def _summarise_name(prompt: str) -> str:
 def _title(prompt: str) -> str:
     words = re.findall(r"[A-Za-z0-9]+", prompt)[:8]
     return " ".join(words).title() or "Generated Collibra Workflow"
+
+
+def _lane_for_node(node: dict[str, Any], lanes: list[str]) -> str:
+    lane = str(node.get("lane") or "").strip()
+    if lane in lanes:
+        return lane
+    node_type = str(node.get("type") or "").lower()
+    node_name = str(node.get("name") or "").lower()
+    if any(token in node_name for token in ("request", "submit", "rework")) and "Requester" in lanes:
+        return "Requester"
+    if "business" in node_name and "Business Owner" in lanes:
+        return "Business Owner"
+    if ("risk" in node_name or "compliance" in node_name) and "Risk and Compliance" in lanes:
+        return "Risk and Compliance"
+    if ("steward" in node_name or "review" in node_name) and "Data Steward" in lanes:
+        return "Data Steward"
+    if "callactivity" in node_type or "provision" in node_name:
+        return "Provisioning Workflow" if "Provisioning Workflow" in lanes else lanes[-1]
+    if any(token in node_type for token in ("script", "service", "send")):
+        return "Collibra Automation" if "Collibra Automation" in lanes else lanes[-1]
+    return lanes[0]
+
+
+def _lane_y(lane: str, lanes: list[str]) -> int:
+    index = lanes.index(lane) if lane in lanes else 0
+    return 105 + index * 170
+
+
+def _ensure_start_end_nodes(nodes: list[BpmnNode], lanes: list[str]) -> list[BpmnNode]:
+    result = list(nodes)
+    if not any(node.type == "startEvent" for node in result):
+        result.insert(0, BpmnNode("start", "startEvent", "Start", lanes[0], x=120, y=_lane_y(lanes[0], lanes)))
+    if not any(node.type == "endEvent" for node in result):
+        result.append(
+            BpmnNode(
+                "end",
+                "endEvent",
+                "Completed",
+                lanes[0],
+                x=max([node.x for node in result] or [920]) + 220,
+                y=_lane_y(lanes[0], lanes),
+            )
+        )
+    return result
+
+
+def _repair_linear_flow_continuity(nodes: list[BpmnNode], flows: list[SequenceFlow]) -> list[SequenceFlow]:
+    node_ids = {node.id for node in nodes}
+    repaired = [flow for flow in flows if flow.source_ref in node_ids and flow.target_ref in node_ids]
+    if repaired:
+        return repaired
+    if len(nodes) < 2:
+        return repaired
+    return [
+        SequenceFlow(f"flow_{source.id}_{target.id}", source.id, target.id)
+        for source, target in zip(nodes, nodes[1:])
+    ]
 
 
 def _requires_complex_prompt_design(prompt: str) -> bool:

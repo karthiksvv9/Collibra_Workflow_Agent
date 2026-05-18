@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Database, FileSpreadsheet, FileUp, RefreshCw, Search, UploadCloud, FolderSync, ListFilter } from 'lucide-react';
 import { downloadRagTemplate, generateRagIndex, getRagStatus, ingestFiles, ragChat, ragQuery, reindexRag, uploadRagFiles } from '../api.js';
 
-export default function RagPanel({ addConsole }) {
+export default function RagPanel({ addConsole, modelId }) {
   const [status, setStatus] = useState(null);
   const [files, setFiles] = useState([]);
   const [question, setQuestion] = useState('Find Collibra workflow UUIDs, asset relations, BPMN tasks, form fields, app settings, Groovy standards and Java API hints from the indexed knowledge base.');
@@ -124,7 +124,7 @@ export default function RagPanel({ addConsole }) {
     setMessages(prev => [...prev, { role: 'user', text: q }]);
     setBusy(true);
     try {
-      const result = await ragChat({ question: q, top_k: 10 });
+      const result = await ragChat({ question: q, top_k: 10, modelId });
       const sourceText = (result.results || []).slice(0, 6).map(r => `- ${r.fileName} (${Number(r.score || 0).toFixed(3)})`).join('\n');
       const answer = `${result.answer || 'No answer returned.'}${sourceText ? `\n\nSources:\n${sourceText}` : ''}`;
       setMessages(prev => [...prev, { role: 'agent', text: answer }]);
