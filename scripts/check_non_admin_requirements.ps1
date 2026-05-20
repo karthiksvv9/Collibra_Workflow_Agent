@@ -85,8 +85,11 @@ Write-Check "Port $Port" (-not $portInUse) $(if ($portInUse) { "Already used by 
 $jarCount = @(Get-ChildItem -Path (Join-Path $ProjectRoot "jars") -Filter "*.jar" -ErrorAction SilentlyContinue).Count
 Write-Check "JAR folder" ($jarCount -gt 0) "$jarCount jar file(s) found under jars."
 
-$apiKeyPresent = -not [string]::IsNullOrWhiteSpace($env:AI_GATEWAY_API_KEY)
-Write-Check "AI_GATEWAY_API_KEY" $apiKeyPresent "Set in current user/session environment or enter it when start script prompts."
+$configPath = Join-Path $ProjectRoot "config.yaml"
+$configText = if (Test-Path -LiteralPath $configPath) { Get-Content -LiteralPath $configPath -Raw } else { "" }
+$yamlSharedKeyPresent = $configText -match "(?ms)^\s*models\s*:.*?^\s+api_key\s*:\s*['""]?[^'""\r\n ]+" -or $configText -match "(?ms)^\s*openai\s*:.*?^\s+api_key\s*:\s*['""]?[^'""\r\n ]+"
+$apiKeyPresent = $yamlSharedKeyPresent -or (-not [string]::IsNullOrWhiteSpace($env:AI_GATEWAY_API_KEY))
+Write-Check "Shared AI API key" $apiKeyPresent "Set models.api_key once in config.yaml, set AI_GATEWAY_API_KEY, or enter it when start script prompts."
 
 Write-Host ""
 Write-Host "This check does not require administrator permissions." -ForegroundColor Cyan

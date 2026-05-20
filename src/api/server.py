@@ -15,7 +15,12 @@ from fastapi.staticfiles import StaticFiles
 
 from src.agents.groovy_compiler import GroovyCompiler
 from src.agents.groovy_ootb import load_ootb_groovy_profile
-from src.agents.llm_client import model_api_key_configured, model_options_payload, request_text_completion, resolve_model_profile
+from src.agents.llm_client import (
+    model_api_key_configured,
+    model_options_payload,
+    request_text_completion,
+    resolve_model_profile,
+)
 from src.agents.workflow_agent import CollibraWorkflowAgent
 from src.api.schemas import (
     AIEnhanceRequest,
@@ -125,7 +130,7 @@ def list_models() -> dict:
         "models": model_options_payload(settings),
         "notes": [
             "Model profiles are configured in config.yaml.",
-            "API keys are read from environment variables and are never returned by this endpoint.",
+            "One shared enterprise API key can be configured as models.api_key or openai.api_key in config.yaml and is never returned by this endpoint.",
         ],
     }
 
@@ -140,7 +145,10 @@ def select_model(payload: dict) -> dict:
     if not model_api_key_configured(settings, profile.id):
         raise HTTPException(
             status_code=400,
-            detail=f"API key is not configured for {profile.label or profile.id}. Set {profile.api_key_env} in your environment and restart.",
+            detail=(
+                f"API key is not configured for {profile.label or profile.id}. "
+                "Set models.api_key once in config.yaml or set the shared openai.api_key/openai.api_key_env value, then restart."
+            ),
         )
     active_model_id = profile.id
     log_action("model_selected", detail={"modelId": profile.id, "provider": profile.provider, "model": profile.model})

@@ -7,6 +7,10 @@
 models:
   chat_model: "gpt-5-4-2026-03-05"
   embedding_model: "text-embedding-3-large"
+  # Paste the enterprise AI gateway key here once on your private/server copy.
+  # The same key is reused for every enabled model profile below.
+  # If blank, launch scripts prompt once for AI_GATEWAY_API_KEY.
+  api_key: ""
   # This gateway screenshot only showed chat/completions. Keep local hashing
   # embeddings unless a tenant-approved embeddings endpoint is added.
   embedding_provider: "hashing"
@@ -20,9 +24,8 @@ models:
       model: "gpt-4.1-nano"
       base_url: "https://api.openai.com"
       chat_completions_path: "/v1/chat/completions"
-      # Optional: paste the key here on a private server copy.
-      # If blank, the launcher/runtime reads OPENAI_API_KEY from the environment.
-      api_key: "sA"
+      # Leave blank to use the shared models.api_key/openai.api_key.
+      api_key: ""
       api_key_env: "OPENAI_API_KEY"
       api_key_header: "Authorization"
       api_key_prefix: "Bearer "
@@ -36,8 +39,7 @@ models:
       model: "gpt-5-4-2026-03-05"
       base_url: "https://iapi-test.proj.com/gpt/v2"
       chat_completions_path: "/gpt-5-4-2026-03-05/chat/completions"
-      # Optional: paste the gateway key here on a private server copy.
-      # If blank, the launcher/runtime reads AI_GATEWAY_API_KEY from the environment.
+      # Leave blank to use the shared models.api_key/openai.api_key.
       api_key: ""
       api_key_env: "AI_GATEWAY_API_KEY"
       api_key_header: "X-API-Key"
@@ -48,8 +50,7 @@ models:
       model: "claude-opus-4-6"
       base_url: "https://iapi-test.com/gpt/v2"
       chat_completions_path: "/claude-opus-4-6-v1"
-      # Optional: paste the key here on a private server copy.
-      # If blank, the launcher/runtime reads CLAUDE_API_KEY from the environment.
+      # Leave blank to use the shared models.api_key/openai.api_key.
       api_key: ""
       api_key_env: "CLAUDE_API_KEY"
       api_key_header: "X-API-Key"
@@ -60,8 +61,7 @@ models:
       model: "gemini-3.1-pro-preview"
       base_url: "https://generativelanguage.googleapis.com/v1beta/models"
       chat_completions_path: "/gemini-3.1-pro-preview:generateContent"
-      # Optional: paste the key here on a private server copy.
-      # If blank, the launcher/runtime reads GEMINI_API_KEY from the environment.
+      # Leave blank to use the shared models.api_key/openai.api_key.
       api_key: ""
       api_key_env: "GEMINI_API_KEY"
       api_key_header: "x-goog-api-key"
@@ -69,8 +69,7 @@ models:
 
 openai:
   provider: "custom_chat_completions"
-  # Do not commit real API keys. The non-admin start script prompts for
-  # AI_GATEWAY_API_KEY and keeps it only in the current process environment.
+  # Backward-compatible shared key location. Prefer models.api_key above.
   api_key: ""
   api_key_env: "AI_GATEWAY_API_KEY"
   api_key_header: "X-API-Key"

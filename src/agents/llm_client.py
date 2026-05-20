@@ -49,7 +49,7 @@ def request_text_completion(
     if not api_key:
         message = (
             f"API key is not configured for {profile.label or profile.id}. "
-            f"Set {profile.api_key_env} or fill models.available_chat_models[].api_key in config.yaml, then restart."
+            "Set models.api_key once in config.yaml, or set the shared openai.api_key/openai.api_key_env value, then restart."
         )
         record_usage(
             action=action,
@@ -273,9 +273,23 @@ def _resolved_api_key(config: Settings, profile: ChatModelOption) -> str:
         value = os.getenv(profile_env, "").strip()
         if value:
             return value
-    if profile_env == (config.openai.api_key_env or "").strip() and config.openai.api_key:
+    if config.models.api_key.strip():
+        return config.models.api_key.strip()
+    if config.openai.api_key.strip():
         return config.openai.api_key.strip()
+    shared_env = (config.openai.api_key_env or "").strip()
+    if shared_env:
+        value = os.getenv(shared_env, "").strip()
+        if value:
+            return value
     return ""
+
+
+def shared_api_key_configured(config: Settings) -> bool:
+    if config.models.api_key.strip() or config.openai.api_key.strip():
+        return True
+    shared_env = (config.openai.api_key_env or "").strip()
+    return bool(shared_env and os.getenv(shared_env, "").strip())
 
 
 def model_api_key_configured(config: Settings, model_id: str | None = None) -> bool:

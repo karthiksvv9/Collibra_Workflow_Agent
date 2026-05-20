@@ -96,6 +96,7 @@ class ModelConfig:
     chat_model: str = "gpt-5-4-2026-03-05"
     embedding_model: str = "text-embedding-3-large"
     embedding_provider: str = "hashing"
+    api_key: str = ""
     temperature: float = 0.1
     max_output_tokens: int = 8192
     request_timeout_seconds: int = 90
@@ -212,6 +213,7 @@ def load_settings(config_path: str | Path | None = None) -> Settings:
         chat_model=_deep_get(data, "models.chat_model", ModelConfig.chat_model),
         embedding_model=_deep_get(data, "models.embedding_model", ModelConfig.embedding_model),
         embedding_provider=_deep_get(data, "models.embedding_provider", ModelConfig.embedding_provider),
+        api_key=_deep_get(data, "models.api_key", _deep_get(data, "models.enterprise_api_key", ModelConfig.api_key)),
         temperature=float(_deep_get(data, "models.temperature", ModelConfig.temperature)),
         max_output_tokens=int(_deep_get(data, "models.max_output_tokens", ModelConfig.max_output_tokens)),
         request_timeout_seconds=int(

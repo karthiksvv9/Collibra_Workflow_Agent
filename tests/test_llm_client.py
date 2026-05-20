@@ -174,6 +174,68 @@ paths:
     assert model_api_key_configured(settings, "claude-opus-4-6") is False
 
 
+def test_shared_yaml_api_key_is_reused_for_all_model_profiles(monkeypatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""
+models:
+  chat_model: "claude-opus-4-6"
+  api_key: "enterprise-shared-key"
+  available_chat_models:
+    - id: "openai-gpt-4-1-nano-direct"
+      label: "Direct OpenAI"
+      provider: "openai_chat_completions"
+      model: "gpt-4.1-nano"
+      base_url: "https://api.openai.com"
+      chat_completions_path: "/v1/chat/completions"
+      api_key_env: "OPENAI_API_KEY"
+      api_key_header: "Authorization"
+      api_key_prefix: "Bearer "
+    - id: "claude-opus-4-6"
+      label: "Claude Opus 4.6"
+      provider: "custom_messages"
+      model: "claude-opus-4-6"
+      base_url: "https://example.invalid"
+      chat_completions_path: "/claude-opus-4-6-v1"
+      api_key_env: "CLAUDE_API_KEY"
+      api_key_header: "X-API-Key"
+openai:
+  api_key_env: "AI_GATEWAY_API_KEY"
+paths:
+  docs_dir: "{(tmp_path / "docs").as_posix()}"
+  jars_dir: "{(tmp_path / "jars").as_posix()}"
+  output_dir: "{(tmp_path / "output").as_posix()}"
+  vector_store: "{(tmp_path / "output" / "vectors.sqlite3").as_posix()}"
+""",
+        encoding="utf-8",
+    )
+    settings = load_settings(config_path)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("CLAUDE_API_KEY", raising=False)
+    monkeypatch.delenv("AI_GATEWAY_API_KEY", raising=False)
+    captured = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"choices": [{"message": {"content": "ok"}}]}
+
+    def fake_post(url, headers, json, timeout, verify=True):
+        captured.setdefault("calls", []).append({"url": url, "headers": headers, "json": json})
+        return FakeResponse()
+
+    monkeypatch.setattr("src.agents.llm_client.requests.post", fake_post)
+
+    assert model_api_key_configured(settings, "openai-gpt-4-1-nano-direct") is True
+    assert model_api_key_configured(settings, "claude-opus-4-6") is True
+    assert request_text_completion(settings, "Say OK", model_id="openai-gpt-4-1-nano-direct") == "ok"
+    assert request_text_completion(settings, "Say OK", model_id="claude-opus-4-6") == "ok"
+    assert captured["calls"][0]["headers"]["Authorization"] == "Bearer enterprise-shared-key"
+    assert captured["calls"][1]["headers"]["X-API-Key"] == "enterprise-shared-key"
+
+
 def test_model_profile_can_use_yaml_api_key_without_exposing_it(monkeypatch, tmp_path: Path) -> None:
     config_path = tmp_path / "config.yaml"
     config_path.write_text(
