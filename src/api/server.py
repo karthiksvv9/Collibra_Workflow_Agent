@@ -38,7 +38,16 @@ from src.core.logging import configure_logging
 from src.core.usage_tracker import ensure_usage_workbook
 from src.rag.engine import RAGEngine
 from src.rag.collibra_docs import CollibraDocsMirror
-from src.workflow.bpmn import FLOWABLE_NS, XSI_NS, BpmnModel, BpmnNode, BpmnPool, SequenceFlow
+from src.workflow.bpmn import (
+    DI_NS,
+    FLOWABLE_NS,
+    XSI_NS,
+    BpmnModel,
+    BpmnNode,
+    BpmnPool,
+    SequenceFlow,
+    diagram_waypoints,
+)
 from src.workflow.form import FormModel, form_field_from_mapping
 from src.workflow.package import WorkflowPackage
 from src.workflow.simulator import WorkflowSimulator
@@ -338,6 +347,7 @@ async def import_workflow_workbench(file: UploadFile = File(...)) -> dict:
 
     candidates.sort(key=lambda item: (item[0], item[1]))
     chosen = candidates[0] if candidates else None
+    chosen_bpmn_xml = chosen[2] if chosen else None
     if chosen:
         extracted = _extract_bpmn_package_metadata(chosen[2], chosen[1], forms)
         app_model["scripts"] = _deep_merge(app_model.get("scripts") or {}, extracted["scripts"])
@@ -350,6 +360,7 @@ async def import_workflow_workbench(file: UploadFile = File(...)) -> dict:
         app_model["forms"] = _deep_merge(existing_forms, forms)
         app_model["importDiagnostics"] = extracted["diagnostics"]
         warnings.extend(extracted["warnings"])
+        chosen_bpmn_xml = _embed_app_model_scripts_in_bpmn(chosen[2], app_model)
     elif forms:
         existing_forms = app_model.get("forms") or {}
         if not isinstance(existing_forms, dict):
@@ -357,7 +368,7 @@ async def import_workflow_workbench(file: UploadFile = File(...)) -> dict:
             existing_forms = {}
         app_model["forms"] = _deep_merge(existing_forms, forms)
     return {
-        "bpmnXml": chosen[2] if chosen else None,
+        "bpmnXml": chosen_bpmn_xml,
         "chosenBpmn": chosen[1] if chosen else None,
         "appModel": app_model,
         "forms": forms,
@@ -378,17 +389,16 @@ def export_workflow_workbench(payload: dict) -> StreamingResponse:
     forms = payload.get("forms") or {}
     base_name = _safe_filename(Path(package_name).stem or "workflow")
     export_bpmn_xml = _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model)
+    form_items = _workbench_form_items(_merge_export_forms(forms, app_model))
+    app_manifest = _collibra_app_manifest(base_name, app_model, form_items, export_bpmn_xml)
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
         package.writestr(f"{base_name}.bpmn", export_bpmn_xml)
-        package.writestr(f"{base_name}.app", json.dumps(app_model, indent=2, sort_keys=True))
-        for key, value in (forms.items() if isinstance(forms, dict) else []):
-            package.writestr(f"{_safe_filename(str(key))}.form", value if isinstance(value, str) else json.dumps(value, indent=2, sort_keys=True))
-        for element_id, script_info in (app_model.get("scripts") or {}).items():
-            groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
-            if groovy.strip():
-                package.writestr(f"{_safe_filename(str(element_id))}.groovy", groovy)
+        package.writestr(f"{base_name}.app", json.dumps(app_manifest, indent=2, sort_keys=True))
+        for key, value in form_items:
+            form_payload = _collibra_form_payload(key, value)
+            package.writestr(f"form-{_safe_filename(str(key))}.form", json.dumps(form_payload, indent=2, sort_keys=True))
     buffer.seek(0)
     return StreamingResponse(
         buffer,
@@ -404,7 +414,9 @@ def simulate_workbench(payload: dict) -> dict:
         raise HTTPException(status_code=400, detail="bpmnXml is required.")
     try:
         model = BpmnModel.from_xml(bpmn_xml)
-        result = simulator.simulate(model, [], payload.get("formValues") or payload.get("variables") or {})
+        app_model = payload.get("appModel") or {}
+        forms = _form_models_from_workbench_payload(payload.get("forms") or app_model.get("forms") or {})
+        result = simulator.simulate(model, forms, payload.get("formValues") or payload.get("variables") or {})
         return _simulation_payload(model, result)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -1106,23 +1118,46 @@ def _write_workbench_zip(
     report_path: Path | None = None,
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    form_items = _workbench_form_items(forms)
+    form_items = _workbench_form_items(_merge_export_forms(forms, app_model))
     base_name = _safe_filename(output_path.stem.replace("_autonomous_package", "").replace("_package", "") or "workflow")
     export_bpmn_xml = _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model)
+    app_manifest = _collibra_app_manifest(base_name, app_model, form_items, export_bpmn_xml)
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as package:
         package.writestr(f"{base_name}.bpmn", export_bpmn_xml)
-        package.writestr(f"{base_name}.app", json.dumps(app_model, indent=2, sort_keys=True))
+        package.writestr(f"{base_name}.app", json.dumps(app_manifest, indent=2, sort_keys=True))
         for key, value in form_items:
-            package.writestr(f"{_safe_filename(str(key))}.form", json.dumps(value, indent=2, sort_keys=True))
-        for element_id, script_info in (app_model.get("scripts") or {}).items():
-            groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
-            if groovy.strip():
-                package.writestr(f"{_safe_filename(str(element_id))}.groovy", groovy)
-        if documentation_path and documentation_path.exists():
-            package.writestr(documentation_path.name, documentation_path.read_text(encoding="utf-8"))
-        if report_path and report_path.exists():
-            package.writestr("test-report.json", report_path.read_text(encoding="utf-8"))
+            package.writestr(f"form-{_safe_filename(str(key))}.form", json.dumps(_collibra_form_payload(key, value), indent=2, sort_keys=True))
+    _write_workbench_artifacts(output_path, base_name, app_model, documentation_path, report_path)
     return output_path
+
+
+def _write_workbench_artifacts(
+    output_path: Path,
+    base_name: str,
+    app_model: dict,
+    documentation_path: Path | None = None,
+    report_path: Path | None = None,
+) -> None:
+    artifact_dir = output_path.with_suffix("")
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    (artifact_dir / f"{base_name}.dsc-sidecar.json").write_text(
+        json.dumps(_json_safe_export_metadata(app_model), indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    scripts_dir = artifact_dir / "groovy"
+    scripts_dir.mkdir(exist_ok=True)
+    for element_id, script_info in (app_model.get("scripts") or {}).items():
+        groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
+        if groovy.strip():
+            (scripts_dir / f"{_safe_filename(str(element_id))}.groovy").write_text(groovy.rstrip() + "\n", encoding="utf-8")
+    if documentation_path and documentation_path.exists():
+        target = artifact_dir / documentation_path.name
+        if documentation_path.resolve() != target.resolve():
+            target.write_text(documentation_path.read_text(encoding="utf-8"), encoding="utf-8")
+    if report_path and report_path.exists():
+        target = artifact_dir / report_path.name
+        if report_path.resolve() != target.resolve():
+            target.write_text(report_path.read_text(encoding="utf-8"), encoding="utf-8")
 
 
 def _node_from_payload(data: dict) -> BpmnNode:
@@ -1143,19 +1178,34 @@ def _node_from_payload(data: dict) -> BpmnNode:
 
 
 def _flow_from_payload(data: dict) -> SequenceFlow:
+    condition = _normalize_juel_expression(data.get("condition", ""))
+    skip_expression = _normalize_juel_expression(data.get("skip_expression") or data.get("skipExpression", ""))
     return SequenceFlow(
         id=data["id"],
         source_ref=data.get("source_ref") or data.get("sourceRef") or data.get("source", ""),
         target_ref=data.get("target_ref") or data.get("targetRef") or data.get("target", ""),
         name=data.get("name", ""),
-        condition=data.get("condition", ""),
-        skip_expression=data.get("skip_expression") or data.get("skipExpression", ""),
-        flow_type=data.get("flow_type") or data.get("flowType", "normal"),
+        condition=condition,
+        skip_expression=skip_expression,
+        flow_type=data.get("flow_type") or data.get("flowType") or ("conditional" if condition else "normal"),
         is_default=bool(data.get("is_default") or data.get("isDefault", False)),
         documentation=data.get("documentation", ""),
         listener_code=data.get("listener_code") or data.get("listenerCode", ""),
         properties=data.get("properties", {}),
     )
+
+
+def _normalize_juel_expression(value) -> str:
+    expression = str(value or "").strip()
+    if not expression:
+        return ""
+    if expression.startswith("${") and expression.endswith("}"):
+        return expression
+    if expression.lower() in {"true", "false"}:
+        return "${" + expression.lower() + "}"
+    if any(operator in expression for operator in ("==", "!=", ">=", "<=", ">", "<", "&&", "||")):
+        return "${" + expression + "}"
+    return expression
 
 
 def _forms_from_payload(forms: list[dict]) -> list[FormModel]:
@@ -1167,6 +1217,25 @@ def _forms_from_payload(forms: list[dict]) -> list[FormModel]:
         )
         for form in forms
     ]
+
+
+def _form_models_from_workbench_payload(forms: dict | list) -> list[FormModel]:
+    models: list[FormModel] = []
+    for key, form in _workbench_form_items(forms):
+        if not isinstance(form, dict):
+            continue
+        form_key = str(form.get("key") or key)
+        fields = form.get("fields")
+        if not isinstance(fields, list) or not fields:
+            fields = _flatten_collibra_form_fields(form)
+        models.append(
+            FormModel(
+                key=form_key,
+                name=str(form.get("name") or form_key),
+                fields=[form_field_from_mapping(field) for field in fields if isinstance(field, dict)],
+            )
+        )
+    return models
 
 
 def _compile_result_dict(result) -> dict:
@@ -1472,6 +1541,177 @@ def _workbench_form_items(forms: dict | list) -> list[tuple[str, dict]]:
                 result.append((f"form_{idx}", {"name": f"Form {idx}", "value": form}))
         return result
     return []
+
+
+def _merge_export_forms(forms: dict | list, app_model: dict) -> dict | list:
+    app_forms = app_model.get("forms") if isinstance(app_model, dict) else {}
+    if isinstance(forms, dict) and isinstance(app_forms, dict):
+        return _deep_merge(app_forms, forms)
+    if isinstance(forms, dict) and forms:
+        return forms
+    if isinstance(app_forms, dict) and app_forms:
+        return app_forms
+    if isinstance(forms, list) and forms:
+        return forms
+    if isinstance(app_forms, list) and app_forms:
+        return app_forms
+    return forms
+
+
+def _collibra_app_manifest(base_name: str, app_model: dict, form_items: list[tuple[str, dict]], bpmn_xml: str) -> dict:
+    metadata = app_model.get("metadata") if isinstance(app_model.get("metadata"), dict) else {}
+    process_key = _process_key_from_bpmn(bpmn_xml, base_name)
+    app_key = _safe_model_key(metadata.get("key") or app_model.get("key") or f"{process_key}App")
+    app_name = str(metadata.get("name") or app_model.get("name") or app_key)
+    child_models = []
+    for key, _ in form_items:
+        child_models.append({"key": _safe_model_key(key), "type": "form"})
+    child_models.append({"key": process_key, "type": "bpmn"})
+    return {
+        "key": app_key,
+        "name": app_name,
+        "description": str(metadata.get("description") if metadata.get("description") is not None else app_model.get("description") or ""),
+        "theme": str(metadata.get("theme") or app_model.get("theme") or "theme-1"),
+        "icon": str(metadata.get("icon") or app_model.get("icon") or "glyphicon-asterisk"),
+        "usersAccess": metadata.get("usersAccess", app_model.get("usersAccess")),
+        "groupsAccess": metadata.get("groupsAccess", app_model.get("groupsAccess")),
+        "flowApp": bool(metadata.get("flowApp", app_model.get("flowApp", False))),
+        "url": metadata.get("url", app_model.get("url")),
+        "paletteDefinitionCategory": str(metadata.get("paletteDefinitionCategory") or app_model.get("paletteDefinitionCategory") or "core"),
+        "extension": {"design": {"childModels": child_models}},
+    }
+
+
+def _process_key_from_bpmn(bpmn_xml: str, fallback: str) -> str:
+    try:
+        root = ET.fromstring(_sanitize_bpmn_xml(bpmn_xml).encode("utf-8"))
+        process = next((node for node in root.iter() if _xml_local(node.tag) == "process"), None)
+        if process is not None and process.attrib.get("id"):
+            return _safe_model_key(process.attrib["id"])
+    except Exception:
+        pass
+    return _safe_model_key(fallback)
+
+
+def _collibra_form_payload(key: str, value: dict) -> dict:
+    form_key = _safe_model_key(value.get("key") or key)
+    raw = value.get("raw") if isinstance(value.get("raw"), dict) else None
+    if raw and (raw.get("rows") or raw.get("outcomes") or raw.get("metadata")):
+        payload = _json_safe_export_metadata(raw)
+        payload.setdefault("metadata", {})
+        if isinstance(payload["metadata"], dict):
+            payload["metadata"]["key"] = form_key
+            payload["metadata"].setdefault("name", str(value.get("name") or form_key))
+            payload["metadata"].setdefault("description", "")
+            payload["metadata"].setdefault("version", "1")
+            payload["metadata"].setdefault("modelType", "form")
+            payload["metadata"].setdefault("flowableDesignVersion", 3110)
+            payload["metadata"].setdefault("palette", "flowable-core-form-palette")
+        return payload
+
+    fields = value.get("fields") if isinstance(value.get("fields"), list) else _flatten_collibra_form_fields(value)
+    rows = value.get("rows") if isinstance(value.get("rows"), list) and value.get("rows") else []
+    if not rows:
+        rows = [{"cols": [_collibra_form_col(field, index) for index, field in enumerate(fields or []) if isinstance(field, dict)]}]
+    outcomes = value.get("outcomes") if isinstance(value.get("outcomes"), list) else []
+    payload = {
+        "outcomes": [_collibra_outcome(outcome) for outcome in outcomes if isinstance(outcome, dict)],
+        "rows": rows,
+        "metadata": {
+            "key": form_key,
+            "name": str(value.get("name") or form_key),
+            "description": str(value.get("description") or ""),
+            "version": str(value.get("version") or "1"),
+            "modelType": "form",
+            "flowableDesignVersion": int(value.get("flowableDesignVersion") or 3110),
+            "palette": str(value.get("palette") or "flowable-core-form-palette"),
+        },
+    }
+    return _json_safe_export_metadata(payload)
+
+
+def _collibra_form_col(field: dict, index: int) -> dict:
+    field_id = str(field.get("id") or field.get("key") or f"field_{index + 1}")
+    label = str(field.get("label") or field.get("name") or field_id)
+    field_type = _collibra_form_type(str(field.get("type") or field.get("stencilId") or "string"))
+    extra_settings = field.get("extraSettings") if isinstance(field.get("extraSettings"), dict) else {}
+    values = field.get("values")
+    if values and isinstance(values, list):
+        extra_settings = {**extra_settings, "values": values}
+    return {
+        "designInfo": {"stencilSuperIds": ["Component"], "stencilId": field_type},
+        "value": str(field.get("value") or field.get("default") or ""),
+        "ignore": bool(field.get("ignore", False)),
+        "visible": bool(field.get("visible", field.get("readable", True))),
+        "enabled": bool(field.get("enabled", field.get("writable", True))),
+        "isRequired": bool(field.get("required", field.get("isRequired", False))),
+        "size": int(field.get("size") or 12),
+        "label": label,
+        "id": field_id,
+        "type": field_type,
+        "extraSettings": extra_settings,
+    }
+
+
+def _collibra_form_type(value: str) -> str:
+    lowered = value.strip().lower()
+    mapping = {
+        "str": "text",
+        "string": "text",
+        "text": "text",
+        "textarea": "multi-line-text",
+        "multiline": "multi-line-text",
+        "multi-line-text": "multi-line-text",
+        "boolean": "boolean",
+        "bool": "boolean",
+        "choice": "dropdown",
+        "enum": "dropdown",
+        "select": "dropdown",
+        "dropdown": "dropdown",
+        "date": "date",
+        "datetime": "datetime",
+        "number": "integer",
+        "int": "integer",
+        "integer": "integer",
+        "richtext": "richText",
+        "rich-text": "richText",
+        "richtxt": "richText",
+    }
+    return mapping.get(lowered, value or "text")
+
+
+def _collibra_outcome(outcome: dict) -> dict:
+    value = str(outcome.get("value") or outcome.get("id") or outcome.get("label") or "")
+    label = str(outcome.get("label") or outcome.get("name") or value)
+    return {
+        "label": label,
+        "value": value,
+        "visible": str(outcome.get("visible") or ""),
+        "enabled": str(outcome.get("enabled") or ""),
+        "navigationUrl": str(outcome.get("navigationUrl") or ""),
+        "ignorePayload": bool(outcome.get("ignorePayload", False)),
+        "ignoreValidation": bool(outcome.get("ignoreValidation", False)),
+        "primary": bool(outcome.get("primary", False)),
+    }
+
+
+def _json_safe_export_metadata(value):
+    if value is None:
+        return ""
+    if isinstance(value, dict):
+        return {str(key): _json_safe_export_metadata(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe_export_metadata(item) for item in value]
+    return value
+
+
+def _safe_model_key(value: str) -> str:
+    raw = re.sub(r"[^A-Za-z0-9_]+", "_", str(value or "model")).strip("_")
+    if not raw:
+        raw = "model"
+    if raw[0].isdigit():
+        raw = f"model_{raw}"
+    return raw
 
 
 def _parse_collibra_form(text: str, source: str) -> tuple[str, dict | str]:
@@ -1999,6 +2239,7 @@ def _missing_script_issues(model: BpmnModel, scripts: dict) -> list[dict]:
 def _deterministic_groovy_repair(script: str) -> str:
     repaired = str(script or "").replace("\r\n", "\n").replace("\r", "\n").strip()
     repaired = _strip_code_fence(repaired)
+    repaired = re.sub(r"(?m)^\s*import\s+[\w.]+\.\*\s*;?\s*\n?", "", repaired)
     repaired = re.sub(r"(?m)^\s*import\s+(?:uuid|UUID|[\w.]*\.uuid(?:\.[\w.*]+)?)\s*;?\s*\n?", "", repaired, flags=re.IGNORECASE)
     repaired = re.sub(r"(?m)^\s*import\s+java\.util\.UUID\s*;?\s*\n?", "", repaired)
     repaired = repaired.replace("UUID.randomUUID()", "java.util.UUID.randomUUID()")
@@ -2227,6 +2468,8 @@ def _embed_app_model_scripts_in_bpmn(bpmn_xml: str, app_model: dict) -> str:
         elif local == "sequenceFlow":
             if _normalize_sequence_flow_condition(node, element_properties):
                 changed = True
+    if _normalize_bpmn_di_waypoints(root):
+        changed = True
     if not changed:
         return clean
     return ET.tostring(root, encoding="unicode", xml_declaration=True)
@@ -2270,25 +2513,106 @@ def _normalize_sequence_flow_condition(flow: ET.Element, element_properties: dic
             condition_el = ET.SubElement(
                 flow,
                 _qname_for_existing(flow.tag, "conditionExpression"),
-                {_qname_for_namespace(XSI_NS, "type"): "tFormalExpression"},
+                {_qname_for_namespace(XSI_NS, "type"): "bpmn:tFormalExpression"},
             )
             condition_el.text = prop_condition
             return True
         return False
+    xsi_type = _qname_for_namespace(XSI_NS, "type")
+    if condition_el.attrib.get(xsi_type) != "bpmn:tFormalExpression":
+        condition_el.attrib[xsi_type] = "bpmn:tFormalExpression"
+        changed = True
     current = "".join(condition_el.itertext()).strip()
     if current:
         condition_el.text = current
-        if _qname_for_namespace(XSI_NS, "type") not in condition_el.attrib:
-            condition_el.attrib[_qname_for_namespace(XSI_NS, "type")] = "tFormalExpression"
-            changed = True
         return changed
     if prop_condition:
         condition_el.text = prop_condition
-        if _qname_for_namespace(XSI_NS, "type") not in condition_el.attrib:
-            condition_el.attrib[_qname_for_namespace(XSI_NS, "type")] = "tFormalExpression"
         return True
     flow.remove(condition_el)
     return True
+
+
+def _normalize_bpmn_di_waypoints(root: ET.Element) -> bool:
+    shape_bounds = _bpmn_shape_bounds(root)
+    if not shape_bounds:
+        return False
+    flow_refs = _bpmn_sequence_flow_refs(root)
+    if not flow_refs:
+        return False
+    changed = False
+    for edge in root.iter():
+        if _xml_local(edge.tag) != "BPMNEdge":
+            continue
+        flow_id = edge.attrib.get("bpmnElement", "")
+        refs = flow_refs.get(flow_id)
+        if not refs:
+            continue
+        source_ref, target_ref = refs
+        source_bounds = shape_bounds.get(source_ref)
+        target_bounds = shape_bounds.get(target_ref)
+        if not source_bounds or not target_bounds:
+            continue
+        waypoints = diagram_waypoints(source_bounds, target_bounds)
+        current = _edge_waypoints(edge)
+        if current == waypoints:
+            continue
+        for child in list(edge):
+            if _xml_local(child.tag) == "waypoint":
+                edge.remove(child)
+        for index, (x, y) in enumerate(waypoints):
+            edge.insert(index, ET.Element(_qname_for_namespace(DI_NS, "waypoint"), {"x": str(x), "y": str(y)}))
+        changed = True
+    return changed
+
+
+def _bpmn_shape_bounds(root: ET.Element) -> dict[str, tuple[int, int, int, int]]:
+    bounds: dict[str, tuple[int, int, int, int]] = {}
+    for shape in root.iter():
+        if _xml_local(shape.tag) != "BPMNShape":
+            continue
+        bpmn_id = shape.attrib.get("bpmnElement")
+        if not bpmn_id:
+            continue
+        for child in shape:
+            if _xml_local(child.tag) != "Bounds":
+                continue
+            bounds[bpmn_id] = (
+                _round_xml_number(child.attrib.get("x"), 0),
+                _round_xml_number(child.attrib.get("y"), 0),
+                _round_xml_number(child.attrib.get("width"), 120),
+                _round_xml_number(child.attrib.get("height"), 80),
+            )
+            break
+    return bounds
+
+
+def _bpmn_sequence_flow_refs(root: ET.Element) -> dict[str, tuple[str, str]]:
+    refs: dict[str, tuple[str, str]] = {}
+    for node in root.iter():
+        if _xml_local(node.tag) != "sequenceFlow":
+            continue
+        flow_id = node.attrib.get("id", "")
+        source_ref = node.attrib.get("sourceRef", "")
+        target_ref = node.attrib.get("targetRef", "")
+        if flow_id and source_ref and target_ref:
+            refs[flow_id] = (source_ref, target_ref)
+    return refs
+
+
+def _edge_waypoints(edge: ET.Element) -> list[tuple[int, int]]:
+    points: list[tuple[int, int]] = []
+    for child in edge:
+        if _xml_local(child.tag) == "waypoint":
+            points.append((_round_xml_number(child.attrib.get("x"), 0), _round_xml_number(child.attrib.get("y"), 0)))
+    return points
+
+
+def _round_xml_number(value: str | None, fallback: int) -> int:
+    try:
+        return int(round(float(value))) if value is not None else fallback
+    except (TypeError, ValueError):
+        return fallback
 
 
 def _script_from_app_model(scripts: dict, element_id: str) -> str:

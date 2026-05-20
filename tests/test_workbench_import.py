@@ -4,11 +4,13 @@ import io
 import json
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 from fastapi.testclient import TestClient
 
 from src.agents.workflow_agent import CollibraWorkflowAgent
 from src.api.server import app
+from src.workflow.bpmn import BpmnModel, BpmnNode, SequenceFlow
 
 
 def test_workbench_import_extracts_collibra_scripts_forms_and_properties() -> None:
@@ -71,6 +73,10 @@ def test_autonomous_agent_canvas_mode_exports_imported_workflow() -> None:
     assert payload["quality"]["summary"]["blockingIssues"] == 0
     assert payload["cases"]["summary"]["failedCases"] == 0
     assert payload["zipPath"].endswith("_autonomous_package.zip")
+    with zipfile.ZipFile(payload["zipPath"]) as package:
+        names = package.namelist()
+    assert sum(name.lower().endswith(".app") for name in names) == 1
+    assert not any(name.lower().endswith((".json", ".groovy", ".md")) for name in names)
 
 
 def test_import_rejects_unsafe_zip_member_paths() -> None:
@@ -110,10 +116,19 @@ def test_workbench_export_is_flat_ootb_style_zip() -> None:
     with zipfile.ZipFile(io.BytesIO(response.content)) as package:
         names = package.namelist()
     assert all("/" not in name and "\\" not in name for name in names)
+    assert sum(name.lower().endswith(".app") for name in names) == 1
     assert "flatExport.bpmn" in names
     assert "flatExport.app" in names
-    assert "approvalForm.form" in names
-    assert "approveScript.groovy" in names
+    assert "form-approvalForm.form" in names
+    assert not any(name.lower().endswith(".json") for name in names)
+    assert not any(name.lower().endswith(".groovy") for name in names)
+    with zipfile.ZipFile(io.BytesIO(response.content)) as package:
+        manifest = json.loads(package.read("flatExport.app").decode("utf-8"))
+    assert manifest["key"] == "sampleApp"
+    assert manifest["extension"]["design"]["childModels"] == [
+        {"key": "approvalForm", "type": "form"},
+        {"key": "sampleWorkflow", "type": "bpmn"},
+    ]
 
 
 def test_workbench_export_embeds_non_empty_script_and_removes_empty_conditions() -> None:
@@ -154,6 +169,140 @@ def test_workbench_export_embeds_non_empty_script_and_removes_empty_conditions()
     assert "scriptTaskACompleted" in exported_bpmn
     assert "autoStoreVariables=\"false\"" in exported_bpmn
     assert "conditionExpression" not in exported_bpmn
+
+
+def test_workbench_export_namespaces_existing_condition_expression_for_bpmnjs() -> None:
+    client = TestClient(app)
+    bpmn = """<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" targetNamespace="http://www.collibra.com/test">
+  <bpmn:process id="conditionExportWorkflow" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:exclusiveGateway id="gateway" />
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="flow1" sourceRef="start" targetRef="gateway" />
+    <bpmn:sequenceFlow id="flow2" sourceRef="gateway" targetRef="end"><bpmn:conditionExpression xsi:type="tFormalExpression">${approved == true}</bpmn:conditionExpression></bpmn:sequenceFlow>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="diagram"><bpmndi:BPMNPlane id="plane" bpmnElement="conditionExportWorkflow" /></bpmndi:BPMNDiagram>
+</bpmn:definitions>"""
+
+    response = client.post(
+        "/api/workflow/export",
+        json={
+            "bpmnXml": bpmn,
+            "appModel": {"scripts": {}, "elementProperties": {}},
+            "forms": {},
+            "packageName": "conditionExport.zip",
+        },
+    )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as package:
+        exported_bpmn = package.read("conditionExport.bpmn").decode("utf-8")
+    assert 'xsi:type="bpmn:tFormalExpression"' in exported_bpmn
+    assert 'xsi:type="tFormalExpression"' not in exported_bpmn
+
+
+def test_bpmn_model_di_waypoints_dock_to_shape_boundaries() -> None:
+    model = BpmnModel(
+        process_id="dockedWorkflow",
+        name="Docked Workflow",
+        nodes=[
+            BpmnNode(id="start", type="startEvent", name="Start", x=100, y=100),
+            BpmnNode(id="review", type="userTask", name="Review", x=220, y=78),
+            BpmnNode(id="end", type="endEvent", name="End", x=410, y=100),
+        ],
+        flows=[
+            SequenceFlow(id="flow1", source_ref="start", target_ref="review"),
+            SequenceFlow(id="flow2", source_ref="review", target_ref="end"),
+        ],
+    )
+
+    root = ET.fromstring(model.to_xml().encode("utf-8"))
+
+    assert _waypoints_for(root, "flow1") == [(136, 118), (220, 118)]
+    assert _waypoints_for(root, "flow2") == [(348, 118), (410, 118)]
+
+
+def test_workbench_export_repairs_stale_di_waypoints_from_uploaded_bpmn() -> None:
+    client = TestClient(app)
+    bpmn = """<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" targetNamespace="http://www.collibra.com/test">
+  <bpmn:process id="staleWaypointWorkflow" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:userTask id="review" name="Review" />
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="flow1" sourceRef="start" targetRef="review" />
+    <bpmn:sequenceFlow id="flow2" sourceRef="review" targetRef="end" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="diagram"><bpmndi:BPMNPlane id="plane" bpmnElement="staleWaypointWorkflow">
+    <bpmndi:BPMNShape id="start_di" bpmnElement="start"><dc:Bounds x="100" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="review_di" bpmnElement="review"><dc:Bounds x="220" y="78" width="128" height="80" /></bpmndi:BPMNShape>
+    <bpmndi:BPMNShape id="end_di" bpmnElement="end"><dc:Bounds x="410" y="100" width="36" height="36" /></bpmndi:BPMNShape>
+    <bpmndi:BPMNEdge id="flow1_di" bpmnElement="flow1"><di:waypoint x="200" y="140" /><di:waypoint x="210" y="160" /></bpmndi:BPMNEdge>
+    <bpmndi:BPMNEdge id="flow2_di" bpmnElement="flow2"><di:waypoint x="390" y="90" /><di:waypoint x="395" y="92" /></bpmndi:BPMNEdge>
+  </bpmndi:BPMNPlane></bpmndi:BPMNDiagram>
+</bpmn:definitions>"""
+
+    response = client.post(
+        "/api/workflow/export",
+        json={"bpmnXml": bpmn, "appModel": {"scripts": {}, "elementProperties": {}}, "forms": {}, "packageName": "dockedExport.zip"},
+    )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as package:
+        exported_root = ET.fromstring(package.read("dockedExport.bpmn"))
+
+    assert _waypoints_for(exported_root, "flow1") == [(136, 118), (220, 118)]
+    assert _waypoints_for(exported_root, "flow2") == [(348, 118), (410, 118)]
+
+
+def test_workbench_export_uses_collibra_manifest_and_app_model_forms_when_forms_payload_is_empty() -> None:
+    client = TestClient(app)
+    bpmn = """<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" targetNamespace="http://www.collibra.com/test">
+  <bpmn:process id="generatedProcess" name="Generated Process" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:userTask id="review" name="Review" />
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="flow1" sourceRef="start" targetRef="review" />
+    <bpmn:sequenceFlow id="flow2" sourceRef="review" targetRef="end" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="diagram"><bpmndi:BPMNPlane id="plane" bpmnElement="generatedProcess" /></bpmndi:BPMNDiagram>
+</bpmn:definitions>"""
+
+    response = client.post(
+        "/api/workflow/export",
+        json={
+            "bpmnXml": bpmn,
+            "appModel": {
+                "metadata": {"name": "Generated Process"},
+                "forms": {
+                    "reviewForm": {
+                        "key": "reviewForm",
+                        "name": "Review Form",
+                        "fields": [{"id": "decision", "label": "Decision", "type": "choice", "required": True, "default": None}],
+                    }
+                },
+            },
+            "forms": {},
+            "packageName": "generatedProcess.zip",
+        },
+    )
+
+    assert response.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(response.content)) as package:
+        names = package.namelist()
+        app_manifest = json.loads(package.read("generatedProcess.app").decode("utf-8"))
+        form_json = package.read("form-reviewForm.form").decode("utf-8")
+
+    assert not any(name.endswith(".dsc-sidecar.json") for name in names)
+    assert not any(name.lower().endswith((".json", ".groovy", ".md")) for name in names)
+    assert app_manifest["extension"]["design"]["childModels"] == [
+        {"key": "reviewForm", "type": "form"},
+        {"key": "generatedProcess", "type": "bpmn"},
+    ]
+    assert '"default": null' not in form_json
+    assert '"value": ""' in form_json
 
 
 def test_rag_chat_returns_business_fallback_instead_of_500() -> None:
@@ -224,6 +373,41 @@ def test_prompt_design_accepts_form_field_label_payload() -> None:
     assert package.forms[0].fields[0].name == "Approval decision"
     assert package.forms[0].fields[0].label == "Approval decision"
     assert package.process.pools
+    assert package.validate() == []
+
+
+def test_prompt_design_auto_connects_partially_orphaned_ai_nodes() -> None:
+    agent = CollibraWorkflowAgent.__new__(CollibraWorkflowAgent)
+    package = agent._package_from_design(
+        {
+            "process_id": "orphanRepairWorkflow",
+            "name": "Orphan Repair Workflow",
+            "lanes": ["Requester", "Data Steward", "Collibra Automation"],
+            "nodes": [
+                {"id": "start", "type": "startEvent", "name": "Start", "lane": "Requester", "x": 100, "y": 100},
+                {"id": "review", "type": "userTask", "name": "Review", "lane": "Data Steward", "x": 300, "y": 270},
+                {
+                    "id": "orphanScript",
+                    "type": "scriptTask",
+                    "name": "AI forgot to connect this",
+                    "lane": "Collibra Automation",
+                    "script": "execution.setVariable('orphanHandled', true)",
+                    "x": 500,
+                    "y": 440,
+                },
+                {"id": "end", "type": "endEvent", "name": "End", "lane": "Requester", "x": 740, "y": 100},
+            ],
+            "flows": [
+                {"id": "flow_start_review", "sourceRef": "start", "targetRef": "review"},
+                {"id": "flow_review_end", "sourceRef": "review", "targetRef": "end"},
+            ],
+            "forms": [],
+        }
+    )
+
+    flow_pairs = {(flow.source_ref, flow.target_ref) for flow in package.process.flows}
+    assert ("review", "orphanScript") in flow_pairs
+    assert ("orphanScript", "end") in flow_pairs
     assert package.validate() == []
 
 
@@ -342,3 +526,19 @@ def _sample_collibra_zip() -> bytes:
         package.writestr("sampleWorkflow.bpmn", bpmn)
     buffer.seek(0)
     return buffer.getvalue()
+
+
+def _waypoints_for(root: ET.Element, flow_id: str) -> list[tuple[int, int]]:
+    for edge in root.iter():
+        if _local(edge.tag) != "BPMNEdge" or edge.attrib.get("bpmnElement") != flow_id:
+            continue
+        points: list[tuple[int, int]] = []
+        for child in edge:
+            if _local(child.tag) == "waypoint":
+                points.append((int(float(child.attrib["x"])), int(float(child.attrib["y"]))))
+        return points
+    raise AssertionError(f"No BPMNEdge found for {flow_id}.")
+
+
+def _local(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1] if "}" in tag else tag.split(":", 1)[-1]

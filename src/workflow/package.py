@@ -28,16 +28,31 @@ class WorkflowPackage:
     def export_zip(self, output_path: str | Path) -> Path:
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
+        process_key = _safe_model_key(self.process.process_id)
         manifest = {
-            "appName": self.app_name,
-            "process": f"{self.process.process_id}.bpmn",
-            "forms": [f"{form.key}.form" for form in self.forms],
-            "generator": "DSC Collibra Workflow Automation Agent",
+            "key": _safe_model_key(f"{process_key}App"),
+            "name": self.app_name,
+            "description": "",
+            "theme": "theme-1",
+            "icon": "glyphicon-asterisk",
+            "usersAccess": None,
+            "groupsAccess": None,
+            "flowApp": False,
+            "url": None,
+            "paletteDefinitionCategory": "core",
+            "extension": {
+                "design": {
+                    "childModels": [
+                        *[{"key": _safe_model_key(form.key), "type": "form"} for form in self.forms],
+                        {"key": process_key, "type": "bpmn"},
+                    ]
+                }
+            },
         }
         with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr(manifest["process"], self.process.to_xml())
+            archive.writestr(f"{self.process.process_id}.bpmn", self.process.to_xml())
             for form in self.forms:
-                archive.writestr(f"{form.key}.form", form.to_json())
+                archive.writestr(f"form-{form.key}.form", form.to_json())
             archive.writestr(f"{self.process.process_id}.app", json.dumps(manifest, indent=2, sort_keys=True))
         return output
 
@@ -62,10 +77,18 @@ class WorkflowPackage:
                 elif suffix == ".app":
                     try:
                         manifest = json.loads(text)
-                        app_name = manifest.get("appName", app_name)
+                        app_name = manifest.get("name") or manifest.get("appName") or app_name
                     except json.JSONDecodeError:
                         pass
         if process is None:
             raise ValueError("No .bpmn process found in ZIP package.")
         return cls(process=process, forms=forms, app_name=app_name)
 
+
+def _safe_model_key(value: str) -> str:
+    key = "".join(char if char.isalnum() or char in "_-" else "_" for char in str(value)).strip("_")
+    if not key:
+        return "workflow"
+    if not key[0].isalpha():
+        key = f"workflow_{key}"
+    return key

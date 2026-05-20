@@ -139,4 +139,67 @@
 <p>Model keys</p>
 <p>Model keys are unique identifiers for processes and forms in Workflow Designer workspaces. The process key also identifies workflows in Collibra and must be unique in your environment.</p>
 <p>If you change the process key of a workflow a</p>
+<h2>AI Business Narrative</h2>
+<h1>Collibra Imported Approval Workflow for Confluence</h1>
+<h2>Purpose</h2>
+<p>This workflow automates the approval process for Confluence content within Collibra. It guides users through review and approval steps, ensuring proper validation, role-based routing, and auditability.</p>
+<h2>Deployment Overview</h2>
+<ul>
+<li>**Type:** Sequential approval with user and script tasks</li>
+<li>**Components:** BPMN diagram, Groovy scripts, forms</li>
+<li>**Scope:** Business and platform users involved in content approval</li>
+</ul>
+<h2>Route Logic</h2>
+<p>1. **Start Event:** Initiates workflow upon request.</p>
+<p>2. **Review Task:** Assigned to designated reviewer via user form.</p>
+<p>3. **Approval Script:** Executes Groovy logic to determine approval status.</p>
+<p>4. **End Event:** Workflow concludes, either approving or rejecting the content.</p>
+<p>Flow:</p>
+<p>`Start` → `Review` → `Approve Script` → `End`</p>
+<h2>Forms</h2>
+<ul>
+<li>**Approval Form:** Collects reviewer input; includes fields such as approval decision, comments, and role verification.</li>
+</ul>
+<h2>Groovy Scripts</h2>
+<ul>
+<li>**Approve Script:** Contains minimal logic (approx. 39 characters) to evaluate approval status, trigger notifications, or update asset states.</li>
+<li>**Usage:** Embedded in the script task; designed for quick validation and decision-making.</li>
+</ul>
+<h2>Tests</h2>
+<ul>
+<li>**Unit Tests:** Validate Groovy scripts independently.</li>
+<li>**Workflow Tests:** Run through happy path, rejection paths, and error scenarios:</li>
+</ul>
+<p>  - Missing form data</p>
+<p>  - Invalid UUIDs</p>
+<p>  - Role mismatches</p>
+<p>  - Asset relation issues</p>
+<p>  - API failure handling</p>
+<ul>
+<li>**Round-trip Validation:** Re-import ZIP package to verify integrity of BPMN, scripts, and forms.</li>
+</ul>
+<h2>Risks</h2>
+<ul>
+<li>Incorrect role or UUID configurations may cause routing failures.</li>
+<li>Missing or invalid form data can halt workflow.</li>
+<li>External API failures may impact asset updates or notifications.</li>
+<li>Version conflicts if process keys are changed improperly.</li>
+</ul>
+<h2>Operating Procedure</h2>
+<p>1. **Preparation:**</p>
+<p>   - Confirm all UUIDs, roles, relation types, and IDs are from the organization knowledge base.</p>
+<p>   - Ensure Java API dependencies match Collibra v2 documentation.</p>
+<p>2. **Deployment:**</p>
+<p>   - Export the ZIP package containing BPMN, scripts, and forms.</p>
+<p>   - Upload to a non-production environment for testing.</p>
+<p>   - Verify workflow execution, form data, and script outcomes.</p>
+<p>3. **Production Rollout:**</p>
+<p>   - Re-import verified package.</p>
+<p>   - Monitor initial runs for errors.</p>
+<p>   - Keep deployment logs, documentation, and logs as evidence.</p>
+<p>4. **Maintenance:**</p>
+<p>   - Update process keys and scripts carefully.</p>
+<p>   - Re-run tests after modifications.</p>
+<p>   - Regularly review role and relation configurations.</p>
+<p>This concise guide ensures a deployment-ready understanding of the imported approval workflow, emphasizing critical components, logic, and operational best practices.</p>
 </body></html>

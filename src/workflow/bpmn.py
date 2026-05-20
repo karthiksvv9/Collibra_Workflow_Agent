@@ -16,7 +16,7 @@ FLOWABLE_NS = "http://flowable.org/bpmn"
 XSI_NS = "http://www.w3.org/2001/XMLSchema-instance"
 DSC_NS = "https://dsc.local/collibra/workflows/designer"
 
-ET.register_namespace("", BPMN_NS)
+ET.register_namespace("bpmn", BPMN_NS)
 ET.register_namespace("bpmndi", BPMNDI_NS)
 ET.register_namespace("dc", DC_NS)
 ET.register_namespace("di", DI_NS)
@@ -100,6 +100,7 @@ class BpmnModel:
             end_ids = {node.id for node in self.nodes if node.type == "endEvent"}
             if start_ids and end_ids and not _has_path_to_end(start_ids, end_ids, self.flows):
                 errors.append("BPMN model must contain at least one complete path from a startEvent to an endEvent.")
+            errors.extend(_flow_node_connectivity_errors(self.nodes, self.flows))
         return errors
 
     def to_xml(self) -> str:
@@ -172,7 +173,7 @@ class BpmnModel:
                 condition = ET.SubElement(
                     flow_el,
                     _q(BPMN_NS, "conditionExpression"),
-                    {_q(XSI_NS, "type"): "tFormalExpression"},
+                    {_q(XSI_NS, "type"): "bpmn:tFormalExpression"},
                 )
                 condition.text = flow.condition
 
@@ -287,8 +288,13 @@ class BpmnModel:
             source = self.find_node(flow.source_ref)
             target = self.find_node(flow.target_ref)
             if source and target:
-                ET.SubElement(edge, _q(DI_NS, "waypoint"), {"x": str(source.x + 100), "y": str(source.y + 40)})
-                ET.SubElement(edge, _q(DI_NS, "waypoint"), {"x": str(target.x), "y": str(target.y + 40)})
+                source_width, source_height = _dimensions(source.type)
+                target_width, target_height = _dimensions(target.type)
+                for x, y in diagram_waypoints(
+                    (source.x, source.y, source_width, source_height),
+                    (target.x, target.y, target_width, target_height),
+                ):
+                    ET.SubElement(edge, _q(DI_NS, "waypoint"), {"x": str(x), "y": str(y)})
 
     def find_node(self, node_id: str) -> BpmnNode | None:
         return next((node for node in self.nodes if node.id == node_id), None)
@@ -523,6 +529,67 @@ def _dimensions(node_type: str) -> tuple[int, int]:
     return 128, 80
 
 
+def diagram_waypoints(
+    source_bounds: tuple[int | float, int | float, int | float, int | float],
+    target_bounds: tuple[int | float, int | float, int | float, int | float],
+) -> list[tuple[int, int]]:
+    """Return orthogonal BPMN DI waypoints docked to shape borders."""
+    source_x, source_y, source_width, source_height = [float(value) for value in source_bounds]
+    target_x, target_y, target_width, target_height = [float(value) for value in target_bounds]
+    source_center_x = source_x + source_width / 2
+    source_center_y = source_y + source_height / 2
+    target_center_x = target_x + target_width / 2
+    target_center_y = target_y + target_height / 2
+    delta_x = target_center_x - source_center_x
+    delta_y = target_center_y - source_center_y
+
+    if abs(delta_x) >= abs(delta_y):
+        if delta_x >= 0:
+            start = (source_x + source_width, source_center_y)
+            end = (target_x, target_center_y)
+        else:
+            start = (source_x, source_center_y)
+            end = (target_x + target_width, target_center_y)
+        if abs(start[1] - end[1]) > 1:
+            midpoint_x = (start[0] + end[0]) / 2
+            return _clean_waypoints([start, (midpoint_x, start[1]), (midpoint_x, end[1]), end])
+        return _clean_waypoints([start, end])
+
+    if delta_y >= 0:
+        start = (source_center_x, source_y + source_height)
+        end = (target_center_x, target_y)
+    else:
+        start = (source_center_x, source_y)
+        end = (target_center_x, target_y + target_height)
+    if abs(start[0] - end[0]) > 1:
+        midpoint_y = (start[1] + end[1]) / 2
+        return _clean_waypoints([start, (start[0], midpoint_y), (end[0], midpoint_y), end])
+    return _clean_waypoints([start, end])
+
+
+def _clean_waypoints(points: list[tuple[float, float]]) -> list[tuple[int, int]]:
+    rounded = [(int(round(x)), int(round(y))) for x, y in points]
+    deduped: list[tuple[int, int]] = []
+    for point in rounded:
+        if not deduped or deduped[-1] != point:
+            deduped.append(point)
+    changed = True
+    while changed and len(deduped) > 2:
+        changed = False
+        next_points: list[tuple[int, int]] = [deduped[0]]
+        for index in range(1, len(deduped) - 1):
+            previous = next_points[-1]
+            current = deduped[index]
+            following = deduped[index + 1]
+            if (previous[0] == current[0] == following[0]) or (previous[1] == current[1] == following[1]):
+                changed = True
+                continue
+            next_points.append(current)
+        next_points.append(deduped[-1])
+        deduped = next_points
+    return deduped if len(deduped) >= 2 else rounded[:2]
+
+
 def _id(prefix: str, label: str) -> str:
     value = re.sub(r"[^A-Za-z0-9_]+", "_", label.strip()).strip("_")
     return f"{prefix}_{value or 'default'}"
@@ -548,3 +615,20 @@ def _has_path_to_end(start_ids: list[str], end_ids: set[str], flows: list[Sequen
         visited.add(node_id)
         stack.extend(adjacency.get(node_id, []))
     return False
+
+
+def _flow_node_connectivity_errors(nodes: list[BpmnNode], flows: list[SequenceFlow]) -> list[str]:
+    incoming: dict[str, int] = {}
+    outgoing: dict[str, int] = {}
+    for flow in flows:
+        outgoing[flow.source_ref] = outgoing.get(flow.source_ref, 0) + 1
+        incoming[flow.target_ref] = incoming.get(flow.target_ref, 0) + 1
+    errors: list[str] = []
+    for node in nodes:
+        if node.type in {"textAnnotation", "boundaryEvent"}:
+            continue
+        if node.type != "startEvent" and incoming.get(node.id, 0) == 0:
+            errors.append(f"BPMN node {node.id} ({node.type}) has no incoming sequence flow.")
+        if node.type != "endEvent" and outgoing.get(node.id, 0) == 0:
+            errors.append(f"BPMN node {node.id} ({node.type}) has no outgoing sequence flow.")
+    return errors

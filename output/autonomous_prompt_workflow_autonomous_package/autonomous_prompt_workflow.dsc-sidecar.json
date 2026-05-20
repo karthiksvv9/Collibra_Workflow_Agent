@@ -1,0 +1,140 @@
+{
+  "elementProperties": {
+    "call_delete_assets": {
+      "calledElement": "DeleteAssetsSubProcess",
+      "documentation": "Invoke subprocess to delete identified obsolete assets.",
+      "elementId": "call_delete_assets",
+      "elementName": "Delete Obsolete Assets",
+      "elementType": "bpmn:CallActivity",
+      "lane": "Collibra Automation"
+    },
+    "end_event": {
+      "documentation": "Workflow completes after assets are deleted.",
+      "elementId": "end_event",
+      "elementName": "End Asset Deletion Process",
+      "elementType": "bpmn:EndEvent",
+      "lane": "Requester"
+    },
+    "flow_delete_to_end": {
+      "condition": "",
+      "elementId": "flow_delete_to_end",
+      "elementName": "Assets Deleted",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "call_delete_assets",
+      "targetRef": "end_event"
+    },
+    "flow_filter_to_delete": {
+      "condition": "",
+      "elementId": "flow_filter_to_delete",
+      "elementName": "Identify Assets",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "script_filter_obsolete",
+      "targetRef": "call_delete_assets"
+    },
+    "flow_request_to_filter": {
+      "condition": "",
+      "elementId": "flow_request_to_filter",
+      "elementName": "Submit Request",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "user_task_request",
+      "targetRef": "script_filter_obsolete"
+    },
+    "flow_start_request": {
+      "condition": "",
+      "elementId": "flow_start_request",
+      "elementName": "Initiate Request",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "start_event",
+      "targetRef": "user_task_request"
+    },
+    "script_filter_obsolete": {
+      "documentation": "Automated script to identify assets with 'obsolete' status.",
+      "elementId": "script_filter_obsolete",
+      "elementName": "Filter Obsolete Assets",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "start_event": {
+      "documentation": "Initiates the workflow to delete assets marked as obsolete.",
+      "elementId": "start_event",
+      "elementName": "Start Asset Deletion Process",
+      "elementType": "bpmn:StartEvent",
+      "formKey": "deletionRequestForm",
+      "lane": "Requester"
+    },
+    "user_task_request": {
+      "documentation": "Requester submits a request to delete obsolete assets.",
+      "elementId": "user_task_request",
+      "elementName": "Request Asset Deletion",
+      "elementType": "bpmn:UserTask",
+      "formKey": "deletionRequestForm",
+      "lane": "Requester"
+    }
+  },
+  "forms": {
+    "deletionRequestForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "domainId",
+          "label": "Domain UUID",
+          "name": "Domain UUID",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "assetCriteria",
+          "label": "Criteria for Asset Selection",
+          "name": "Asset Criteria",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "deletionRequestForm",
+      "name": "Asset Deletion Request Form"
+    }
+  },
+  "metadata": {
+    "format": "DSC_AUTONOMOUS_AGENT_APP_V1",
+    "generator": "DSC Collibra Workflow Automation Agent",
+    "name": "Delete Assets with Obsolete Status",
+    "processId": "DeleteObsoleteAssetsWorkflow"
+  },
+  "ragContextPreview": "Question: Create a production Collibra workflow to delete assets having obsolete status Collibra workflow BPMN forms Groovy Java API v2 relation UUID roles organization standards OOTB workflow\n\nRetrieved context:\n\n- score=0.496 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-ai-complex-workflow-final.zip kind=zip\n# Workflow ZIP: prompt-driven-ai-complex-workflow-final.zip\n\n## BPMN/XML: workflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.474 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt_driven_ai_complex_workflow.zip kind=zip\n# Workflow ZIP: prompt_driven_ai_complex_workflow.zip\n\n## BPMN/XML: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.449 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md kind=md\nUpgrading your scripts for Groovy 3 compatibility\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.314 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Creating_workflows.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configurat",
+  "scripts": {
+    "script_filter_obsolete": {
+      "elementId": "script_filter_obsolete",
+      "elementName": "Filter Obsolete Assets",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\nimport com.collibra.client.api.AssetApi\nimport com.collibra.client.dto.Asset\nimport com.collibra.client.dto.AssetFilter\n\n// Retrieve process variables\nString domainIdStr = variables['domainId']\ndef domainId = string2Uuid(domainIdStr)\n\n// Build filter for assets with status 'obsolete'\nAssetFilter filter = new AssetFilter()\nfilter.setStatus('obsolete')\n\n// Call Collibra API to get assets\nAssetApi assetApi = new AssetApi()\nList<Asset> obsoleteAssets = assetApi.getAssets(domainId, filter)\n\n// Store list in process variable\nvariables['obsoleteAssets'] = obsoleteAssets",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    }
+  },
+  "uuidMappings": {},
+  "validationRules": []
+}

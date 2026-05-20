@@ -1,0 +1,165 @@
+<?xml version='1.0' encoding='utf-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:flowable="http://flowable.org/bpmn" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" id="CreateRelationPowerBIReportDataDomain_definitions" targetNamespace="https://dsc.local/collibra/workflows">
+  <bpmn:collaboration id="CreateRelationPowerBIReportDataDomain_collaboration">
+    <bpmn:participant id="CreateRelationPowerBIReportDataDomain_pool" name="Main Process Pool" processRef="CreateRelationPowerBIReportDataDomain" />
+  </bpmn:collaboration>
+  <bpmn:process id="CreateRelationPowerBIReportDataDomain" name="Create Relation between PowerBI Report and Data Domain" isExecutable="true">
+    <bpmn:documentation>Workflow to create a relation between PowerBI report asset and data domain asset in Collibra, including validation, creation, and review steps.</bpmn:documentation>
+    <bpmn:laneSet id="CreateRelationPowerBIReportDataDomain_lanes">
+      <bpmn:lane id="lane_Requester" name="Requester">
+        <bpmn:flowNodeRef>start_event</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>user_task_validate_request</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>script_task_check_assets</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>script_task_create_relation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>user_task_review_relation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>end_event_success</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>end_event_rework</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="lane_Data_Steward" name="Data Steward" />
+      <bpmn:lane id="lane_Collibra_Automation" name="Collibra Automation" />
+    </bpmn:laneSet>
+    <bpmn:startEvent id="start_event" name="Start Relation Creation" flowable:formKey="relationRequestForm">
+      <bpmn:documentation>Initiates the process to create a relation between PowerBI report and data domain.</bpmn:documentation>
+    </bpmn:startEvent>
+    <bpmn:userTask id="user_task_validate_request" name="Validate Relation Request" flowable:formKey="relationValidationForm">
+      <bpmn:documentation>User reviews and validates the relation creation request.</bpmn:documentation>
+    </bpmn:userTask>
+    <bpmn:scriptTask id="script_task_check_assets" name="Check Assets Existence" scriptFormat="groovy" flowable:autoStoreVariables="false">
+      <bpmn:documentation>Automated check if PowerBI report asset and data domain asset exist in Collibra.</bpmn:documentation>
+      <bpmn:script>// #importFile NONE
+import com.collibra.client.api.CollibraClient
+import com.collibra.client.api.asset.Asset
+import com.collibra.client.api.relation.Relation
+
+// Retrieve asset UUIDs from process variables
+String reportAssetIdStr = relationRequestForm['reportAssetId']
+String domainAssetIdStr = relationRequestForm['domainAssetId']
+
+UUID reportAssetId = string2Uuid(reportAssetIdStr)
+UUID domainAssetId = string2Uuid(domainAssetIdStr)
+
+// Check existence of assets
+Asset reportAsset = collibraClient.assets().getAsset(reportAssetId)
+Asset domainAsset = collibraClient.assets().getAsset(domainAssetId)
+
+if (reportAsset == null || domainAsset == null) {
+    throw new RuntimeException("One or both assets do not exist in Collibra.")
+}
+// Proceed if assets exist
+</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="script_task_create_relation" name="Create Relation in Collibra" scriptFormat="groovy" flowable:autoStoreVariables="false">
+      <bpmn:documentation>Automated creation of relation between PowerBI report and data domain assets.</bpmn:documentation>
+      <bpmn:script>// #importFile NONE
+import com.collibra.client.api.relation.Relation
+
+// Retrieve asset UUIDs
+String reportAssetIdStr = relationRequestForm['reportAssetId']
+String domainAssetIdStr = relationRequestForm['domainAssetId']
+UUID reportAssetId = string2Uuid(reportAssetIdStr)
+UUID domainAssetId = string2Uuid(domainAssetIdStr)
+
+// Build relation DTO
+Relation relation = new Relation.Builder()
+    .fromAssetId(reportAssetId)
+    .toAssetId(domainAssetId)
+    .relationTypeId(string2Uuid('${relationTypeId}')) // predefined relation type UUID
+    .build()
+
+// Create relation
+collibraClient.relations().createRelation(relation)
+</bpmn:script>
+    </bpmn:scriptTask>
+    <bpmn:userTask id="user_task_review_relation" name="Review Relation Creation" flowable:formKey="relationReviewForm">
+      <bpmn:documentation>Data steward reviews the relation creation result and approves or rejects.</bpmn:documentation>
+    </bpmn:userTask>
+    <bpmn:sequenceFlow id="flow_start_to_validate" name="Submit Request" sourceRef="start_event" targetRef="user_task_validate_request">
+      <bpmn:documentation>User submits relation creation request.</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_validate_to_check_assets" name="Validation Complete" sourceRef="user_task_validate_request" targetRef="script_task_check_assets">
+      <bpmn:documentation>After validation, check if assets exist.</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_check_assets_to_create_relation" name="Assets Valid" sourceRef="script_task_check_assets" targetRef="script_task_create_relation">
+      <bpmn:documentation>Proceed to create relation if assets exist.</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${assetsExist == true}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_create_relation_to_review" name="Relation Created" sourceRef="script_task_create_relation" targetRef="user_task_review_relation">
+      <bpmn:documentation>Relation creation completed, awaiting review.</bpmn:documentation>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_review_to_end_success" name="Approve" sourceRef="user_task_review_relation" targetRef="end_event_success">
+      <bpmn:documentation>If approved, process ends successfully.</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewDecision == 'approve'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="flow_review_to_rework" name="Reject" sourceRef="user_task_review_relation" targetRef="end_event_rework">
+      <bpmn:documentation>If rejected, process ends requiring rework.</bpmn:documentation>
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reviewDecision == 'reject'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:endEvent id="end_event_success" name="Relation Created Successfully">
+      <bpmn:documentation>Process ends successfully after relation is created.</bpmn:documentation>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="end_event_rework" name="Rework Required">
+      <bpmn:documentation>Process ends if rework is needed after review.</bpmn:documentation>
+    </bpmn:endEvent>
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="CreateRelationPowerBIReportDataDomain_diagram">
+    <bpmndi:BPMNPlane id="CreateRelationPowerBIReportDataDomain_plane" bpmnElement="CreateRelationPowerBIReportDataDomain_collaboration">
+      <bpmndi:BPMNShape id="CreateRelationPowerBIReportDataDomain_pool_di" bpmnElement="CreateRelationPowerBIReportDataDomain_pool" isHorizontal="true">
+        <dc:Bounds x="40" y="40" width="1280" height="590" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="lane_Collibra_Automation_di" bpmnElement="lane_Collibra_Automation" isHorizontal="true">
+        <dc:Bounds x="70" y="380" width="1250" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="lane_Data_Steward_di" bpmnElement="lane_Data_Steward" isHorizontal="true">
+        <dc:Bounds x="70" y="210" width="1250" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="lane_Requester_di" bpmnElement="lane_Requester" isHorizontal="true">
+        <dc:Bounds x="70" y="40" width="1250" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="start_event_di" bpmnElement="start_event">
+        <dc:Bounds x="120" y="120" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="user_task_validate_request_di" bpmnElement="user_task_validate_request">
+        <dc:Bounds x="300" y="120" width="128" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="script_task_check_assets_di" bpmnElement="script_task_check_assets">
+        <dc:Bounds x="480" y="120" width="128" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="script_task_create_relation_di" bpmnElement="script_task_create_relation">
+        <dc:Bounds x="660" y="120" width="128" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="user_task_review_relation_di" bpmnElement="user_task_review_relation">
+        <dc:Bounds x="840" y="120" width="128" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_event_success_di" bpmnElement="end_event_success">
+        <dc:Bounds x="1092" y="80" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1069" y="116" width="83" height="27" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="end_event_rework_di" bpmnElement="end_event_rework">
+        <dc:Bounds x="1142" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1118" y="196" width="85" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="flow_start_to_validate_di" bpmnElement="flow_start_to_validate">
+        <di:waypoint x="156" y="138" /><di:waypoint x="228" y="138" /><di:waypoint x="228" y="160" /><di:waypoint x="300" y="160" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_validate_to_check_assets_di" bpmnElement="flow_validate_to_check_assets">
+        <di:waypoint x="428" y="160" /><di:waypoint x="480" y="160" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_check_assets_to_create_relation_di" bpmnElement="flow_check_assets_to_create_relation">
+        <di:waypoint x="608" y="160" /><di:waypoint x="660" y="160" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_create_relation_to_review_di" bpmnElement="flow_create_relation_to_review">
+        <di:waypoint x="788" y="160" /><di:waypoint x="840" y="160" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_review_to_end_success_di" bpmnElement="flow_review_to_end_success">
+        <di:waypoint x="968" y="160" /><di:waypoint x="1030" y="160" /><di:waypoint x="1030" y="98" /><di:waypoint x="1092" y="98" /><bpmndi:BPMNLabel>
+          <dc:Bounds x="1050" y="88" width="41" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="flow_review_to_rework_di" bpmnElement="flow_review_to_rework">
+        <di:waypoint x="968" y="160" /><di:waypoint x="1055" y="160" /><di:waypoint x="1055" y="178" /><di:waypoint x="1142" y="178" /><bpmndi:BPMNLabel>
+          <dc:Bounds x="1075" y="186" width="32" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

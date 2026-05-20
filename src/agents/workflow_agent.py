@@ -41,7 +41,7 @@ class CollibraWorkflowAgent:
     def design_from_prompt(self, master_prompt: str, model_id: str | None = None) -> WorkflowPackage:
         context = self.rag.retrieve(master_prompt, limit=10).render()
         llm_design = self._try_llm_design(master_prompt, context, model_id=model_id)
-        if llm_design:
+        if llm_design and _design_satisfies_prompt(master_prompt, llm_design):
             return self._package_from_design(llm_design)
         return self._heuristic_design(master_prompt, context)
 
@@ -54,8 +54,15 @@ class CollibraWorkflowAgent:
     ) -> WorkflowBuildResult:
         context = self.rag.retrieve(master_prompt, limit=10).render()
         package = self._try_llm_design(master_prompt, context, model_id=model_id, raise_on_error=require_ai)
-        if package:
+        used_llm_design = False
+        if package and _design_satisfies_prompt(master_prompt, package):
             workflow_package = self._package_from_design(package)
+            used_llm_design = True
+        elif package and require_ai:
+            raise ValueError(
+                "AI workflow design returned valid JSON but did not satisfy the prompt complexity requirements. "
+                "For complex workflows it must include multiple forms, reroutes, a call activity when requested, and complete sequence flows."
+            )
         elif require_ai:
             raise ValueError(
                 "AI workflow design did not return a valid JSON BPMN design. Check the selected model, API key, and prompt, then try again."
@@ -65,9 +72,20 @@ class CollibraWorkflowAgent:
 
         compile_results = self._compile_and_self_heal(workflow_package)
         compile_failures = _compile_failure_summaries(compile_results)
+        if compile_failures and used_llm_design and not require_ai:
+            workflow_package = self._heuristic_design(master_prompt, context)
+            compile_results = self._compile_and_self_heal(workflow_package)
+            compile_failures = _compile_failure_summaries(compile_results)
         if compile_failures:
             raise ValueError("Generated Groovy failed compilation/lint validation: " + "; ".join(compile_failures))
         errors = workflow_package.validate()
+        if errors and used_llm_design and not require_ai:
+            workflow_package = self._heuristic_design(master_prompt, context)
+            compile_results = self._compile_and_self_heal(workflow_package)
+            compile_failures = _compile_failure_summaries(compile_results)
+            if compile_failures:
+                raise ValueError("Generated Groovy failed compilation/lint validation: " + "; ".join(compile_failures))
+            errors = workflow_package.validate()
         if errors:
             raise ValueError("Generated workflow failed validation: " + "; ".join(errors))
 
@@ -149,34 +167,47 @@ class CollibraWorkflowAgent:
         process_id = _safe_id(design.get("process_id") or design.get("key") or "generatedCollibraWorkflow")
         lanes = [str(lane) for lane in (design.get("lanes") or ["Requester", "Data Steward", "Collibra Automation"]) if str(lane).strip()]
         lanes = lanes or ["Requester", "Data Steward", "Collibra Automation"]
-        nodes = [
-            BpmnNode(
-                id=_safe_id(node.get("id", f"node_{index}")),
-                type=node.get("type", "scriptTask"),
-                name=node.get("name", ""),
-                lane=_lane_for_node(node, lanes),
-                documentation=node.get("documentation", ""),
-                script=node.get("script", ""),
-                form_key=node.get("form_key") or node.get("formKey"),
-                candidate_users=node.get("candidate_users"),
-                candidate_groups=node.get("candidate_groups"),
-                properties=node.get("properties", {}),
-                x=int(node.get("x") or (180 + index * 180)),
-                y=int(node.get("y") or _lane_y(_lane_for_node(node, lanes), lanes)),
+        nodes: list[BpmnNode] = []
+        flow_like_nodes: list[dict[str, Any]] = []
+        for index, node in enumerate(design.get("nodes", [])):
+            if not isinstance(node, dict):
+                continue
+            node_type = _normalize_node_type(node.get("type", "scriptTask"))
+            if node_type == "sequenceFlow":
+                flow_like_nodes.append(node)
+                continue
+            lane = _lane_for_node({**node, "type": node_type}, lanes)
+            script = _sanitize_generated_groovy(str(node.get("script") or ""))
+            if script and node_type not in {"scriptTask", "serviceTask", "sendTask"}:
+                node_type = "scriptTask"
+            nodes.append(
+                BpmnNode(
+                    id=_safe_id(node.get("id", f"node_{index}")),
+                    type=node_type,
+                    name=node.get("name", ""),
+                    lane=lane,
+                    documentation=node.get("documentation", ""),
+                    script=script,
+                    form_key=node.get("form_key") or node.get("formKey"),
+                    candidate_users=node.get("candidate_users"),
+                    candidate_groups=node.get("candidate_groups"),
+                    properties=node.get("properties", {}),
+                    x=int(node.get("x") or (180 + index * 180)),
+                    y=int(node.get("y") or _lane_y(lane, lanes)),
+                )
             )
-            for index, node in enumerate(design.get("nodes", []))
-        ]
         nodes = _ensure_start_end_nodes(nodes, lanes)
-        raw_flows = design.get("flows") or design.get("sequence_flows") or design.get("sequenceFlows") or []
+        raw_flows = list(design.get("flows") or design.get("sequence_flows") or design.get("sequenceFlows") or [])
+        raw_flows.extend(flow_like_nodes)
         flows = [
             SequenceFlow(
                 id=_safe_id(flow.get("id", f"flow_{index}")),
                 source_ref=_safe_id(flow.get("source_ref") or flow.get("sourceRef")),
                 target_ref=_safe_id(flow.get("target_ref") or flow.get("targetRef")),
                 name=flow.get("name", ""),
-                condition=flow.get("condition", ""),
-                skip_expression=flow.get("skip_expression") or flow.get("skipExpression", ""),
-                flow_type=flow.get("flow_type") or flow.get("flowType", "normal"),
+                condition=_normalize_expression(flow.get("condition", "")),
+                skip_expression=_normalize_expression(flow.get("skip_expression") or flow.get("skipExpression", "")),
+                flow_type=flow.get("flow_type") or flow.get("flowType") or ("conditional" if flow.get("condition") else "normal"),
                 is_default=bool(flow.get("is_default") or flow.get("isDefault", False)),
                 documentation=flow.get("documentation", ""),
                 listener_code=flow.get("listener_code") or flow.get("listenerCode", ""),
@@ -193,7 +224,9 @@ class CollibraWorkflowAgent:
                 fields=[form_field_from_mapping(field) for field in form.get("fields", []) if isinstance(field, dict)],
             )
             for index, form in enumerate(design.get("forms", []))
+            if isinstance(form, dict)
         ]
+        forms = _ensure_referenced_forms(forms, nodes)
         width = max([node.x for node in nodes] or [1000]) + 260
         height = 80 + len(lanes) * 170
         return WorkflowPackage(
@@ -589,6 +622,136 @@ def _title(prompt: str) -> str:
     return " ".join(words).title() or "Generated Collibra Workflow"
 
 
+SUPPORTED_NODE_TYPES = {
+    "startEvent",
+    "endEvent",
+    "userTask",
+    "scriptTask",
+    "serviceTask",
+    "manualTask",
+    "businessRuleTask",
+    "sendTask",
+    "receiveTask",
+    "exclusiveGateway",
+    "parallelGateway",
+    "inclusiveGateway",
+    "eventBasedGateway",
+    "subProcess",
+    "callActivity",
+    "intermediateCatchEvent",
+    "intermediateThrowEvent",
+    "boundaryEvent",
+    "textAnnotation",
+}
+
+
+def _normalize_node_type(value: Any) -> str:
+    raw = str(value or "scriptTask").strip()
+    raw = raw.split(":", 1)[-1]
+    lowered = raw[:1].lower() + raw[1:]
+    aliases = {
+        "task": "userTask",
+        "formTask": "userTask",
+        "approvalTask": "userTask",
+        "groovyTask": "scriptTask",
+        "apiTask": "serviceTask",
+        "gateway": "exclusiveGateway",
+        "sequenceflow": "sequenceFlow",
+        "sequenceFlow": "sequenceFlow",
+        "flow": "sequenceFlow",
+    }
+    normalized = aliases.get(raw) or aliases.get(lowered) or lowered
+    if normalized in SUPPORTED_NODE_TYPES or normalized == "sequenceFlow":
+        return normalized
+    if normalized.lower().endswith("gateway"):
+        return "exclusiveGateway"
+    if normalized.lower().endswith("event"):
+        return "intermediateCatchEvent"
+    return "scriptTask"
+
+
+def _sanitize_generated_groovy(script: str) -> str:
+    repaired = str(script or "").replace("\r\n", "\n").replace("\r", "\n").strip()
+    repaired = re.sub(r"```(?:groovy|java|text)?\s*(.*?)```", r"\1", repaired, flags=re.DOTALL | re.IGNORECASE).strip()
+    repaired = re.sub(r"(?m)^\s*import\s+[\w.]+\.\*\s*;?\s*\n?", "", repaired)
+    repaired = re.sub(r"(?m)^\s*import\s+(?:package\s+)?(?:uuid|UUID|[\w.]*\.uuid(?:\.[\w.*]+)?)\s*;?\s*\n?", "", repaired, flags=re.IGNORECASE)
+    repaired = re.sub(r"(?m)^\s*import\s+java\.util\.UUID\s*;?\s*\n?", "", repaired)
+    repaired = repaired.replace("UUID.randomUUID()", "java.util.UUID.randomUUID()")
+    repaired = re.sub(r"\bUUID\.fromString\s*\(", "string2Uuid(", repaired)
+    repaired = re.sub(r"\bUUID\s+([A-Za-z_]\w*)\s*=", r"def \1 =", repaired)
+    if repaired and not repaired.lstrip().startswith("// #importFile NONE"):
+        repaired = "// #importFile NONE\n" + repaired.lstrip()
+    return repaired
+
+
+def _ensure_referenced_forms(forms: list[FormModel], nodes: list[BpmnNode]) -> list[FormModel]:
+    by_key = {form.key: form for form in forms}
+    for node in nodes:
+        if not node.form_key or node.form_key in by_key:
+            continue
+        by_key[node.form_key] = _placeholder_form(node.form_key, node.name or node.id)
+    return list(by_key.values())
+
+
+def _placeholder_form(form_key: str, task_name: str) -> FormModel:
+    lowered = form_key.lower()
+    if any(token in lowered for token in ("review", "approval", "decision", "steward")):
+        return FormModel(
+            key=form_key,
+            name=f"{task_name} Form",
+            fields=[
+                FormField(
+                    id="decision",
+                    name="Decision",
+                    type="enum",
+                    required=True,
+                    values=[{"id": "approve", "name": "Approve"}, {"id": "reject", "name": "Reject"}],
+                ),
+                FormField(id="comments", name="Comments", type="string"),
+            ],
+        )
+    if "relation" in lowered:
+        return FormModel(
+            key=form_key,
+            name=f"{task_name} Form",
+            fields=[
+                FormField(id="sourceAssetId", name="Source asset UUID", type="string", required=True),
+                FormField(id="targetAssetId", name="Target asset UUID", type="string", required=True),
+                FormField(id="relationTypeId", name="Relation type UUID", type="string", required=True),
+            ],
+        )
+    if "validation" in lowered or "validate" in lowered:
+        return FormModel(
+            key=form_key,
+            name=f"{task_name} Form",
+            fields=[
+                FormField(id="validationResult", name="Validation result", type="boolean", required=True),
+                FormField(id="validationNotes", name="Validation notes", type="string"),
+            ],
+        )
+    return FormModel(
+        key=form_key,
+        name=f"{task_name} Form",
+        fields=[
+            FormField(id="assetId", name="Asset UUID", type="string", required=True),
+            FormField(id="comments", name="Comments", type="string"),
+        ],
+    )
+
+
+def _normalize_expression(value: Any) -> str:
+    expression = str(value or "").strip()
+    if not expression:
+        return ""
+    if expression.startswith("${") and expression.endswith("}"):
+        return expression
+    if expression.lower() in {"true", "false"}:
+        return "${" + expression.lower() + "}"
+    if any(operator in expression for operator in ("==", "!=", ">=", "<=", ">", "<", "&&", "||")):
+        return "${" + expression + "}"
+    return expression
+
+
 def _lane_for_node(node: dict[str, Any], lanes: list[str]) -> str:
     lane = str(node.get("lane") or "").strip()
     if lane in lanes:
@@ -636,14 +799,88 @@ def _ensure_start_end_nodes(nodes: list[BpmnNode], lanes: list[str]) -> list[Bpm
 def _repair_linear_flow_continuity(nodes: list[BpmnNode], flows: list[SequenceFlow]) -> list[SequenceFlow]:
     node_ids = {node.id for node in nodes}
     repaired = [flow for flow in flows if flow.source_ref in node_ids and flow.target_ref in node_ids]
-    if repaired:
-        return repaired
     if len(nodes) < 2:
         return repaired
-    return [
-        SequenceFlow(f"flow_{source.id}_{target.id}", source.id, target.id)
-        for source, target in zip(nodes, nodes[1:])
-    ]
+    ordered_nodes = _ordered_executable_nodes(nodes)
+    if len(ordered_nodes) < 2:
+        return repaired
+    flow_keys = {(flow.source_ref, flow.target_ref) for flow in repaired}
+
+    if not repaired:
+        for source, target in zip(ordered_nodes, ordered_nodes[1:]):
+            _append_repair_flow(repaired, flow_keys, source.id, target.id)
+        return repaired
+
+    incoming = _incoming_counts(repaired)
+    outgoing = _outgoing_counts(repaired)
+    start = next((node for node in ordered_nodes if node.type == "startEvent"), ordered_nodes[0])
+    end = next((node for node in reversed(ordered_nodes) if node.type == "endEvent"), ordered_nodes[-1])
+
+    for index, node in enumerate(ordered_nodes):
+        if node.type == "startEvent":
+            continue
+        if incoming.get(node.id, 0) > 0:
+            continue
+        source = _nearest_previous_with_outgoing_capacity(ordered_nodes, index, outgoing) or start
+        if source.id != node.id:
+            _append_repair_flow(repaired, flow_keys, source.id, node.id)
+            outgoing[source.id] = outgoing.get(source.id, 0) + 1
+            incoming[node.id] = incoming.get(node.id, 0) + 1
+
+    for index, node in enumerate(ordered_nodes):
+        if node.type == "endEvent":
+            continue
+        if outgoing.get(node.id, 0) > 0:
+            continue
+        target = _nearest_next_node(ordered_nodes, index) or end
+        if target.id != node.id:
+            _append_repair_flow(repaired, flow_keys, node.id, target.id)
+            outgoing[node.id] = outgoing.get(node.id, 0) + 1
+            incoming[target.id] = incoming.get(target.id, 0) + 1
+    return repaired
+
+
+def _ordered_executable_nodes(nodes: list[BpmnNode]) -> list[BpmnNode]:
+    executable = [node for node in nodes if node.type not in {"textAnnotation", "boundaryEvent"}]
+    return sorted(executable, key=lambda node: (0 if node.type == "startEvent" else 2 if node.type == "endEvent" else 1, node.x, node.y, node.id))
+
+
+def _incoming_counts(flows: list[SequenceFlow]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for flow in flows:
+        counts[flow.target_ref] = counts.get(flow.target_ref, 0) + 1
+    return counts
+
+
+def _outgoing_counts(flows: list[SequenceFlow]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for flow in flows:
+        counts[flow.source_ref] = counts.get(flow.source_ref, 0) + 1
+    return counts
+
+
+def _nearest_previous_with_outgoing_capacity(nodes: list[BpmnNode], index: int, outgoing: dict[str, int]) -> BpmnNode | None:
+    for candidate in reversed(nodes[:index]):
+        if candidate.type != "endEvent" and outgoing.get(candidate.id, 0) > 0:
+            return candidate
+    for candidate in reversed(nodes[:index]):
+        if candidate.type != "endEvent":
+            return candidate
+    return None
+
+
+def _nearest_next_node(nodes: list[BpmnNode], index: int) -> BpmnNode | None:
+    for candidate in nodes[index + 1 :]:
+        if candidate.type != "startEvent":
+            return candidate
+    return None
+
+
+def _append_repair_flow(repaired: list[SequenceFlow], flow_keys: set[tuple[str, str]], source_ref: str, target_ref: str) -> None:
+    if source_ref == target_ref or (source_ref, target_ref) in flow_keys:
+        return
+    flow_keys.add((source_ref, target_ref))
+    repaired.append(SequenceFlow(_safe_id(f"flow_{source_ref}_{target_ref}"), source_ref, target_ref, "Auto-connected"))
 
 
 def _requires_complex_prompt_design(prompt: str) -> bool:
@@ -661,6 +898,22 @@ def _requires_complex_prompt_design(prompt: str) -> bool:
         "provision",
     ]
     return sum(1 for signal in signals if signal in value) >= 2
+
+
+def _design_satisfies_prompt(prompt: str, design: dict[str, Any]) -> bool:
+    if not _requires_complex_prompt_design(prompt):
+        return True
+    nodes = [node for node in design.get("nodes", []) if isinstance(node, dict)]
+    flows = [flow for flow in (design.get("flows") or design.get("sequence_flows") or design.get("sequenceFlows") or []) if isinstance(flow, dict)]
+    forms = [form for form in design.get("forms", []) if isinstance(form, dict)]
+    node_types = {_normalize_node_type(node.get("type")) for node in nodes}
+    has_call_activity = "callActivity" in node_types
+    has_reroute = any(
+        any(token in str(flow.get(key, "")).lower() for token in ("rework", "reroute", "retry", "remediation"))
+        for flow in flows
+        for key in ("id", "name", "target_ref", "targetRef")
+    )
+    return len(nodes) >= 18 and len(flows) >= 20 and len(forms) >= 4 and has_call_activity and has_reroute
 
 
 def _compile_failure_summaries(results: dict[str, CompileResult]) -> list[str]:

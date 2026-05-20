@@ -1,4 +1,5 @@
 from pathlib import Path
+import zipfile
 
 from fastapi.testclient import TestClient
 
@@ -9,6 +10,11 @@ from src.workflow.scenario_generator import generate_complex_data_product_access
 def test_complex_scenario_package_imports_and_passes_quality_loop(tmp_path: Path) -> None:
     generated = generate_complex_data_product_access_package(tmp_path)
     client = TestClient(app)
+    with zipfile.ZipFile(generated.zip_path) as package:
+        names = package.namelist()
+    assert all("/" not in name and "\\" not in name for name in names)
+    assert sum(name.lower().endswith(".app") for name in names) == 1
+    assert not any(name.lower().endswith((".json", ".groovy", ".md")) for name in names)
 
     with generated.zip_path.open("rb") as package:
         import_response = client.post(

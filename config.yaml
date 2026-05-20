@@ -22,7 +22,7 @@ models:
       chat_completions_path: "/v1/chat/completions"
       # Optional: paste the key here on a private server copy.
       # If blank, the launcher/runtime reads OPENAI_API_KEY from the environment.
-      api_key: "sk-proj-ACSuT6ELGb1hHb3k7ePc9HWAStCdi7MWBSvFX34sA"
+      api_key: "sA"
       api_key_env: "OPENAI_API_KEY"
       api_key_header: "Authorization"
       api_key_prefix: "Bearer "

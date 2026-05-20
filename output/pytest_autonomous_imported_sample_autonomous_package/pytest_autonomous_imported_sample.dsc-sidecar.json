@@ -1,0 +1,232 @@
+{
+  "elementProperties": {
+    "approveScript": {
+      "autoStoreVariables": "false",
+      "documentation": "",
+      "elementId": "approveScript",
+      "elementName": "Approve Script",
+      "elementType": "bpmn:ScriptTask",
+      "execution": "script-groovy",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "flowable:autoStoreVariables": "false",
+        "id": "approveScript",
+        "name": "Approve Script",
+        "scriptFormat": "groovy"
+      },
+      "scope": "asset",
+      "scriptFormat": "groovy"
+    },
+    "end": {
+      "documentation": "",
+      "elementId": "end",
+      "elementName": "End",
+      "elementType": "bpmn:EndEvent",
+      "execution": "service-groovy",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "id": "end",
+        "name": "End"
+      },
+      "scope": "asset"
+    },
+    "flow1": {
+      "condition": "",
+      "documentation": "",
+      "elementId": "flow1",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "execution": "gateway-condition",
+      "flowType": "normal",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "id": "flow1",
+        "sourceRef": "start",
+        "targetRef": "reviewTask"
+      },
+      "scope": "global",
+      "skipExpression": ""
+    },
+    "flow2": {
+      "condition": "",
+      "documentation": "",
+      "elementId": "flow2",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "execution": "gateway-condition",
+      "flowType": "normal",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "id": "flow2",
+        "sourceRef": "reviewTask",
+        "targetRef": "approveScript"
+      },
+      "scope": "global",
+      "skipExpression": ""
+    },
+    "flow3": {
+      "condition": "",
+      "documentation": "",
+      "elementId": "flow3",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "execution": "gateway-condition",
+      "flowType": "normal",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "id": "flow3",
+        "sourceRef": "approveScript",
+        "targetRef": "end"
+      },
+      "scope": "global",
+      "skipExpression": ""
+    },
+    "reviewTask": {
+      "candidateGroups": "role(steward)",
+      "documentation": "",
+      "elementId": "reviewTask",
+      "elementName": "Review",
+      "elementType": "bpmn:UserTask",
+      "execution": "user-form",
+      "formKey": "approvalForm",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "flowable:candidateGroups": "role(steward)",
+        "flowable:formKey": "approvalForm",
+        "id": "reviewTask",
+        "name": "Review"
+      },
+      "scope": "asset"
+    },
+    "start": {
+      "documentation": "",
+      "elementId": "start",
+      "elementName": "Start",
+      "elementType": "bpmn:StartEvent",
+      "execution": "service-groovy",
+      "importedFrom": "sampleWorkflow.bpmn",
+      "rawAttributes": {
+        "id": "start",
+        "name": "Start"
+      },
+      "scope": "asset"
+    }
+  },
+  "extension": {
+    "design": {
+      "childModels": [
+        {
+          "key": "approvalForm",
+          "type": "form"
+        },
+        {
+          "key": "sampleWorkflow",
+          "type": "bpmn"
+        }
+      ]
+    }
+  },
+  "forms": {
+    "approvalForm": {
+      "description": "",
+      "fields": [
+        {
+          "column": 0,
+          "enabled": true,
+          "extraSettings": {},
+          "id": "approvalDecision",
+          "label": "Approval decision",
+          "name": "Approval decision",
+          "readable": true,
+          "required": true,
+          "row": 0,
+          "size": "",
+          "stencilId": "",
+          "stencilSuperIds": [],
+          "type": "dropdown",
+          "value": "",
+          "visible": true,
+          "writable": true
+        }
+      ],
+      "key": "approvalForm",
+      "metadata": {
+        "key": "approvalForm",
+        "modelType": "form",
+        "name": "Approval Form",
+        "version": "1"
+      },
+      "modelType": "form",
+      "name": "Approval Form",
+      "outcomes": [],
+      "palette": "",
+      "raw": {
+        "metadata": {
+          "key": "approvalForm",
+          "modelType": "form",
+          "name": "Approval Form",
+          "version": "1"
+        },
+        "rows": [
+          {
+            "cols": [
+              {
+                "enabled": true,
+                "id": "approvalDecision",
+                "isRequired": true,
+                "label": "Approval decision",
+                "type": "dropdown",
+                "visible": true
+              }
+            ]
+          }
+        ]
+      },
+      "rows": [
+        {
+          "cols": [
+            {
+              "enabled": true,
+              "id": "approvalDecision",
+              "isRequired": true,
+              "label": "Approval decision",
+              "type": "dropdown",
+              "visible": true
+            }
+          ]
+        }
+      ],
+      "source": "form-approvalForm.form",
+      "version": "1"
+    }
+  },
+  "importDiagnostics": {
+    "embeddedScripts": 1,
+    "formReferences": 1,
+    "inlineForms": 0,
+    "missingForms": [],
+    "scriptTasks": 1,
+    "sequenceFlows": 3,
+    "sourceBpmn": "sampleWorkflow.bpmn",
+    "userTasks": 1
+  },
+  "key": "sampleApp",
+  "metadata": {
+    "format": "DSC_SIDE_CAR_APP_V1",
+    "name": "sampleCollibraApp.zip"
+  },
+  "name": "Sample App",
+  "scripts": {
+    "approveScript": {
+      "elementId": "approveScript",
+      "elementName": "Approve Script",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "execution.setVariable('approved', true)",
+      "importedFrom": "bpmn:scriptTask",
+      "scriptFormat": "groovy",
+      "source": "sampleWorkflow.bpmn"
+    }
+  },
+  "uuidMappings": {},
+  "validationRules": []
+}

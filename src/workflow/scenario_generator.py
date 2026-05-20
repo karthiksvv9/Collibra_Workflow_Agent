@@ -64,9 +64,11 @@ def generate_complex_data_product_access_package(root: str | Path | None = None)
     for key, code in scripts.items():
         (scripts_dir / f"{key}.groovy").write_text(code.rstrip() + "\n", encoding="utf-8")
 
-    app_model = _app_model(generated_at, forms, scripts, nodes, flows)
+    sidecar_model = _app_model(generated_at, forms, scripts, nodes, flows)
+    app_model = _collibra_app_model(forms)
     app_path = output_dir / f"{PROCESS_ID}.app"
     app_path.write_text(json.dumps(app_model, indent=2, sort_keys=True), encoding="utf-8")
+    (output_dir / f"{PROCESS_ID}.dsc-sidecar.json").write_text(json.dumps(sidecar_model, indent=2, sort_keys=True), encoding="utf-8")
 
     (docs_dir / "scenario-overview.md").write_text(_scenario_overview(generated_at), encoding="utf-8")
     (docs_dir / "scenario-test-cases.md").write_text(_scenario_test_cases(), encoding="utf-8")
@@ -78,11 +80,7 @@ def generate_complex_data_product_access_package(root: str | Path | None = None)
         package.write(bpmn_path, f"{PROCESS_ID}.bpmn")
         package.write(app_path, f"{PROCESS_ID}.app")
         for path in sorted(forms_dir.glob("*.form")):
-            package.write(path, f"forms/{path.name}")
-        for path in sorted(scripts_dir.glob("*.groovy")):
-            package.write(path, f"scripts/{path.name}")
-        for path in sorted(docs_dir.glob("*.md")):
-            package.write(path, f"docs/{path.name}")
+            package.write(path, f"form-{path.name}")
 
     return GeneratedScenarioPackage(
         output_dir=output_dir,
@@ -94,6 +92,29 @@ def generate_complex_data_product_access_package(root: str | Path | None = None)
         nodes=len(nodes),
         flows=len(flows),
     )
+
+
+def _collibra_app_model(forms: dict[str, dict]) -> dict:
+    return {
+        "key": f"{PROCESS_ID}App",
+        "name": f"{PROCESS_NAME}App",
+        "description": "Generated Collibra workflow package.",
+        "theme": "theme-1",
+        "icon": "glyphicon-asterisk",
+        "usersAccess": None,
+        "groupsAccess": None,
+        "flowApp": False,
+        "url": None,
+        "paletteDefinitionCategory": "core",
+        "extension": {
+            "design": {
+                "childModels": [
+                    *[{"key": key, "type": "form"} for key in forms],
+                    {"key": PROCESS_ID, "type": "bpmn"},
+                ]
+            }
+        },
+    }
 
 
 def _scripts() -> dict[str, str]:

@@ -1,0 +1,100 @@
+{
+  "createdAt": "20260520_124934",
+  "results": [
+    {
+      "name": "asset_intake_steward_approval",
+      "prompt": "Create a Collibra governed asset intake workflow with requester form, data steward approval, reject path, optional relation creation, API failure handling, and completion notification.",
+      "designStatus": 200,
+      "designed": {
+        "scripts": 2,
+        "forms": 3,
+        "bpmnBytes": 9389
+      },
+      "simulationStatus": 200,
+      "simulation": {
+        "status": "failed",
+        "summaryText": "Simulation failed. Completed 1 of 8 BPMN blocks (12.5%). Final observed step: Validate Request. Errors: Missing form assetValidationForm"
+      },
+      "qualityStatus": 200,
+      "quality": {
+        "ok": false,
+        "metrics": {
+          "totalChecks": 21,
+          "passedChecks": 20,
+          "failedChecks": 1,
+          "passPercent": 95.24
+        },
+        "summary": {
+          "processId": "AssetIntakeWorkflow",
+          "nodes": 8,
+          "flows": 8,
+          "forms": 3,
+          "scripts": 2,
+          "iterations": 2,
+          "blockingIssues": 1,
+          "passPercent": 95.24
+        },
+        "message": "Autonomous package test failed. Pass rate 95.24% (20/21 checks). Iterations: 2. Blocking issues: notify_completion: Use explicit imports instead of package wildcard imports."
+      },
+      "testCasesStatus": 200,
+      "testCases": {
+        "ok": false,
+        "summary": {
+          "generatedCases": 4,
+          "userCases": 2,
+          "passedCases": 4,
+          "failedCases": 2,
+          "packageOk": false
+        },
+        "message": null
+      },
+      "documentationStatus": 200,
+      "documentation": {
+        "path": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\AssetIntakeWorkflow_workbench_documentation.md",
+        "htmlPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\AssetIntakeWorkflow_workbench_documentation.html",
+        "markdownBytes": 11810
+      },
+      "exportStatus": 200,
+      "zipPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\functional_test_20260520_124934\\asset_intake_steward_approval.zip",
+      "zipMembers": [
+        "asset_intake_steward_approval.bpmn",
+        "asset_intake_steward_approval.app",
+        "asset_intake_steward_approval.dsc-sidecar.json",
+        "form-assetRequestForm.form",
+        "form-assetValidationForm.form",
+        "form-stewardApprovalForm.form",
+        "policy_exception.groovy",
+        "notify_completion.groovy"
+      ],
+      "zipNullMarkers": 0,
+      "hasEmptyCondition": false,
+      "hasEmptyScript": false,
+      "roundtripImportStatus": 200,
+      "roundtrip": {
+        "forms": 3,
+        "scripts": 2,
+        "warnings": []
+      }
+    },
+    {
+      "name": "complex_access_reroute_call_activity",
+      "prompt": "Create a complex Collibra governed data access workflow with multiple forms, requester rework reroute, steward triage, business owner approval, compliance review, policy exception path, call activity to downstream provisioning workflow, remediation reroute on provisioning failure, and final notifications.",
+      "designStatus": 400,
+      "designError": "{\"detail\":\"Unsupported BPMN node type: sequenceFlow\"}"
+    },
+    {
+      "name": "powerbi_relation_creation",
+      "prompt": "Create a Collibra workflow to create a relation between a PowerBI report asset and a data domain asset. Include request form, validation form, asset existence check script, relation creation script, data steward review, approve/reject sequence flows, and deployment documentation.",
+      "designStatus": 400,
+      "designError": "{\"detail\":\"Generated workflow failed validation: User task collect_request references missing form relationDetailsForm.\"}"
+    }
+  ],
+  "totals": {
+    "prompts": 3,
+    "designPassed": 1,
+    "qualityPassed": 0,
+    "testCasesPassed": 0,
+    "exportsPassed": 1,
+    "roundtripPassed": 1
+  }
+}

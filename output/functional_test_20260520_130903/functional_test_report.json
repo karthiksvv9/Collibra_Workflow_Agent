@@ -1,0 +1,166 @@
+{
+  "createdAt": "20260520_130903",
+  "results": [
+    {
+      "name": "asset_intake_steward_approval",
+      "prompt": "Create a Collibra governed asset intake workflow with requester form, data steward approval, reject path, optional relation creation, API failure handling, and completion notification.",
+      "designStatus": 200,
+      "designed": {
+        "scripts": 2,
+        "forms": 3,
+        "bpmnBytes": 10815
+      },
+      "simulationStatus": 200,
+      "simulationSummary": "Simulation waiting. Completed 1 of 9 BPMN blocks (11.11%). Final observed step: Validate Request. No blocking simulation errors were found.",
+      "qualityStatus": 200,
+      "quality": {
+        "ok": true,
+        "metrics": {
+          "totalChecks": 24,
+          "passedChecks": 24,
+          "failedChecks": 0,
+          "passPercent": 100.0
+        },
+        "summary": {
+          "processId": "AssetIntakeWorkflow",
+          "nodes": 9,
+          "flows": 10,
+          "forms": 3,
+          "scripts": 2,
+          "iterations": 1,
+          "blockingIssues": 0,
+          "passPercent": 100.0
+        },
+        "message": "Autonomous package test passed. Pass rate 100.0% (24/24 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+      },
+      "testCasesStatus": 200,
+      "testCases": {
+        "ok": true,
+        "summary": {
+          "generatedCases": 4,
+          "userCases": 2,
+          "passedCases": 6,
+          "failedCases": 0,
+          "packageOk": true
+        },
+        "message": null
+      },
+      "documentationStatus": 200,
+      "documentation": {
+        "path": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\AssetIntakeWorkflow_workbench_documentation.md",
+        "htmlPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\AssetIntakeWorkflow_workbench_documentation.html",
+        "markdownBytes": 11970
+      },
+      "exportStatus": 200,
+      "zipPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\functional_test_20260520_130903\\asset_intake_steward_approval.zip",
+      "zipMembers": [
+        "asset_intake_steward_approval.bpmn",
+        "asset_intake_steward_approval.app",
+        "asset_intake_steward_approval.dsc-sidecar.json",
+        "form-assetRequestForm.form",
+        "form-validationForm.form",
+        "form-stewardApprovalForm.form",
+        "policy_exception.groovy",
+        "notify_completion.groovy"
+      ],
+      "zipNullMarkers": 0,
+      "hasEmptyCondition": false,
+      "hasEmptyScript": false,
+      "roundtripImportStatus": 200,
+      "roundtrip": {
+        "forms": 3,
+        "scripts": 2,
+        "warnings": []
+      }
+    },
+    {
+      "name": "complex_access_reroute_call_activity",
+      "prompt": "Create a complex Collibra governed data access workflow with multiple forms, requester rework reroute, steward triage, business owner approval, compliance review, policy exception path, call activity to downstream provisioning workflow, remediation reroute on provisioning failure, and final notifications.",
+      "designStatus": 200,
+      "designed": {
+        "scripts": 1,
+        "forms": 6,
+        "bpmnBytes": 21745
+      },
+      "simulationStatus": 200,
+      "simulationSummary": "Simulation waiting. Completed 1 of 18 BPMN blocks (5.56%). Final observed step: Submit Request. No blocking simulation errors were found.",
+      "qualityStatus": 200,
+      "quality": {
+        "ok": true,
+        "metrics": {
+          "totalChecks": 45,
+          "passedChecks": 45,
+          "failedChecks": 0,
+          "passPercent": 100.0
+        },
+        "summary": {
+          "processId": "CreateAProductionCollibraGovernedAiDesignedComplexWorkflow",
+          "nodes": 18,
+          "flows": 20,
+          "forms": 6,
+          "scripts": 1,
+          "iterations": 1,
+          "blockingIssues": 0,
+          "passPercent": 100.0
+        },
+        "message": "Autonomous package test passed. Pass rate 100.0% (45/45 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+      },
+      "testCasesStatus": 200,
+      "testCases": {
+        "ok": true,
+        "summary": {
+          "generatedCases": 4,
+          "userCases": 2,
+          "passedCases": 6,
+          "failedCases": 0,
+          "packageOk": true
+        },
+        "message": null
+      },
+      "documentationStatus": 200,
+      "documentation": {
+        "path": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_workbench_documentation.md",
+        "htmlPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_workbench_documentation.html",
+        "markdownBytes": 16427
+      },
+      "exportStatus": 200,
+      "zipPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\functional_test_20260520_130903\\complex_access_reroute_call_activity.zip",
+      "zipMembers": [
+        "complex_access_reroute_call_activity.bpmn",
+        "complex_access_reroute_call_activity.app",
+        "complex_access_reroute_call_activity.dsc-sidecar.json",
+        "form-requestAccessForm.form",
+        "form-stewardTriageForm.form",
+        "form-businessApprovalForm.form",
+        "form-securityReviewForm.form",
+        "form-provisioningResultForm.form",
+        "form-notificationForm.form",
+        "validate_request.groovy"
+      ],
+      "zipNullMarkers": 0,
+      "hasEmptyCondition": false,
+      "hasEmptyScript": false,
+      "roundtripImportStatus": 200,
+      "roundtrip": {
+        "forms": 6,
+        "scripts": 1,
+        "warnings": []
+      }
+    },
+    {
+      "name": "powerbi_relation_creation",
+      "prompt": "Create a Collibra workflow to create a relation between a PowerBI report asset and a data domain asset. Include request form, validation form, asset existence check script, relation creation script, data steward review, approve/reject sequence flows, and deployment documentation.",
+      "designStatus": 400,
+      "designError": "{\"detail\":\"Generated Groovy failed compilation/lint validation: create_relation: org.codehaus.groovy.control.MultipleCompilationErrorsException: startup failed:\\nC:\\\\Users\\\\Mohith\\\\AppData\\\\Local\\\\Temp\\\\tmpcsqq9doq\\\\candidate.groovy: 10: unable to resolve class CollibraClient\\n @ line 10, column 16.\\n   CollibraClient client = new CollibraClient()\\n                  ^\\n\\nC:\\\\Users\\\\Mohith\\\\AppData\\\\Local\\\\Temp\\\\tmpcsqq9doq\\\\candidate.groovy: 10: unable to resolve class CollibraClient\\n @ line 10, column 25.\\n   CollibraClient client = new CollibraClient()\\n                           ^\\n\\n2 errors\"}"
+    }
+  ],
+  "totals": {
+    "prompts": 3,
+    "designPassed": 2,
+    "qualityPassed": 2,
+    "testCasesPassed": 2,
+    "exportsPassed": 2,
+    "roundtripPassed": 2,
+    "zipNullFree": 2
+  }
+}
