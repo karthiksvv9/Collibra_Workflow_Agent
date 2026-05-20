@@ -19,7 +19,7 @@ export async function exportWorkflow(payload) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = payload.packageName || 'collibra-workflow-agent.zip';
+  a.download = payload.packageName || 'generated-collibra-workflow.zip';
   a.click();
   URL.revokeObjectURL(url);
 }

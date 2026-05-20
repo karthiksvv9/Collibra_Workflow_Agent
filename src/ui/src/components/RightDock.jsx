@@ -74,6 +74,7 @@ export default function RightDock({
         {activeTab === 'docs' && (
           <DocumentationPanel
             appModel={appModel}
+            forms={forms}
             getBpmnXml={getBpmnXml}
             addConsole={addConsole}
             modelId={modelId}

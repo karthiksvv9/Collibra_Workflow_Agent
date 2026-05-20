@@ -13,7 +13,7 @@ export default function ReasoningChat({ appModel, setAppModel, importBpmnXml, ad
     setText('');
     setBusy(true);
     try {
-      const result = await designWorkflow({ prompt: userText, appModel, modelId });
+      const result = await designWorkflow({ prompt: userText, appModel, modelId, forceAi: true });
       if (result.bpmnXml) await importBpmnXml(result.bpmnXml);
       if (result.appModel) {
         setAppModel(prev => ({

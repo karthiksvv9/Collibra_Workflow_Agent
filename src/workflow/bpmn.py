@@ -192,6 +192,7 @@ class BpmnModel:
             attrs["default"] = default_flow
         if node.type == "scriptTask":
             attrs["scriptFormat"] = "groovy"
+            attrs[_q(FLOWABLE_NS, "autoStoreVariables")] = "false"
         if node.type in {"userTask", "startEvent"}:
             if node.form_key:
                 attrs[_q(FLOWABLE_NS, "formKey")] = node.form_key
@@ -218,7 +219,7 @@ class BpmnModel:
             doc.text = node.documentation
         if node.type == "scriptTask":
             script = ET.SubElement(element, _q(BPMN_NS, "script"))
-            script.text = node.script
+            script.text = node.script.strip() or _default_script_text(node.id)
 
     def _append_diagram(self, definitions: ET.Element) -> None:
         diagram = ET.SubElement(definitions, _q(BPMNDI_NS, "BPMNDiagram"), {"id": f"{self.process_id}_diagram"})
@@ -417,6 +418,11 @@ def _script(node: ET.Element) -> str:
         if _local(child.tag) == "script":
             return child.text or ""
     return ""
+
+
+def _default_script_text(element_id: str) -> str:
+    variable = "".join(char if char.isalnum() else "_" for char in str(element_id or "scriptTask"))
+    return f"// #importFile NONE\nexecution.setVariable('{variable}Completed', true)"
 
 
 def _condition(node: ET.Element) -> str:

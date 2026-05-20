@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from src.agents.llm_client import request_json_design
+from src.agents.llm_client import LLMRequestError, request_json_design
 from src.agents.groovy_compiler import CompileResult, GroovyCompiler
 from src.agents.prompts import build_design_prompt
 from src.core.config import Settings, settings
@@ -45,11 +45,21 @@ class CollibraWorkflowAgent:
             return self._package_from_design(llm_design)
         return self._heuristic_design(master_prompt, context)
 
-    def build(self, master_prompt: str, output_name: str | None = None, model_id: str | None = None) -> WorkflowBuildResult:
+    def build(
+        self,
+        master_prompt: str,
+        output_name: str | None = None,
+        model_id: str | None = None,
+        require_ai: bool = False,
+    ) -> WorkflowBuildResult:
         context = self.rag.retrieve(master_prompt, limit=10).render()
-        package = self._try_llm_design(master_prompt, context, model_id=model_id)
+        package = self._try_llm_design(master_prompt, context, model_id=model_id, raise_on_error=require_ai)
         if package:
             workflow_package = self._package_from_design(package)
+        elif require_ai:
+            raise ValueError(
+                "AI workflow design did not return a valid JSON BPMN design. Check the selected model, API key, and prompt, then try again."
+            )
         else:
             workflow_package = self._heuristic_design(master_prompt, context)
 
@@ -110,11 +120,29 @@ class CollibraWorkflowAgent:
                 results[node.id] = self.compiler.compile_script(script)
         return results
 
-    def _try_llm_design(self, master_prompt: str, context: str, model_id: str | None = None) -> dict[str, Any] | None:
+    def _try_llm_design(
+        self,
+        master_prompt: str,
+        context: str,
+        model_id: str | None = None,
+        raise_on_error: bool = False,
+    ) -> dict[str, Any] | None:
         try:
             prompt = build_design_prompt(master_prompt, context)
-            return request_json_design(self.config, prompt, model_id=model_id, action="workflow_design")
+            return request_json_design(
+                self.config,
+                prompt,
+                model_id=model_id,
+                action="workflow_design",
+                raise_on_error=raise_on_error,
+            )
+        except LLMRequestError:
+            if raise_on_error:
+                raise
+            return None
         except Exception:
+            if raise_on_error:
+                raise
             return None
 
     def _package_from_design(self, design: dict[str, Any]) -> WorkflowPackage:
@@ -139,6 +167,7 @@ class CollibraWorkflowAgent:
             for index, node in enumerate(design.get("nodes", []))
         ]
         nodes = _ensure_start_end_nodes(nodes, lanes)
+        raw_flows = design.get("flows") or design.get("sequence_flows") or design.get("sequenceFlows") or []
         flows = [
             SequenceFlow(
                 id=_safe_id(flow.get("id", f"flow_{index}")),
@@ -153,7 +182,8 @@ class CollibraWorkflowAgent:
                 listener_code=flow.get("listener_code") or flow.get("listenerCode", ""),
                 properties=flow.get("properties", {}),
             )
-            for index, flow in enumerate(design.get("flows", []))
+            for index, flow in enumerate(raw_flows)
+            if isinstance(flow, dict)
         ]
         flows = _repair_linear_flow_continuity(nodes, flows)
         forms = [

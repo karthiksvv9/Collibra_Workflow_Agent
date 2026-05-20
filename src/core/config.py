@@ -81,9 +81,11 @@ class ChatModelOption:
     model: str = ""
     base_url: str = ""
     chat_completions_path: str = ""
+    api_key: str = ""
     api_key_env: str = "AI_GATEWAY_API_KEY"
     api_key_header: str = "X-API-Key"
     api_key_prefix: str = ""
+    verify_ssl: bool = True
     max_output_tokens: int = 8192
     temperature: float = 0.1
     enabled: bool = True
@@ -338,6 +340,8 @@ def _load_chat_model_options(data: dict[str, Any]) -> list[ChatModelOption]:
                 "api_key_env": _deep_get(data, "openai.api_key_env", OpenAIConfig.api_key_env),
                 "api_key_header": _deep_get(data, "openai.api_key_header", OpenAIConfig.api_key_header),
                 "api_key_prefix": _deep_get(data, "openai.api_key_prefix", OpenAIConfig.api_key_prefix),
+                "api_key": _deep_get(data, "openai.api_key", OpenAIConfig.api_key),
+                "verify_ssl": True,
             }
         ]
     options: list[ChatModelOption] = []
@@ -354,9 +358,11 @@ def _load_chat_model_options(data: dict[str, Any]) -> list[ChatModelOption]:
                 model=model,
                 base_url=str(item.get("base_url") or ""),
                 chat_completions_path=str(item.get("chat_completions_path") or item.get("path") or ""),
+                api_key=str(item.get("api_key") or ""),
                 api_key_env=str(item.get("api_key_env") or OpenAIConfig.api_key_env),
                 api_key_header=str(item.get("api_key_header") or OpenAIConfig.api_key_header),
                 api_key_prefix=str(item.get("api_key_prefix") or ""),
+                verify_ssl=bool(item.get("verify_ssl", True)),
                 max_output_tokens=int(item.get("max_output_tokens") or ModelConfig.max_output_tokens),
                 temperature=float(item.get("temperature", ModelConfig.temperature)),
                 enabled=bool(item.get("enabled", True)),

@@ -64,16 +64,19 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   const canvasRef = useRef(null);
   const modelerRef = useRef(null);
   const overlayIdsRef = useRef(new Map());
+  const modelToastTimerRef = useRef(null);
   const [modelerReady, setModelerReady] = useState(false);
   const [selectedElement, setSelectedElement] = useState(null);
   const [consoleEntries, setConsoleEntries] = useState([]);
-  const [packageName, setPackageName] = useState('collibra-workflow-agent.zip');
+  const [packageName, setPackageName] = useState('generated-collibra-workflow.zip');
   const [importSummary, setImportSummary] = useState('Ready');
   const [rightTab, setRightTab] = useState('properties');
   const [hideHandles, setHideHandles] = useState(true);
   const [autonomousOpen, setAutonomousOpen] = useState(false);
   const [models, setModels] = useState([]);
   const [activeModelId, setActiveModelId] = useState('');
+  const [modelNotice, setModelNotice] = useState(null);
+  const [connectionSource, setConnectionSource] = useState(null);
 
   useEffect(() => {
     const modeler = new BpmnModeler({
@@ -99,8 +102,12 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
     eventBus.on('shape.move.end', e => syncLaneMembership(modeler, e.shape));
     eventBus.on('shape.create.end', e => syncLaneMembership(modeler, e.shape));
     eventBus.on('commandStack.connection.create.executed', e => applySequenceFlowType(modeler, e.context?.connection));
+    eventBus.on('element.click', e => connectArmedElement(modeler, e.element));
     eventBus.on('commandStack.changed', () => refreshScriptBadges());
-    return () => modeler.destroy();
+    return () => {
+      if (modelToastTimerRef.current) window.clearTimeout(modelToastTimerRef.current);
+      modeler.destroy();
+    };
   }, []);
 
   useEffect(() => {
@@ -122,6 +129,12 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
 
   function clearConsole() {
     setConsoleEntries([]);
+  }
+
+  function showModelNotice(level, message) {
+    if (modelToastTimerRef.current) window.clearTimeout(modelToastTimerRef.current);
+    setModelNotice({ level, message });
+    modelToastTimerRef.current = window.setTimeout(() => setModelNotice(null), 4200);
   }
 
   function refreshScriptBadges() {
@@ -191,8 +204,9 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   async function doExport() {
     try {
       const bpmnXml = await getBpmnXml();
-      await exportWorkflow({ bpmnXml, appModel, forms, packageName, modelId: activeModelId });
-      addConsole({ level: 'success', message: 'Package exported', detail: packageName });
+      const exportName = packageName?.trim() || 'generated-collibra-workflow.zip';
+      await exportWorkflow({ bpmnXml, appModel, forms, packageName: exportName, modelId: activeModelId });
+      addConsole({ level: 'success', message: 'Package exported', detail: exportName });
       setRightTab('console');
     } catch (err) {
       addConsole({ level: 'error', message: 'Export failed', detail: err.message });
@@ -244,8 +258,37 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
       return;
     }
     try {
-      const result = await compileGroovy({ code: groovy, elementId: selectedElement.id, modelId: activeModelId });
-      addConsole({ level: result.ok ? 'success' : 'error', message: `Compile ${result.ok ? 'passed' : 'failed'} for ${selectedElement.id}`, detail: result });
+      const result = await compileGroovy({
+        code: groovy,
+        elementId: selectedElement.id,
+        element: {
+          id: selectedElement.id,
+          type: selectedElement.type,
+          name: selectedElement.businessObject?.name || selectedElement.id
+        },
+        prompt: `Compile and repair Groovy for ${selectedElement.businessObject?.name || selectedElement.id} using organization RAG standards and previous workflow code.`,
+        appModel,
+        modelId: activeModelId,
+        autoRepair: true,
+        maxRepairIterations: 4
+      });
+      if (result.repaired && result.repairedCode) {
+        setAppModel(prev => ({
+          ...prev,
+          scripts: {
+            ...(prev.scripts || {}),
+            [selectedElement.id]: {
+              ...(prev.scripts?.[selectedElement.id] || {}),
+              groovy: result.repairedCode,
+              compileResults: [result],
+              repairAttempts: result.repairAttempts || [],
+              updatedAt: new Date().toISOString()
+            }
+          }
+        }));
+      }
+      const level = result.status === 'passed' ? 'success' : result.status === 'skipped' ? 'warn' : 'error';
+      addConsole({ level, message: `Compile ${result.status || (result.ok ? 'passed' : 'failed')} for ${selectedElement.id}${result.repaired ? ' after auto-repair' : ''}`, detail: result });
       setRightTab('console');
     } catch (err) {
       addConsole({ level: 'error', message: 'Compile failed', detail: err.message });
@@ -281,12 +324,45 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
 
   async function changeModel(event) {
     const modelId = event.target.value;
+    const previousModelId = activeModelId;
     setActiveModelId(modelId);
     try {
       const result = await selectModelProfile(modelId);
+      setActiveModelId(result.activeModelId || modelId);
       addConsole({ level: 'info', message: `AI model selected: ${result.model}`, detail: result });
+      const label = models.find(model => model.id === modelId)?.label || result.model || modelId;
+      showModelNotice('success', `Model selected: ${label}. All AI actions will use this profile.`);
     } catch (err) {
+      setActiveModelId(previousModelId);
       addConsole({ level: 'error', message: 'AI model selection failed', detail: err.message });
+      showModelNotice('error', `Model selection failed: ${err.message}`);
+    }
+  }
+
+  function armConnection(source, flowType) {
+    if (!modelerRef.current || !source) return;
+    modelerRef.current.__dscConnectionSource = source;
+    modelerRef.current.__dscNextSequenceFlowType = flowType || 'normal';
+    setConnectionSource({ id: source.id, flowType: flowType || 'normal' });
+    setImportSummary(`Connection armed from ${source.id}. Click the target BPMN block.`);
+  }
+
+  function connectArmedElement(modeler, target) {
+    const source = modeler?.__dscConnectionSource;
+    if (!source || !target || source.id === target.id || !isConnectableFlowNode(source) || !isConnectableFlowNode(target)) return;
+    try {
+      const connection = modeler.get('modeling').connect(source, target);
+      applySequenceFlowType(modeler, connection);
+      modeler.__dscConnectionSource = null;
+      setConnectionSource(null);
+      setSelectedElement(connection || target);
+      addConsole({
+        level: 'info',
+        message: 'Sequence flow connected',
+        detail: { source: source.id, target: target.id, flowType: modeler.__dscNextSequenceFlowType || 'normal' }
+      });
+    } catch (err) {
+      addConsole({ level: 'error', message: 'Sequence flow connection failed', detail: err.message });
     }
   }
 
@@ -298,7 +374,6 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
           <small>Production BPMN designer + RAG training + Groovy generation + compile/export</small>
         </div>
         <div className="top-actions">
-          <input value={packageName} onChange={e => setPackageName(e.target.value)} aria-label="Export package name" />
           <select className="model-select" value={activeModelId} onChange={changeModel} aria-label="AI model">
             {models.length === 0 && <option value="">Loading models...</option>}
             {models.map(model => <option key={model.id} value={model.id}>{model.label || model.id}</option>)}
@@ -313,6 +388,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
           <button onClick={doExport} className="primary-button"><Download size={16}/> Export ZIP</button>
         </div>
       </header>
+      {modelNotice && <div className={`model-toast ${modelNotice.level}`}>{modelNotice.message}</div>}
 
       <aside className="toolbox">
         <div className="toolbox-head">
@@ -328,12 +404,17 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
         </div>
         <PackageImporter onImported={onImported} />
         <small className="import-summary">{importSummary}</small>
-        <BlockLibrary modeler={modelerReady ? modelerRef.current : null} selectedElement={selectedElement} addConsole={addConsole} />
+        <BlockLibrary
+          modeler={modelerReady ? modelerRef.current : null}
+          selectedElement={selectedElement}
+          addConsole={addConsole}
+          onConnectionArmed={armConnection}
+        />
       </aside>
 
       <main className="canvas-wrap">
         <div className="canvas-toolbar">
-          <span>{selectedElement ? `Selected: ${selectedElement.id} - ${selectedElement.type}` : 'Select a BPMN element to edit Collibra properties and Groovy.'}</span>
+          <span>{connectionSource ? `Connection armed from ${connectionSource.id}; click target block (${connectionSource.flowType}).` : selectedElement ? `Selected: ${selectedElement.id} - ${selectedElement.type}` : 'Select a BPMN element to edit Collibra properties and Groovy.'}</span>
           <span>Native bpmn-js canvas enabled: zoom, pan, connect, append, lanes, pools, import/export.</span>
         </div>
         <div className="canvas" ref={canvasRef} />
@@ -395,6 +476,16 @@ function deepMerge(left, right) {
     }
   });
   return result;
+}
+
+function isConnectableFlowNode(element) {
+  return element?.businessObject?.$instanceOf?.('bpmn:FlowNode') || [
+    'bpmn:Task', 'bpmn:UserTask', 'bpmn:ServiceTask', 'bpmn:ScriptTask', 'bpmn:BusinessRuleTask',
+    'bpmn:SendTask', 'bpmn:ReceiveTask', 'bpmn:ManualTask', 'bpmn:CallActivity',
+    'bpmn:StartEvent', 'bpmn:IntermediateCatchEvent', 'bpmn:IntermediateThrowEvent', 'bpmn:EndEvent',
+    'bpmn:ExclusiveGateway', 'bpmn:ParallelGateway', 'bpmn:InclusiveGateway', 'bpmn:EventBasedGateway',
+    'bpmn:SubProcess'
+  ].includes(element?.type);
 }
 
 function applySequenceFlowType(modeler, connection) {

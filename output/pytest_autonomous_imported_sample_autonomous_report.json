@@ -156,12 +156,14 @@
           "changed": false,
           "compileResults": {
             "approveScript": {
+              "errorText": "",
               "ok": true,
               "skipped": false,
               "standards": [],
               "status": "passed",
               "stderr": "",
-              "stdout": ""
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
             }
           },
           "formIssues": [],
@@ -458,12 +460,14 @@
         "changed": false,
         "compileResults": {
           "approveScript": {
+            "errorText": "",
             "ok": true,
             "skipped": false,
             "standards": [],
             "status": "passed",
             "stderr": "",
-            "stdout": ""
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
           }
         },
         "formIssues": [],

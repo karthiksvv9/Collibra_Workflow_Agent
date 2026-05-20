@@ -60,6 +60,14 @@ class CollibraGroovyStandards:
                     "warning",
                 )
             )
+        if "UUID.fromString" in script:
+            issues.append(
+                StandardsIssue(
+                    "java_uuid_conversion",
+                    "Organization standards prefer Collibra workflow string2Uuid(...) conversion over UUID.fromString(...).",
+                    "warning",
+                )
+            )
         if "execution.getVariable(" not in script and "execution.setVariable(" not in script:
             issues.append(
                 StandardsIssue(

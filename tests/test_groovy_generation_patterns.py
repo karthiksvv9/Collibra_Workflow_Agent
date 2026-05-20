@@ -1,6 +1,6 @@
 from src.agents.groovy_compiler import CompileResult
 from src.agents.workflow_agent import APPLY_METADATA_SCRIPT, VALIDATE_SCRIPT, _compile_failure_summaries, _complex_prompt_scripts
-from src.api.server import _compat_groovy, _looks_like_collibra_groovy_snippet
+from src.api.server import _compat_groovy, _deterministic_groovy_repair, _looks_like_collibra_groovy_snippet
 
 
 def test_deterministic_workflow_templates_use_ootb_uuid_conversion() -> None:
@@ -64,3 +64,16 @@ def test_agent_build_failure_summary_marks_skipped_compile_as_blocking() -> None
     assert failures
     assert "task_Script" in failures[0]
     assert "skipped" in failures[0]
+
+
+def test_deterministic_repair_converts_uuid_imports_to_collibra_style() -> None:
+    repaired = _deterministic_groovy_repair(
+        "import java.util.UUID\n"
+        "UUID assetId = UUID.fromString(execution.getVariable('assetId') as String)\n"
+        "execution.setVariable('assetIdNormalized', assetId.toString())"
+    )
+
+    assert repaired.startswith("// #importFile NONE")
+    assert "import java.util.UUID" not in repaired
+    assert "UUID.fromString" not in repaired
+    assert "def assetId = string2Uuid" in repaired

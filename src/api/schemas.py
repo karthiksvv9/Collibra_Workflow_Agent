@@ -54,6 +54,12 @@ class CompileGroovyRequest(BaseModel):
     script: str = ""
     code: str | None = None
     elementId: str | None = None
+    element: dict = Field(default_factory=dict)
+    prompt: str = ""
+    appModel: dict = Field(default_factory=dict)
+    modelId: str | None = None
+    autoRepair: bool = False
+    maxRepairIterations: int = 3
 
 
 class SequenceFlowValidateRequest(BaseModel):

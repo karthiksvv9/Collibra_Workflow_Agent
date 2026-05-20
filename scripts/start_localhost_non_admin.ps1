@@ -4,7 +4,8 @@ param(
     [switch]$SkipNpmInstall,
     [switch]$SkipFrontendBuild,
     [switch]$NoBrowser,
-    [switch]$NoApiKeyPrompt
+    [switch]$NoApiKeyPrompt,
+    [string]$ApiKeyEnv = "AI_GATEWAY_API_KEY"
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,18 +13,23 @@ $ProjectRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Pa
 $RunAll = Join-Path $ProjectRoot "run_all.ps1"
 
 function Set-SessionApiKey {
-    if ($NoApiKeyPrompt -or -not [string]::IsNullOrWhiteSpace($env:AI_GATEWAY_API_KEY)) {
+    if ($NoApiKeyPrompt -or [string]::IsNullOrWhiteSpace($ApiKeyEnv)) {
         return
     }
-    Write-Host "AI_GATEWAY_API_KEY is not set. Paste the API key from your approved gateway access." -ForegroundColor Yellow
+    $currentValue = [Environment]::GetEnvironmentVariable($ApiKeyEnv, "Process")
+    if (-not [string]::IsNullOrWhiteSpace($currentValue)) {
+        return
+    }
+    Write-Host "$ApiKeyEnv is not set. Paste the API key for the model profile you want to use." -ForegroundColor Yellow
     Write-Host "It will only be stored in this PowerShell process and inherited by the localhost server." -ForegroundColor Yellow
-    $secure = Read-Host "AI_GATEWAY_API_KEY" -AsSecureString
+    Write-Host "For direct OpenAI use -ApiKeyEnv OPENAI_API_KEY. For Claude use -ApiKeyEnv CLAUDE_API_KEY. For Gemini use -ApiKeyEnv GEMINI_API_KEY." -ForegroundColor Yellow
+    $secure = Read-Host $ApiKeyEnv -AsSecureString
     if ($secure.Length -eq 0) {
         return
     }
     $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try {
-        $env:AI_GATEWAY_API_KEY = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+        [Environment]::SetEnvironmentVariable($ApiKeyEnv, [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr), "Process")
     } finally {
         [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
     }

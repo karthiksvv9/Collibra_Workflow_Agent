@@ -76,7 +76,7 @@ function sizeFor(type) {
   return DEFAULT_SIZE[type] || [160, 86];
 }
 
-export default function BlockLibrary({ modeler, selectedElement, addConsole }) {
+export default function BlockLibrary({ modeler, selectedElement, addConsole, onConnectionArmed }) {
   const [flowType, setFlowType] = useState('normal');
 
   function createOrAppend(item) {
@@ -129,10 +129,9 @@ export default function BlockLibrary({ modeler, selectedElement, addConsole }) {
       event.preventDefault();
       event.stopPropagation();
       modeler.__dscNextSequenceFlowType = flowType;
-      const native = event.nativeEvent || event;
-      const startEvent = centeredMouseEvent(modeler, selectedElement, native);
-      modeler.get('connect').start(startEvent, selectedElement);
-      addConsole?.({ level: 'info', message: 'Connection mode started', detail: { source: selectedElement.id, flowType } });
+      modeler.__dscConnectionSource = selectedElement;
+      onConnectionArmed?.(selectedElement, flowType);
+      addConsole?.({ level: 'info', message: 'Connection source armed', detail: { source: selectedElement.id, flowType, nextStep: 'Click the target BPMN block on the canvas.' } });
     } catch (err) {
       try {
         modeler.__dscNextSequenceFlowType = flowType;
@@ -224,19 +223,4 @@ function safeGet(modeler, service) {
   } catch {
     return null;
   }
-}
-
-function centeredMouseEvent(modeler, element, nativeEvent) {
-  const gfx = modeler.get('elementRegistry').getGraphics(element);
-  if (!gfx?.getBoundingClientRect) return nativeEvent;
-  const rect = gfx.getBoundingClientRect();
-  return {
-    ...nativeEvent,
-    clientX: rect.left + rect.width / 2,
-    clientY: rect.top + rect.height / 2,
-    button: 0,
-    buttons: 1,
-    preventDefault: () => nativeEvent.preventDefault?.(),
-    stopPropagation: () => nativeEvent.stopPropagation?.()
-  };
 }

@@ -161,6 +161,8 @@ The compile loop has two stages:
    - Collibra API imports compile against the licensed Collibra JARs you place in `jars`
    - if neither `groovy.exe` nor Java can be found, syntax compilation is skipped after static lint
 
+When a user clicks Compile in the canvas, the backend can now run an organization-aware repair loop. The loop retrieves RAG evidence from organization standards, previous workflow ZIPs, relation/UUID sheets, form metadata, and OOTB examples; applies deterministic Collibra fixes such as replacing `UUID.fromString(...)` with `string2Uuid(...)`; and, when an AI model key is configured, asks the selected model to repair the script using the exact compiler error. The UI shows passed, failed, or skipped status, the compiler error text, repair attempts, and automatically updates the script editor when a repaired version is produced.
+
 The Java-only fallback uses:
 
 ```text
@@ -185,17 +187,31 @@ models:
   embedding_model: text-embedding-3-large
   embedding_provider: hashing
   available_chat_models:
+    - id: openai-gpt-4-1-nano-direct
+      label: ChatGPT GPT-4.1 Nano (Direct OpenAI)
+      provider: openai_chat_completions
+      model: gpt-4.1-nano
+      base_url: https://api.openai.com
+      chat_completions_path: /v1/chat/completions
+      api_key: ""   # optional private-server value; otherwise use OPENAI_API_KEY
+      api_key_env: OPENAI_API_KEY
+      api_key_header: Authorization
+      api_key_prefix: "Bearer "
+      max_output_tokens: 1000
     - id: openai-gpt-5-4
       label: OpenAI GPT-5.4
       provider: custom_chat_completions
+      api_key: ""   # optional private-server value; otherwise use AI_GATEWAY_API_KEY
       api_key_env: AI_GATEWAY_API_KEY
     - id: claude-opus-4-6
       label: Claude Opus 4.6
       provider: custom_messages
+      api_key: ""   # optional private-server value; otherwise use CLAUDE_API_KEY
       api_key_env: CLAUDE_API_KEY
     - id: gemini-3-1-pro
       label: Gemini 3.1 Pro Preview
       provider: gemini_generate_content
+      api_key: ""   # optional private-server value; otherwise use GEMINI_API_KEY
       api_key_env: GEMINI_API_KEY
 
 openai:
@@ -243,7 +259,38 @@ Do not hard-code API keys, paths, model IDs, JAR locations, or worker settings i
 
 ## API Gateway
 
-The current configuration matches the approved chat-completions gateway shape shown in your screenshot:
+The UI model dropdown reads `models.available_chat_models` from `config.yaml`, and the selected model is used for RAG chat, BPMN design, Groovy generation/repair, autonomous mode and documentation. Each profile uses only its own `api_key` or environment variable, so an OpenAI key is not reused for Claude, Gemini, or a gateway profile.
+
+There are two supported ways to provide a key:
+
+1. Private server config:
+   Edit the selected profile in `config.yaml` and paste the key into `api_key: "..."`.
+
+2. Shell/runtime prompt:
+   Leave `api_key: ""` blank and set the matching environment variable before launch, or use the non-admin launcher prompt.
+
+The `/api/models` endpoint never returns `api_key`, even when a key is stored in a private server copy of `config.yaml`.
+
+Direct OpenAI test model:
+
+- Model: `gpt-4.1-nano`
+- URL: `https://api.openai.com/v1/chat/completions`
+- Auth header: `Authorization: Bearer <OPENAI_API_KEY>`
+- Payload style: `messages`, `max_tokens`, optional JSON response format
+
+Set the direct OpenAI key for the current PowerShell session:
+
+```powershell
+$env:OPENAI_API_KEY = "paste-openai-key-here"
+```
+
+Or prompt for it while starting the localhost server:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start_localhost_non_admin.ps1 -ApiKeyEnv OPENAI_API_KEY
+```
+
+The approved chat-completions gateway profile uses this shape:
 
 - Model: `gpt-5-4-2026-03-05`
 - URL shape: `https://iapi-test.proj.com/gpt/v2/gpt-5-4-2026-03-05/chat/completions`
@@ -256,9 +303,17 @@ Do not commit the API key. Set it for the current PowerShell session:
 $env:AI_GATEWAY_API_KEY = "paste-approved-key-here"
 ```
 
-The non-admin start script can also prompt for it securely and pass it only to the localhost server process.
+The non-admin start script can also prompt for keys securely and pass them only to the localhost server process. Never paste real keys into Git, screenshots, `README.md`, source code, test files, or `config.yaml`.
 
-The UI model dropdown reads `models.available_chat_models` from `config.yaml`. Set `CLAUDE_API_KEY` before selecting Claude, and set `GEMINI_API_KEY` before selecting Gemini. Token usage is tracked in `output/token_usage.xlsx`; API actions are logged under `output/action_logs/`.
+Set `CLAUDE_API_KEY` before selecting Claude, and set `GEMINI_API_KEY` before selecting Gemini. Token usage is tracked in `output/token_usage.xlsx`; human-readable and JSONL API actions are logged under `output/action_logs/`.
+
+Prompt examples:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start_localhost_non_admin.ps1 -ApiKeyEnv AI_GATEWAY_API_KEY
+powershell -ExecutionPolicy Bypass -File .\scripts\start_localhost_non_admin.ps1 -ApiKeyEnv CLAUDE_API_KEY
+powershell -ExecutionPolicy Bypass -File .\scripts\start_localhost_non_admin.ps1 -ApiKeyEnv GEMINI_API_KEY
+```
 
 ## Run Locally
 

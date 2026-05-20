@@ -15,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.agents.groovy_compiler import GroovyCompiler
 from src.agents.groovy_ootb import load_ootb_groovy_profile
-from src.agents.llm_client import model_options_payload, request_text_completion, resolve_model_profile
+from src.agents.llm_client import model_api_key_configured, model_options_payload, request_text_completion, resolve_model_profile
 from src.agents.workflow_agent import CollibraWorkflowAgent
 from src.api.schemas import (
     AIEnhanceRequest,
@@ -38,7 +38,7 @@ from src.core.logging import configure_logging
 from src.core.usage_tracker import ensure_usage_workbook
 from src.rag.engine import RAGEngine
 from src.rag.collibra_docs import CollibraDocsMirror
-from src.workflow.bpmn import BpmnModel, BpmnNode, BpmnPool, SequenceFlow
+from src.workflow.bpmn import FLOWABLE_NS, XSI_NS, BpmnModel, BpmnNode, BpmnPool, SequenceFlow
 from src.workflow.form import FormModel, form_field_from_mapping
 from src.workflow.package import WorkflowPackage
 from src.workflow.simulator import WorkflowSimulator
@@ -128,6 +128,11 @@ def select_model(payload: dict) -> dict:
     if not requested:
         raise HTTPException(status_code=400, detail="modelId is required.")
     profile = resolve_model_profile(settings, requested)
+    if not model_api_key_configured(settings, profile.id):
+        raise HTTPException(
+            status_code=400,
+            detail=f"API key is not configured for {profile.label or profile.id}. Set {profile.api_key_env} in your environment and restart.",
+        )
     active_model_id = profile.id
     log_action("model_selected", detail={"modelId": profile.id, "provider": profile.provider, "model": profile.model})
     return {"activeModelId": active_model_id, "model": profile.id, "provider": profile.provider}
@@ -366,16 +371,17 @@ def export_workflow_workbench(payload: dict) -> StreamingResponse:
     bpmn_xml = payload.get("bpmnXml") or payload.get("bpmn_xml")
     if not bpmn_xml:
         raise HTTPException(status_code=400, detail="bpmnXml is required.")
-    package_name = _safe_filename(payload.get("packageName") or "collibra-workflow-agent.zip")
+    package_name = _safe_filename(payload.get("packageName") or "generated-collibra-workflow.zip")
     if not package_name.lower().endswith(".zip"):
         package_name = f"{package_name}.zip"
     app_model = payload.get("appModel") or {}
     forms = payload.get("forms") or {}
     base_name = _safe_filename(Path(package_name).stem or "workflow")
+    export_bpmn_xml = _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model)
 
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
-        package.writestr(f"{base_name}.bpmn", bpmn_xml)
+        package.writestr(f"{base_name}.bpmn", export_bpmn_xml)
         package.writestr(f"{base_name}.app", json.dumps(app_model, indent=2, sort_keys=True))
         for key, value in (forms.items() if isinstance(forms, dict) else []):
             package.writestr(f"{_safe_filename(str(key))}.form", value if isinstance(value, str) else json.dumps(value, indent=2, sort_keys=True))
@@ -408,7 +414,12 @@ def simulate_workbench(payload: dict) -> dict:
 def design_workflow_workbench(payload: dict) -> dict:
     prompt = payload.get("prompt") or payload.get("master_prompt") or "Create a Collibra governance workflow."
     try:
-        result = agent.build(prompt, "agent_generated_workflow", model_id=_selected_model_id(payload))
+        result = agent.build(
+            prompt,
+            "agent_generated_workflow",
+            model_id=_selected_model_id(payload),
+            require_ai=bool(payload.get("forceAi")),
+        )
         return {
             "bpmnXml": result.package.process.to_xml(),
             "appModel": {
@@ -432,9 +443,23 @@ def design_workflow_workbench(payload: dict) -> dict:
 def generate_code_workbench(payload: dict) -> dict:
     element = payload.get("element") or {}
     prompt = payload.get("prompt") or "Generate Collibra Groovy for the selected BPMN element."
-    context = rag_engine.retrieve(prompt, limit=6).render()
-    groovy = _ai_or_compat_groovy(element, prompt, context, _selected_model_id(payload))
-    compile_result = groovy_compiler.compile_script(groovy) if groovy.strip() else None
+    model_id = _selected_model_id(payload)
+    context, org_profile = _groovy_generation_context(element, prompt, payload)
+    groovy = _ai_or_compat_groovy(element, prompt, context, model_id, org_profile, force_ai=bool(payload.get("forceAi")))
+    repair_attempts: list[dict] = []
+    original_groovy = groovy
+    if bool(payload.get("compileAndRepair", True)):
+        groovy, compile_result, repair_attempts = _compile_and_repair_groovy(
+            groovy,
+            element=element,
+            prompt=prompt,
+            context=context,
+            org_profile=org_profile,
+            model_id=model_id,
+            max_iterations=int(payload.get("maxRepairIterations") or 3),
+        )
+    else:
+        compile_result = groovy_compiler.compile_script(groovy) if groovy.strip() else None
     compile_status = _compile_status(compile_result)
     warnings = []
     if compile_result:
@@ -451,13 +476,21 @@ def generate_code_workbench(payload: dict) -> dict:
         "summary": f"Generated Collibra code guidance for {element.get('id', 'selected element')}.",
         "reasoning": [
             "Used the selected BPMN element metadata.",
-            "Included local RAG context from Collibra documentation and uploaded project files.",
-            "Kept output compile-oriented with defensive execution-variable handling.",
+            "Retrieved organization standards, previous Groovy, UUID/relation mappings and Collibra API hints from RAG.",
+            "Planned the script around the selected block purpose, org process variables and OOTB Collibra Groovy style.",
+            "Compiled and repaired the script before returning it when compile-and-repair mode was enabled.",
         ],
+        "implementationPlan": _groovy_implementation_plan(element, prompt, org_profile),
         "tests": ["Compile selected Groovy.", "Run workflow simulation.", "Export ZIP and validate in a Collibra test tenant."],
         "warnings": warnings,
         "compileStatus": compile_status,
         "compileResults": [_compile_result_dict(compile_result)] if compile_result else [],
+        "repairAttempts": repair_attempts,
+        "originalGroovy": original_groovy,
+        "repaired": bool(repair_attempts and groovy != original_groovy),
+        "errorText": _compile_error_text(compile_result),
+        "summaryText": _compile_summary_text(compile_result),
+        "organizationProfile": org_profile,
         "context": context[:3000],
     }
 
@@ -493,7 +526,12 @@ def autonomous_agent_run(payload: dict) -> dict:
     if mode == "prompt":
         if not prompt:
             raise HTTPException(status_code=400, detail="prompt is required for autonomous prompt mode.")
-        build_result = agent.build(prompt, f"{output_name}_draft", model_id=_selected_model_id(payload))
+        build_result = agent.build(
+            prompt,
+            f"{output_name}_draft",
+            model_id=_selected_model_id(payload),
+            require_ai=bool(payload.get("forceAi")),
+        )
         model = build_result.package.process
         forms = _forms_dict_from_package(build_result.package)
         app_model = _app_model_from_package(build_result.package, rag_context.render())
@@ -689,12 +727,20 @@ def rag_query_workbench(payload: dict) -> dict:
 def rag_chat_workbench(payload: dict) -> dict:
     question = payload.get("question") or ""
     limit = int(payload.get("top_k") or payload.get("limit") or 8)
-    context = rag_engine.retrieve(question, limit=limit)
-    results = [_search_result_payload(result) for result in context.results]
-    if results:
-        answer = _business_rag_answer(question, context.render(), results, _selected_model_id(payload))
-    else:
-        answer = "No RAG results were found. Upload documents and generate the index, then ask again."
+    try:
+        context = rag_engine.retrieve(question, limit=limit)
+        results = [_search_result_payload(result) for result in context.results]
+        if results:
+            answer = _business_rag_answer(question, context.render(), results, _selected_model_id(payload))
+        else:
+            answer = "No RAG results were found. Upload documents and generate the index, then ask again."
+    except Exception as exc:
+        log_action("rag_chat", status="error", detail={"error": str(exc), "question": question[:500]})
+        results = []
+        answer = (
+            "RAG chat could not complete this request. The local index or selected model may need attention. "
+            f"Technical detail: {exc}"
+        )
     return {"answer": answer, "results": results}
 
 
@@ -808,10 +854,13 @@ def generate_workbench_documentation(payload: dict) -> dict:
         markdown = f"{markdown}\n\n## AI Business Narrative\n\n{ai_doc}\n"
     settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = settings.paths.output_dir / f"{_safe_filename(model.process_id)}_workbench_documentation.md"
+    html_path = settings.paths.output_dir / f"{_safe_filename(model.process_id)}_workbench_documentation.html"
     output_path.write_text(markdown, encoding="utf-8")
+    html_path.write_text(_markdown_to_confluence_html(markdown), encoding="utf-8")
     return {
         "markdown": markdown,
         "path": str(output_path),
+        "htmlPath": str(html_path),
         "summary": {
             "processId": model.process_id,
             "nodes": len(model.nodes),
@@ -890,7 +939,37 @@ def test_workbench_cases(payload: dict) -> dict:
 
 @app.post("/api/compile/groovy")
 def compile_groovy(request: CompileGroovyRequest) -> dict:
-    return _compile_result_dict(groovy_compiler.compile_script(request.code or request.script))
+    code = request.code or request.script or ""
+    element = request.element or {"id": request.elementId or "selectedElement", "type": "scriptTask", "name": request.elementId or "Selected element"}
+    context, org_profile = _groovy_generation_context(element, request.prompt or "Compile and repair selected Collibra Groovy.", {"appModel": request.appModel})
+    if request.autoRepair:
+        repaired_code, result, attempts = _compile_and_repair_groovy(
+            code,
+            element=element,
+            prompt=request.prompt or "Repair selected Collibra Groovy so it compiles and follows organization standards.",
+            context=context,
+            org_profile=org_profile,
+            model_id=_selected_model_id({"modelId": request.modelId}),
+            max_iterations=request.maxRepairIterations,
+        )
+    else:
+        repaired_code = code
+        result = groovy_compiler.compile_script(code)
+        attempts = []
+    payload = _compile_result_dict(result)
+    payload.update(
+        {
+            "groovy": repaired_code,
+            "repairedCode": repaired_code if repaired_code != code else "",
+            "originalCode": code,
+            "repaired": repaired_code != code,
+            "repairAttempts": attempts,
+            "organizationProfile": org_profile,
+            "errorText": _compile_error_text(result),
+            "summaryText": _compile_summary_text(result),
+        }
+    )
+    return payload
 
 
 @app.post("/api/validate/sequence-flow")
@@ -1029,8 +1108,9 @@ def _write_workbench_zip(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     form_items = _workbench_form_items(forms)
     base_name = _safe_filename(output_path.stem.replace("_autonomous_package", "").replace("_package", "") or "workflow")
+    export_bpmn_xml = _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model)
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as package:
-        package.writestr(f"{base_name}.bpmn", bpmn_xml)
+        package.writestr(f"{base_name}.bpmn", export_bpmn_xml)
         package.writestr(f"{base_name}.app", json.dumps(app_model, indent=2, sort_keys=True))
         for key, value in form_items:
             package.writestr(f"{_safe_filename(str(key))}.form", json.dumps(value, indent=2, sort_keys=True))
@@ -1097,6 +1177,8 @@ def _compile_result_dict(result) -> dict:
         "stderr": result.stderr,
         "skipped": result.skipped,
         "standards": [asdict(issue) for issue in result.standards],
+        "errorText": _compile_error_text(result),
+        "summaryText": _compile_summary_text(result),
     }
 
 
@@ -1108,6 +1190,123 @@ def _compile_status(result) -> str:
     if result.skipped:
         return "skipped"
     return "failed"
+
+
+def _compile_error_text(result) -> str:
+    if result is None or result.ok:
+        return ""
+    standards = [issue.message for issue in result.standards if issue.severity == "error"]
+    warning_text = [issue.message for issue in result.standards if issue.severity == "warning"]
+    parts = [
+        value.strip()
+        for value in [result.stderr, result.stdout, "; ".join(standards), "; ".join(warning_text)]
+        if str(value or "").strip()
+    ]
+    if result.skipped and not parts:
+        parts.append("Groovy runtime is unavailable, so compilation was skipped. Add Groovy runtime JARs or configure groovy/java paths.")
+    return "\n".join(parts).strip()
+
+
+def _compile_summary_text(result) -> str:
+    status = _compile_status(result)
+    if status == "passed":
+        warnings = [issue.message for issue in result.standards if issue.severity == "warning"]
+        if warnings:
+            return "Compile passed with standards warnings: " + "; ".join(warnings[:4])
+        return "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+    if status == "skipped":
+        return "Compile skipped. The script was linted, but no Groovy runtime was available, so this is not deployable evidence yet."
+    if status == "failed":
+        return "Compile failed. Review the error text; auto-repair will use RAG, previous code and organization standards to patch the Groovy."
+    return "Compile was not run."
+
+
+def _compile_and_repair_groovy(
+    script: str,
+    *,
+    element: dict,
+    prompt: str,
+    context: str,
+    org_profile: str,
+    model_id: str,
+    max_iterations: int = 3,
+) -> tuple[str, object, list[dict]]:
+    current = str(script or "")
+    attempts: list[dict] = []
+    max_iterations = max(1, min(6, int(max_iterations or 3)))
+    result = groovy_compiler.compile_script(current) if current.strip() else None
+    if result is None:
+        return current, result, attempts
+    attempts.append({"iteration": 0, "strategy": "initial_compile", "result": _compile_result_dict(result)})
+    for iteration in range(1, max_iterations + 1):
+        if result.ok and not _requires_org_style_repair(current):
+            break
+        if result.skipped and not any(issue.severity == "error" for issue in result.standards) and not _requires_org_style_repair(current):
+            break
+        deterministic = _deterministic_groovy_repair(current)
+        if deterministic != current:
+            current = deterministic
+            result = groovy_compiler.compile_script(current)
+            attempts.append({"iteration": iteration, "strategy": "deterministic_org_standards_repair", "result": _compile_result_dict(result)})
+            if result.ok:
+                break
+        ai_repair = _ai_repair_groovy(current, result, element, prompt, context, org_profile, model_id)
+        if not ai_repair or ai_repair == current or not _looks_like_collibra_groovy_snippet(ai_repair):
+            continue
+        ai_repair = _deterministic_groovy_repair(ai_repair)
+        if ai_repair == current:
+            continue
+        current = ai_repair
+        result = groovy_compiler.compile_script(current)
+        attempts.append({"iteration": iteration, "strategy": "ai_rag_compile_error_repair", "result": _compile_result_dict(result)})
+    return current, result, attempts
+
+
+def _requires_org_style_repair(script: str) -> bool:
+    value = str(script or "")
+    lowered = value.lower()
+    return (
+        "uuid.fromstring" in lowered
+        or re.search(r"(?m)^\s*import\s+java\.util\.UUID\s*;?\s*$", value) is not None
+        or re.search(r"(?m)^\s*import\s+(?:uuid|UUID|[\w.]*\.uuid(?:\.[\w.*]+)?)\s*;?\s*$", value, re.IGNORECASE) is not None
+        or re.search(r"(?m)^\s*(?:public\s+)?class\s+\w+\b|public\s+static\s+void\s+main\s*\(", value) is not None
+    )
+
+
+def _ai_repair_groovy(script: str, result, element: dict, prompt: str, context: str, org_profile: str, model_id: str) -> str:
+    if result is None:
+        return ""
+    repair_prompt = f"""You are repairing Collibra Workflow Designer Groovy.
+Return only the repaired Groovy snippet. No markdown fences, no explanations.
+
+Selected BPMN element:
+{json.dumps(element, indent=2, default=str)}
+
+Business/user instruction:
+{prompt}
+
+Compiler and standards error:
+{_compile_error_text(result)}
+
+Organization/RAG coding profile:
+{org_profile}
+
+Retrieved evidence and previous code:
+{context[:9000]}
+
+Current Groovy:
+{script[:12000]}
+
+Rules:
+- Keep the script as a Groovy snippet for Collibra/Flowable, not a Java class.
+- Use previous organization code patterns, variable names, role names, relation mappings and DTO imports from RAG when present.
+- UUIDs are values, not packages. Do not import UUID packages. Use string2Uuid(...) for UUID conversion.
+- Start script tasks with // #importFile NONE.
+- Only use explicit Collibra DTO imports that are needed by this script.
+- Preserve required business behavior and add defensive null checks around execution variables.
+"""
+    repaired = request_text_completion(settings, repair_prompt, model_id=model_id, action="groovy_compile_repair")
+    return _strip_code_fence(repaired or "")
 
 
 def _documentation_markdown(model: BpmnModel, forms: list[FormModel], prompt: str) -> str:
@@ -1799,8 +1998,17 @@ def _missing_script_issues(model: BpmnModel, scripts: dict) -> list[dict]:
 
 def _deterministic_groovy_repair(script: str) -> str:
     repaired = str(script or "").replace("\r\n", "\n").replace("\r", "\n").strip()
-    if repaired.startswith("// #importFile NONE"):
-        repaired = "\n".join(repaired.splitlines()[1:]).lstrip()
+    repaired = _strip_code_fence(repaired)
+    repaired = re.sub(r"(?m)^\s*import\s+(?:uuid|UUID|[\w.]*\.uuid(?:\.[\w.*]+)?)\s*;?\s*\n?", "", repaired, flags=re.IGNORECASE)
+    repaired = re.sub(r"(?m)^\s*import\s+java\.util\.UUID\s*;?\s*\n?", "", repaired)
+    repaired = repaired.replace("UUID.randomUUID()", "java.util.UUID.randomUUID()")
+    repaired = re.sub(r"\bUUID\.fromString\s*\(", "string2Uuid(", repaired)
+    repaired = re.sub(r"\bUUID\s+([A-Za-z_]\w*)\s*=", r"def \1 =", repaired)
+    repaired = re.sub(r"(?m)^\s*(?:public\s+)?class\s+\w+\s*\{\s*", "", repaired)
+    repaired = re.sub(r"(?m)^\s*public\s+static\s+void\s+main\s*\([^)]*\)\s*\{\s*", "", repaired)
+    repaired = repaired.rstrip()
+    if repaired and not repaired.lstrip().startswith("// #importFile NONE"):
+        repaired = "// #importFile NONE\n" + repaired.lstrip()
     return repaired
 
 
@@ -1990,6 +2198,113 @@ def _sanitize_bpmn_xml(xml: str) -> str:
     return clean.strip()
 
 
+def _embed_app_model_scripts_in_bpmn(bpmn_xml: str, app_model: dict) -> str:
+    clean = _sanitize_bpmn_xml(bpmn_xml)
+    if not clean:
+        return clean
+    _register_bpmn_namespaces()
+    try:
+        root = ET.fromstring(clean.encode("utf-8"))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not parse BPMN XML for export: {exc}") from exc
+    scripts = app_model.get("scripts") or {}
+    element_properties = app_model.get("elementProperties") or {}
+    changed = False
+    for node in root.iter():
+        local = _xml_local(node.tag)
+        if local == "scriptTask":
+            element_id = node.attrib.get("id", "scriptTask")
+            node.attrib["scriptFormat"] = "groovy"
+            node.attrib[_qname_for_namespace(FLOWABLE_NS, "autoStoreVariables")] = "false"
+            script_el = next((child for child in node if _xml_local(child.tag) == "script"), None)
+            existing_script = "".join(script_el.itertext()).strip() if script_el is not None else ""
+            groovy = _script_from_app_model(scripts, element_id) or existing_script or _minimal_collibra_script(element_id)
+            if script_el is None:
+                script_el = ET.SubElement(node, _qname_for_existing(node.tag, "script"))
+            if not str(script_el.text or "").strip() or groovy.strip():
+                script_el.text = groovy.rstrip() + "\n"
+                changed = True
+        elif local == "sequenceFlow":
+            if _normalize_sequence_flow_condition(node, element_properties):
+                changed = True
+    if not changed:
+        return clean
+    return ET.tostring(root, encoding="unicode", xml_declaration=True)
+
+
+def _register_bpmn_namespaces() -> None:
+    namespaces = {
+        "bpmn": "http://www.omg.org/spec/BPMN/20100524/MODEL",
+        "bpmndi": "http://www.omg.org/spec/BPMN/20100524/DI",
+        "dc": "http://www.omg.org/spec/DD/20100524/DC",
+        "di": "http://www.omg.org/spec/DD/20100524/DI",
+        "flowable": "http://flowable.org/bpmn",
+        "camunda": "http://camunda.org/schema/1.0/bpmn",
+        "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+    }
+    for prefix, uri in namespaces.items():
+        ET.register_namespace(prefix, uri)
+
+
+def _qname_for_existing(tag: str, local_name: str) -> str:
+    if tag.startswith("{"):
+        namespace = tag[1:].split("}", 1)[0]
+        return f"{{{namespace}}}{local_name}"
+    return local_name
+
+
+def _qname_for_namespace(namespace: str, local_name: str) -> str:
+    return f"{{{namespace}}}{local_name}"
+
+
+def _normalize_sequence_flow_condition(flow: ET.Element, element_properties: dict) -> bool:
+    changed = False
+    flow_id = flow.attrib.get("id", "")
+    props = element_properties.get(flow_id) if isinstance(element_properties, dict) else {}
+    prop_condition = ""
+    if isinstance(props, dict):
+        prop_condition = str(props.get("condition") or props.get("expression") or "").strip()
+    condition_el = next((child for child in flow if _xml_local(child.tag) == "conditionExpression"), None)
+    if condition_el is None:
+        if prop_condition:
+            condition_el = ET.SubElement(
+                flow,
+                _qname_for_existing(flow.tag, "conditionExpression"),
+                {_qname_for_namespace(XSI_NS, "type"): "tFormalExpression"},
+            )
+            condition_el.text = prop_condition
+            return True
+        return False
+    current = "".join(condition_el.itertext()).strip()
+    if current:
+        condition_el.text = current
+        if _qname_for_namespace(XSI_NS, "type") not in condition_el.attrib:
+            condition_el.attrib[_qname_for_namespace(XSI_NS, "type")] = "tFormalExpression"
+            changed = True
+        return changed
+    if prop_condition:
+        condition_el.text = prop_condition
+        if _qname_for_namespace(XSI_NS, "type") not in condition_el.attrib:
+            condition_el.attrib[_qname_for_namespace(XSI_NS, "type")] = "tFormalExpression"
+        return True
+    flow.remove(condition_el)
+    return True
+
+
+def _script_from_app_model(scripts: dict, element_id: str) -> str:
+    value = scripts.get(element_id) if isinstance(scripts, dict) else None
+    if isinstance(value, dict):
+        return str(value.get("groovy") or "")
+    if value is not None:
+        return str(value)
+    return ""
+
+
+def _minimal_collibra_script(element_id: str) -> str:
+    variable = _safe_filename(str(element_id)).replace("-", "_")
+    return f"// #importFile NONE\nexecution.setVariable('{variable}Completed', true)"
+
+
 def _parse_json_or_text(text: str):
     try:
         return json.loads(text)
@@ -2128,7 +2443,90 @@ def _simulation_payload(model: BpmnModel, result) -> dict:
     return payload
 
 
-def _ai_or_compat_groovy(element: dict, prompt: str, context: str, model_id: str) -> str:
+def _groovy_generation_context(element: dict, prompt: str, payload: dict | None = None) -> tuple[str, str]:
+    payload = payload or {}
+    element_id = str(element.get("id") or payload.get("elementId") or "selectedElement")
+    app_model = payload.get("appModel") or {}
+    element_properties = app_model.get("elementProperties") or {}
+    selected_properties = element_properties.get(element_id) or {}
+    script_excerpt = _nearby_script_excerpts(app_model.get("scripts") or {}, element_id)
+    form_keys = ", ".join(sorted((app_model.get("forms") or {}).keys())[:12])
+    query = "\n".join(
+        [
+            str(prompt or ""),
+            f"BPMN element {element_id} {element.get('type', '')} {element.get('name', '')}",
+            f"Element properties {json.dumps(selected_properties, default=str)[:1000]}",
+            "organization standards previous Groovy code Collibra OOTB workflow UUID role relation assetApi relationApi responsibilityApi Java API v2",
+            script_excerpt[:2500],
+            f"Available form keys: {form_keys}",
+        ]
+    )
+    retrieval = rag_engine.retrieve(query, limit=12)
+    context = retrieval.render()
+    org_profile = _organization_code_profile(context, app_model, element_id)
+    return context, org_profile
+
+
+def _nearby_script_excerpts(scripts: dict, selected_element_id: str) -> str:
+    excerpts: list[str] = []
+    for key, value in list((scripts or {}).items())[:8]:
+        groovy = value.get("groovy", "") if isinstance(value, dict) else str(value or "")
+        if not groovy.strip():
+            continue
+        label = "selected" if key == selected_element_id else "existing"
+        excerpts.append(f"## {label} script {key}\n{groovy[:1400]}")
+    return "\n\n".join(excerpts)
+
+
+def _organization_code_profile(context: str, app_model: dict, selected_element_id: str) -> str:
+    script_text = _nearby_script_excerpts(app_model.get("scripts") or {}, selected_element_id)
+    combined = f"{context}\n\n{script_text}"
+    imports = sorted(set(re.findall(r"(?m)^\s*import\s+(com\.collibra[\w.]+|java\.[\w.]+)\s*;?\s*$", combined)))[:18]
+    get_vars = sorted(set(re.findall(r"execution\.getVariable\(['\"]([^'\"]+)['\"]\)", combined)))[:30]
+    set_vars = sorted(set(re.findall(r"execution\.setVariable\(['\"]([^'\"]+)['\"]", combined)))[:30]
+    api_calls = sorted(set(re.findall(r"\b(assetApi|relationApi|responsibilityApi|attributeApi|userApi|loggerApi|mail|users)\.[A-Za-z_]\w+", combined)))[:30]
+    source_files = []
+    for match in re.finditer(r"source=([^\s]+)", context):
+        name = Path(match.group(1).replace("\\", "/")).name
+        if name and name not in source_files:
+            source_files.append(name)
+        if len(source_files) >= 10:
+            break
+    uuid_lines = []
+    for line in combined.splitlines():
+        lowered = line.lower()
+        if any(token in lowered for token in ("uuid", "role", "relation type", "asset type", "workflow key")):
+            cleaned = line.strip()
+            if cleaned and cleaned not in uuid_lines:
+                uuid_lines.append(cleaned[:240])
+        if len(uuid_lines) >= 12:
+            break
+    return "\n".join(
+        [
+            "Organization-aware Groovy profile derived from RAG and current package:",
+            f"- RAG/previous-code sources: {', '.join(source_files) if source_files else 'No named sources found in current retrieval.'}",
+            f"- Reusable explicit imports: {', '.join(imports) if imports else 'Use only imports required by this block.'}",
+            f"- Observed input variables: {', '.join(get_vars) if get_vars else 'None found; derive from prompt/form fields.'}",
+            f"- Observed output variables: {', '.join(set_vars) if set_vars else 'None found; set clear execution variables for downstream blocks.'}",
+            f"- Observed Collibra APIs/helpers: {', '.join(api_calls) if api_calls else 'Use injected Collibra workflow APIs when grounded by task purpose.'}",
+            "- UUID/relation/role hints:",
+            *[f"  - {line}" for line in uuid_lines[:12]],
+        ]
+    ).strip()
+
+
+def _groovy_implementation_plan(element: dict, prompt: str, org_profile: str) -> list[str]:
+    element_label = f"{element.get('id', 'selected element')} ({element.get('type', 'BPMN element')})"
+    return [
+        f"Analyze the selected BPMN block {element_label} and the user instruction.",
+        "Retrieve RAG evidence for organization standards, previous workflow scripts, UUID/relation mappings, forms and API classes.",
+        "Choose only the Collibra APIs, process variables and DTO imports supported by the retrieved evidence and the block purpose.",
+        "Write a Collibra Workflow Designer Groovy snippet using string2Uuid(...) for UUID values and defensive execution-variable checks.",
+        "Compile/lint locally, repair deterministic standards issues, then use AI repair with compiler errors and RAG context if needed.",
+    ]
+
+
+def _ai_or_compat_groovy(element: dict, prompt: str, context: str, model_id: str, org_profile: str = "", force_ai: bool = False) -> str:
     ootb_style = load_ootb_groovy_profile(settings).render_for_prompt(f"{element.get('name', '')} {element.get('type', '')} {prompt}")
     request = f"""You are generating Collibra Workflow Designer Groovy, not Java.
 Return only compile-safe Groovy code for the selected BPMN element.
@@ -2142,6 +2540,9 @@ User instruction:
 Retrieved RAG and organization context:
 {context[:8000]}
 
+Organization-specific code profile:
+{org_profile}
+
 {ootb_style}
 
 Rules:
@@ -2152,12 +2553,19 @@ Rules:
 - Do not use `UUID.fromString(...)` in generated workflow snippets. Do not add `import java.util.UUID`.
 - Never import `uuid`, `UUID`, or any made-up Collibra UUID package.
 - Start generated script tasks with `// #importFile NONE`.
+- Before writing code, internally devise a small implementation plan using RAG/previous code; return only the final Groovy.
+- Tailor variable names, forms, roles, UUID placeholders and relation logic to the retrieved organization profile.
 - Never output markdown fences.
 """
     text = request_text_completion(settings, request, model_id=model_id, action="groovy_generation")
     code = _strip_code_fence(text or "")
     if code.strip() and _looks_like_collibra_groovy_snippet(code):
         return code
+    if force_ai:
+        raise HTTPException(
+            status_code=400,
+            detail="AI Groovy generation failed or returned invalid code. Check the selected model/API key and try again.",
+        )
     return _compat_groovy(element, prompt, context)
 
 
@@ -2198,8 +2606,52 @@ User instruction:
 Draft documentation:
 {markdown[:10000]}
 """
-    answer = request_text_completion(settings, prompt, model_id=model_id, action="workflow_documentation")
-    return (answer or "").strip()
+    try:
+        answer = request_text_completion(settings, prompt, model_id=model_id, action="workflow_documentation")
+        return (answer or "").strip()
+    except Exception:
+        return ""
+
+
+def _markdown_to_confluence_html(markdown: str) -> str:
+    import html
+
+    lines = []
+    in_list = False
+    for raw in str(markdown or "").splitlines():
+        line = raw.rstrip()
+        if line.startswith("# "):
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<h1>{html.escape(line[2:].strip())}</h1>")
+        elif line.startswith("## "):
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<h2>{html.escape(line[3:].strip())}</h2>")
+        elif line.startswith("### "):
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<h3>{html.escape(line[4:].strip())}</h3>")
+        elif line.startswith("- "):
+            if not in_list:
+                lines.append("<ul>")
+                in_list = True
+            lines.append(f"<li>{html.escape(line[2:].strip())}</li>")
+        elif not line.strip():
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+        else:
+            if in_list:
+                lines.append("</ul>")
+                in_list = False
+            lines.append(f"<p>{html.escape(line)}</p>")
+    if in_list:
+        lines.append("</ul>")
+    return "<!doctype html><html><body>\n" + "\n".join(lines) + "\n</body></html>\n"
 
 
 def _strip_code_fence(text: str) -> str:

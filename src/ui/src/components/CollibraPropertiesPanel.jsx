@@ -11,9 +11,11 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
   const [groovy, setGroovy] = useState('');
   const [props, setProps] = useState({});
   const [busy, setBusy] = useState(false);
+  const [compileFeedback, setCompileFeedback] = useState(null);
 
   useEffect(() => {
     setGroovy(typeof elementScript === 'string' ? elementScript : elementScript.groovy || '');
+    setCompileFeedback(null);
     setProps({
       execution: elementProps.execution || defaultExecution(selectedElement?.type),
       scope: elementProps.scope || 'asset',
@@ -83,10 +85,12 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
         prompt,
         appModel,
         modelId,
-        compileAndRepair: true
+        compileAndRepair: true,
+        forceAi: true
       });
       const code = result.groovy || result.raw || '';
       setGroovy(code);
+      setCompileFeedback(result);
       setAppModel(prev => ({
         ...prev,
         scripts: {
@@ -116,8 +120,39 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
   async function compile() {
     setBusy(true);
     try {
-      const result = await compileGroovy({ code: groovy, elementId, modelId });
-      addConsole?.({ level: result.ok ? 'success' : 'error', message: `Compile ${result.ok ? 'passed' : 'failed'} for ${elementId}`, detail: result });
+      const result = await compileGroovy({
+        code: groovy,
+        elementId,
+        element: toElementPayload(selectedElement),
+        prompt,
+        appModel,
+        modelId,
+        autoRepair: true,
+        maxRepairIterations: 4
+      });
+      const repairedCode = result.repairedCode || result.groovy || '';
+      if (result.repaired && repairedCode && repairedCode !== groovy) {
+        setGroovy(repairedCode);
+        setAppModel(prev => ({
+          ...prev,
+          scripts: {
+            ...(prev.scripts || {}),
+            [elementId]: {
+              ...(prev.scripts?.[elementId] || {}),
+              groovy: repairedCode,
+              compileResults: [result],
+              repairAttempts: result.repairAttempts || [],
+              elementType: selectedElement.type,
+              elementName: bo.name || '',
+              updatedAt: new Date().toISOString()
+            }
+          }
+        }));
+      }
+      setCompileFeedback(result);
+      const level = result.status === 'passed' ? 'success' : result.status === 'skipped' ? 'warn' : 'error';
+      const suffix = result.repaired ? ' after auto-repair' : '';
+      addConsole?.({ level, message: `Compile ${result.status || (result.ok ? 'passed' : 'failed')} for ${elementId}${suffix}`, detail: result });
     } catch (err) {
       addConsole?.({ level: 'error', message: 'Groovy compile failed', detail: err.message });
     } finally {
@@ -209,6 +244,7 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
           <button onClick={save}><Save size={15}/> Save</button>
           <button onClick={compile} disabled={busy || !canCompile} className={canCompile ? '' : 'disabled-button'}><Code2 size={15}/> Compile</button>
         </div>
+        {compileFeedback && <CompileFeedback result={compileFeedback} />}
       </section>
 
       <section className="property-card code-card">
@@ -227,6 +263,25 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
           spellCheck={false}
         />
       </section>
+    </div>
+  );
+}
+
+function CompileFeedback({ result }) {
+  const status = result.compileStatus || result.status || (result.ok ? 'passed' : 'failed');
+  const attempts = Array.isArray(result.repairAttempts) ? result.repairAttempts : [];
+  const errors = result.errorText || result.stderr || '';
+  const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+  return (
+    <div className={`compile-feedback ${status}`}>
+      <div>
+        <b>Compile {status}</b>
+        <small>{result.summaryText || (result.repaired ? 'Auto-repair updated the Groovy and recompiled it.' : 'Compile result is ready.')}</small>
+      </div>
+      {result.repaired && <span className="compile-chip">auto-repaired</span>}
+      {attempts.length > 0 && <span className="compile-chip">{attempts.length} attempt(s)</span>}
+      {warnings.length > 0 && <pre>{warnings.join('\n')}</pre>}
+      {errors && <pre>{errors}</pre>}
     </div>
   );
 }

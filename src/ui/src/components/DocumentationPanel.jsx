@@ -2,19 +2,22 @@ import React, { useState } from 'react';
 import { BookOpen, Copy, FileText, Sparkles } from 'lucide-react';
 import { generateDocumentation } from '../api.js';
 
-export default function DocumentationPanel({ appModel, getBpmnXml, addConsole, modelId }) {
+export default function DocumentationPanel({ appModel, forms, getBpmnXml, addConsole, modelId }) {
   const [prompt, setPrompt] = useState('Generate complete production documentation for this Collibra workflow: purpose, BPMN flow, pools, lanes, forms, Groovy scripts, sequence-flow rules, RAG assumptions, test cases, deployment notes and rollback plan.');
   const [markdown, setMarkdown] = useState('');
   const [path, setPath] = useState('');
+  const [htmlPath, setHtmlPath] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function generate() {
     setBusy(true);
     try {
       const bpmnXml = await getBpmnXml();
-      const result = await generateDocumentation({ bpmnXml, appModel, forms: appModel?.forms || {}, prompt, modelId });
+      const mergedForms = { ...(appModel?.forms || {}), ...(forms || {}) };
+      const result = await generateDocumentation({ bpmnXml, appModel, forms: mergedForms, prompt, modelId });
       setMarkdown(result.markdown || '');
       setPath(result.path || '');
+      setHtmlPath(result.htmlPath || '');
       addConsole?.({ level: 'success', message: 'Documentation generated', detail: result });
     } catch (err) {
       addConsole?.({ level: 'error', message: 'Documentation generation failed', detail: err.message });
@@ -51,7 +54,8 @@ export default function DocumentationPanel({ appModel, getBpmnXml, addConsole, m
             <Copy size={15}/> Copy markdown
           </button>
         </div>
-        {path && <small>Saved to {path}</small>}
+        {path && <small>Markdown saved to {path}</small>}
+        {htmlPath && <small>Confluence-ready HTML saved to {htmlPath}</small>}
       </section>
 
       <section className="property-card code-card">

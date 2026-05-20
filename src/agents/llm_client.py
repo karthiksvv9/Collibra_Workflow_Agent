@@ -8,9 +8,14 @@ from typing import Any
 from urllib.parse import urljoin
 
 import requests
+from requests import RequestException
 
 from src.core.config import ChatModelOption, Settings
 from src.core.usage_tracker import record_usage
+
+
+class LLMRequestError(RuntimeError):
+    """Raised when a strict AI call must surface the real provider failure."""
 
 
 def request_json_design(
@@ -18,11 +23,18 @@ def request_json_design(
     prompt: str,
     model_id: str | None = None,
     action: str = "json_design",
+    raise_on_error: bool = False,
 ) -> dict[str, Any] | None:
-    text = request_text_completion(config, prompt, model_id=model_id, action=action)
+    text = request_text_completion(config, prompt, model_id=model_id, action=action, raise_on_error=raise_on_error)
     if not text:
         return None
-    return _extract_json_object(text)
+    try:
+        return _extract_json_object(text)
+    except Exception as exc:
+        if raise_on_error:
+            excerpt = str(text or "").strip().replace("\n", " ")[:700]
+            raise LLMRequestError(f"AI response was not valid JSON for BPMN design: {_safe_error_message(exc)}. Response excerpt: {excerpt}") from exc
+        return None
 
 
 def request_text_completion(
@@ -30,30 +42,65 @@ def request_text_completion(
     prompt: str,
     model_id: str | None = None,
     action: str = "text_completion",
+    raise_on_error: bool = False,
 ) -> str | None:
     profile = resolve_model_profile(config, model_id)
     api_key = _resolved_api_key(config, profile)
     if not api_key:
+        message = (
+            f"API key is not configured for {profile.label or profile.id}. "
+            f"Set {profile.api_key_env} or fill models.available_chat_models[].api_key in config.yaml, then restart."
+        )
+        record_usage(
+            action=action,
+            provider=(profile.provider or config.openai.provider).lower().strip(),
+            model=profile.model or config.models.chat_model,
+            prompt=prompt,
+            completion="",
+            usage={},
+            status="missing_api_key",
+            config=config,
+        )
+        if raise_on_error:
+            raise LLMRequestError(message)
         return None
     provider = (profile.provider or config.openai.provider).lower().strip()
-    if provider == "custom_chat_completions":
-        text, usage = _custom_chat_completion(config, profile, api_key, prompt)
-    elif provider == "custom_messages":
-        text, usage = _custom_messages_completion(config, profile, api_key, prompt)
-    elif provider == "gemini_generate_content":
-        text, usage = _gemini_generate_content(config, profile, api_key, prompt)
-    else:
-        text, usage = _openai_responses_completion(config, profile, api_key, prompt)
-    record_usage(
-        action=action,
-        provider=provider,
-        model=profile.model or config.models.chat_model,
-        prompt=prompt,
-        completion=text or "",
-        usage=usage,
-        config=config,
-    )
-    return text
+    try:
+        if provider == "custom_chat_completions":
+            text, usage = _custom_chat_completion(config, profile, api_key, prompt)
+        elif provider == "openai_chat_completions":
+            text, usage = _openai_chat_completion(config, profile, api_key, prompt, action=action)
+        elif provider == "custom_messages":
+            text, usage = _custom_messages_completion(config, profile, api_key, prompt)
+        elif provider == "gemini_generate_content":
+            text, usage = _gemini_generate_content(config, profile, api_key, prompt)
+        else:
+            text, usage = _openai_responses_completion(config, profile, api_key, prompt)
+        record_usage(
+            action=action,
+            provider=provider,
+            model=profile.model or config.models.chat_model,
+            prompt=prompt,
+            completion=text or "",
+            usage=usage,
+            config=config,
+        )
+        return text
+    except Exception as exc:
+        message = _safe_error_message(exc)
+        record_usage(
+            action=action,
+            provider=provider,
+            model=profile.model or config.models.chat_model,
+            prompt=prompt,
+            completion=message,
+            usage={},
+            status="error",
+            config=config,
+        )
+        if raise_on_error:
+            raise LLMRequestError(message) from exc
+        return None
 
 
 def resolve_model_profile(config: Settings, model_id: str | None = None) -> ChatModelOption:
@@ -77,6 +124,8 @@ def resolve_model_profile(config: Settings, model_id: str | None = None) -> Chat
         api_key_env=config.openai.api_key_env,
         api_key_header=config.openai.api_key_header,
         api_key_prefix=config.openai.api_key_prefix,
+        api_key=config.openai.api_key,
+        verify_ssl=True,
         max_output_tokens=config.models.max_output_tokens,
         temperature=config.models.temperature,
     )
@@ -99,12 +148,39 @@ def _custom_chat_completion(
         "temperature": profile.temperature,
         "max_completion_tokens": profile.max_output_tokens or config.models.max_output_tokens,
     }
-    response = requests.post(
+    response = _post_json(
         url,
         headers=headers,
-        json=payload,
+        payload=payload,
         timeout=config.models.request_timeout_seconds,
+        verify=profile.verify_ssl,
     )
+    response.raise_for_status()
+    data = response.json()
+    return _extract_text_from_response(data), _usage_from_response(data)
+
+
+def _openai_chat_completion(
+    config: Settings,
+    profile: ChatModelOption,
+    api_key: str,
+    prompt: str,
+    action: str = "text_completion",
+) -> tuple[str, dict[str, Any]]:
+    url = _profile_url(config, profile)
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+    payload: dict[str, Any] = {
+        "model": profile.model or config.models.chat_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "temperature": profile.temperature,
+        "max_tokens": profile.max_output_tokens or config.models.max_output_tokens,
+    }
+    if "json" in prompt.lower() or "json" in action.lower() or "design" in action.lower():
+        payload["response_format"] = {"type": "json_object"}
+    response = _post_json(url, headers=headers, payload=payload, timeout=config.models.request_timeout_seconds, verify=profile.verify_ssl)
     response.raise_for_status()
     data = response.json()
     return _extract_text_from_response(data), _usage_from_response(data)
@@ -128,7 +204,7 @@ def _custom_messages_completion(
     }
     if profile.model:
         payload["model"] = profile.model
-    response = requests.post(url, headers=headers, json=payload, timeout=config.models.request_timeout_seconds)
+    response = _post_json(url, headers=headers, payload=payload, timeout=config.models.request_timeout_seconds, verify=profile.verify_ssl)
     response.raise_for_status()
     data = response.json()
     return _extract_text_from_response(data), _usage_from_response(data)
@@ -152,7 +228,7 @@ def _gemini_generate_content(
             "maxOutputTokens": profile.max_output_tokens or config.models.max_output_tokens,
         },
     }
-    response = requests.post(url, headers=headers, json=payload, timeout=config.models.request_timeout_seconds)
+    response = _post_json(url, headers=headers, payload=payload, timeout=config.models.request_timeout_seconds, verify=profile.verify_ssl)
     response.raise_for_status()
     data = response.json()
     return _extract_text_from_response(data), _usage_from_response(data)
@@ -190,19 +266,72 @@ def _openai_responses_completion(
 
 
 def _resolved_api_key(config: Settings, profile: ChatModelOption) -> str:
-    return (
-        config.openai.api_key
-        or os.getenv(profile.api_key_env or "")
-        or os.getenv(config.openai.api_key_env or "")
-        or os.getenv("OPENAI_API_KEY", "")
-        or os.getenv("AI_GATEWAY_API_KEY", "")
-    ).strip()
+    if profile.api_key.strip():
+        return profile.api_key.strip()
+    profile_env = (profile.api_key_env or "").strip()
+    if profile_env:
+        value = os.getenv(profile_env, "").strip()
+        if value:
+            return value
+    if profile_env == (config.openai.api_key_env or "").strip() and config.openai.api_key:
+        return config.openai.api_key.strip()
+    return ""
+
+
+def model_api_key_configured(config: Settings, model_id: str | None = None) -> bool:
+    profile = resolve_model_profile(config, model_id)
+    return bool(_resolved_api_key(config, profile))
 
 
 def _profile_url(config: Settings, profile: ChatModelOption) -> str:
     base_url = (profile.base_url or config.openai.base_url or "").rstrip("/")
     path = (profile.chat_completions_path or config.openai.chat_completions_path or "").lstrip("/")
     return urljoin(base_url + "/", path)
+
+
+def _post_json(url: str, headers: dict[str, str], payload: dict[str, Any], timeout: int, verify: bool):
+    if not verify:
+        try:
+            import urllib3
+
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        except Exception:
+            pass
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=timeout, verify=verify)
+        status_code = int(getattr(response, "status_code", 200))
+        if status_code >= 400:
+            raise LLMRequestError(_provider_error_text(response))
+        return response
+    except LLMRequestError:
+        raise
+    except RequestException as exc:
+        raise LLMRequestError(_safe_error_message(exc)) from exc
+
+
+def _provider_error_text(response) -> str:
+    try:
+        data = response.json()
+    except Exception:
+        return _safe_error_message(RuntimeError(f"Provider HTTP {response.status_code}: {response.text[:800]}"))
+    if isinstance(data, dict):
+        error = data.get("error")
+        if isinstance(error, dict):
+            message = error.get("message") or error.get("code") or error
+            code = error.get("code") or error.get("type")
+            return _safe_error_message(
+                RuntimeError(f"Provider HTTP {response.status_code}: {message}" + (f" ({code})" if code else ""))
+            )
+        if data.get("message"):
+            return _safe_error_message(RuntimeError(f"Provider HTTP {response.status_code}: {data.get('message')}"))
+    return _safe_error_message(RuntimeError(f"Provider HTTP {response.status_code}: {str(data)[:800]}"))
+
+
+def _safe_error_message(exc: Exception) -> str:
+    text = str(exc)
+    text = re.sub(r"sk-[^\s,'\")]+", "sk-***", text)
+    text = re.sub(r"Bearer\s+[^\s,'\")]+", "Bearer ***", text)
+    return text[:1200]
 
 
 def _extract_text_from_response(data: Any) -> str:
@@ -257,7 +386,7 @@ def model_options_payload(config: Settings) -> list[dict[str, Any]]:
         {
             key: value
             for key, value in asdict(option).items()
-            if key not in {"api_key_prefix"}
+            if key not in {"api_key", "api_key_prefix"}
         }
         for option in (config.models.available_chat_models or [resolve_model_profile(config)])
     ]

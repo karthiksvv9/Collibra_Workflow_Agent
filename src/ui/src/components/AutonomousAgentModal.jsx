@@ -31,6 +31,7 @@ export default function AutonomousAgentModal({
         businessUseCase: prompt,
         userTestCases,
         modelId,
+        forceAi: true,
         packageName: mode === 'prompt' ? 'autonomous_prompt_workflow' : 'autonomous_canvas_workflow',
         maxIterations: 5
       };
