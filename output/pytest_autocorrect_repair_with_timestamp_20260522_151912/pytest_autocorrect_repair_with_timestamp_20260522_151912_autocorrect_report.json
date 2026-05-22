@@ -1,0 +1,1198 @@
+{
+  "documentationPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_autocorrect_repair_with_timestamp_20260522_151912_autocorrect_documentation.md",
+  "modelId": "openai-gpt-5-4",
+  "ok": true,
+  "quality": {
+    "blockingIssues": [],
+    "iterations": [
+      {
+        "calledWorkflowResults": [
+          {
+            "checks": 18,
+            "errors": [],
+            "flows": 5,
+            "nodes": 6,
+            "ok": true,
+            "processKey": "FinanceApprovalWorkflow"
+          }
+        ],
+        "changed": false,
+        "compileResults": {
+          "script": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          }
+        },
+        "formIssues": [],
+        "iteration": 1,
+        "listenerCompileResults": {
+          "flow_approved": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow_call_end": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow_rejected": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow_review_script": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow_script_route": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow_start_review": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          }
+        },
+        "missingScriptIssues": [],
+        "structuralErrors": []
+      }
+    ],
+    "message": "Autonomous package test passed. Pass rate 100.0% (38/38 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+    "metrics": {
+      "failedChecks": 0,
+      "passPercent": 100.0,
+      "passedChecks": 38,
+      "totalChecks": 38
+    },
+    "ok": true,
+    "repairedAppModel": {
+      "calledWorkflows": {
+        "FinanceApprovalWorkflow": {
+          "appModel": {
+            "elementProperties": {
+              "childApply": {
+                "documentation": "",
+                "elementId": "childApply",
+                "elementName": "Apply child decision",
+                "elementType": "bpmn:ScriptTask",
+                "lane": "Collibra Automation",
+                "scriptFormat": "groovy"
+              },
+              "childEnd": {
+                "documentation": "",
+                "elementId": "childEnd",
+                "elementName": "Completed",
+                "elementType": "bpmn:EndEvent",
+                "lane": "Collibra Automation"
+              },
+              "childFlow_apply_end": {
+                "condition": "",
+                "documentation": "Autocorrected sequence flow from childApply to childEnd.",
+                "elementId": "childFlow_apply_end",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "isDefault": false,
+                "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_apply_end.\n// Source: Apply child decision\n// Target: Completed\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_apply_end\")\nexecution.setVariable(\"childFlow_apply_endTaken\", true)\nexecution.setVariable(\"childFlow_apply_endSourceRef\", \"childApply\")\nexecution.setVariable(\"childFlow_apply_endTargetRef\", \"childEnd\")\n",
+                "scope": "global",
+                "skipExpression": "",
+                "sourceRef": "childApply",
+                "targetRef": "childEnd",
+                "updatedAt": "2026-05-22T15:19:13"
+              },
+              "childFlow_approved": {
+                "condition": "${approvalDecision == 'approve'}",
+                "documentation": "Autocorrected sequence flow from childRoute to childApply.",
+                "elementId": "childFlow_approved",
+                "elementName": "Approved",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "conditional",
+                "isDefault": false,
+                "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_approved.\n// Source: Decision route\n// Target: Apply child decision\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_approved\")\nexecution.setVariable(\"childFlow_approvedTaken\", true)\nexecution.setVariable(\"childFlow_approvedSourceRef\", \"childRoute\")\nexecution.setVariable(\"childFlow_approvedTargetRef\", \"childApply\")\n",
+                "scope": "global",
+                "skipExpression": "",
+                "sourceRef": "childRoute",
+                "targetRef": "childApply",
+                "updatedAt": "2026-05-22T15:19:13"
+              },
+              "childFlow_rejected": {
+                "condition": "${approvalDecision != 'approve'}",
+                "documentation": "Autocorrected sequence flow from childRoute to childRejected.",
+                "elementId": "childFlow_rejected",
+                "elementName": "Rejected",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "conditional",
+                "isDefault": false,
+                "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_rejected.\n// Source: Decision route\n// Target: Rejected\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_rejected\")\nexecution.setVariable(\"childFlow_rejectedTaken\", true)\nexecution.setVariable(\"childFlow_rejectedSourceRef\", \"childRoute\")\nexecution.setVariable(\"childFlow_rejectedTargetRef\", \"childRejected\")\n",
+                "scope": "global",
+                "skipExpression": "",
+                "sourceRef": "childRoute",
+                "targetRef": "childRejected",
+                "updatedAt": "2026-05-22T15:19:13"
+              },
+              "childFlow_review_route": {
+                "condition": "",
+                "documentation": "Autocorrected sequence flow from childReview to childRoute.",
+                "elementId": "childFlow_review_route",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "isDefault": false,
+                "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_review_route.\n// Source: Review AutocorrectAndUseFinanceApprovalWorkflowZip\n// Target: Decision route\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_review_route\")\nexecution.setVariable(\"childFlow_review_routeTaken\", true)\nexecution.setVariable(\"childFlow_review_routeSourceRef\", \"childReview\")\nexecution.setVariable(\"childFlow_review_routeTargetRef\", \"childRoute\")\n",
+                "scope": "global",
+                "skipExpression": "",
+                "sourceRef": "childReview",
+                "targetRef": "childRoute",
+                "updatedAt": "2026-05-22T15:19:13"
+              },
+              "childFlow_start_review": {
+                "condition": "",
+                "documentation": "Autocorrected sequence flow from childStart to childReview.",
+                "elementId": "childFlow_start_review",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "isDefault": false,
+                "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_start_review.\n// Source: Start child workflow\n// Target: Review AutocorrectAndUseFinanceApprovalWorkflowZip\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_start_review\")\nexecution.setVariable(\"childFlow_start_reviewTaken\", true)\nexecution.setVariable(\"childFlow_start_reviewSourceRef\", \"childStart\")\nexecution.setVariable(\"childFlow_start_reviewTargetRef\", \"childReview\")\n",
+                "scope": "global",
+                "skipExpression": "",
+                "sourceRef": "childStart",
+                "targetRef": "childReview",
+                "updatedAt": "2026-05-22T15:19:13"
+              },
+              "childRejected": {
+                "documentation": "",
+                "elementId": "childRejected",
+                "elementName": "Rejected",
+                "elementType": "bpmn:EndEvent",
+                "lane": "Data Steward"
+              },
+              "childReview": {
+                "candidateGroups": "${stewardGroup}",
+                "documentation": "",
+                "elementId": "childReview",
+                "elementName": "Review AutocorrectAndUseFinanceApprovalWorkflowZip",
+                "elementType": "bpmn:UserTask",
+                "formKey": "FinanceApprovalWorkflowDecisionForm",
+                "lane": "Data Steward"
+              },
+              "childRoute": {
+                "documentation": "",
+                "elementId": "childRoute",
+                "elementName": "Decision route",
+                "elementType": "bpmn:ExclusiveGateway",
+                "lane": "Data Steward"
+              },
+              "childStart": {
+                "documentation": "",
+                "elementId": "childStart",
+                "elementName": "Start child workflow",
+                "elementType": "bpmn:StartEvent",
+                "formKey": "FinanceApprovalWorkflowDecisionForm",
+                "lane": "Requester"
+              }
+            },
+            "forms": {
+              "FinanceApprovalWorkflowDecisionForm": {
+                "fields": [
+                  {
+                    "default": null,
+                    "id": "decisionInfo",
+                    "label": "",
+                    "name": "Decision information",
+                    "readable": true,
+                    "required": false,
+                    "type": "textarea",
+                    "values": [],
+                    "writable": true
+                  },
+                  {
+                    "default": null,
+                    "id": "approvalDecision",
+                    "label": "",
+                    "name": "Approval decision",
+                    "readable": true,
+                    "required": true,
+                    "type": "dropdown",
+                    "values": [
+                      {
+                        "id": "approve",
+                        "name": "Approve"
+                      },
+                      {
+                        "id": "reject",
+                        "name": "Reject"
+                      },
+                      {
+                        "id": "rework",
+                        "name": "Rework"
+                      }
+                    ],
+                    "writable": true
+                  }
+                ],
+                "key": "FinanceApprovalWorkflowDecisionForm",
+                "name": "FinanceApprovalWorkflow Decision Form"
+              }
+            },
+            "metadata": {
+              "format": "DSC_AUTONOMOUS_AGENT_APP_V1",
+              "generator": "DSC Collibra Workflow Automation Agent",
+              "name": "FinanceApprovalWorkflow Called Workflow",
+              "processId": "FinanceApprovalWorkflow"
+            },
+            "ragContextPreview": "Question: Autocorrect and use FinanceApprovalWorkflow.zip as the caller activity source.\ncalled activity caller workflow subprocess package zip bpmn source existing OOTB workflow Groovy sequence flow condition listener\n\nRetrieved context:\n\n- score=0.333 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md kind=md\nsks and service/script tasks use the organization's standard execution variables.\n- Keep the exported ZIP, generated documentation and compile logs together as the deployment evidence package.\n\n## Retrieved RAG Context\n\nQuestion: Document the prompt-only AI generated Collibra workflow, forms, call activity, Groovy scripts, sequence-flow routing, RAG assumptions, and test evidence.\n\nRetrieved context:\n\n- score=0.325 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Upgrading_your_scripts_for_Collibra_2024.02_compatibility.md kind=md\nkflow, the running workflow continues to use the old version until it completes. If there is a Javax EE \njavax.*\n function that still needs to be executed and that is not compatible with Jakarta EE, the workflow fails.\n\nAfter you have identified and deployed the workflows that require an update, check if any of the workflows that are currently running need to be restarted:\n\nView the running workflow instances\n.\n\nDelete the workflow instance if required.\n\nRestart the updated workflow.\n\nAdditional resources\n\nCollibra Support\n\n                The \"groovy-lib\" folder\n                            \n\n                                Upgrading your scripts for Groovy 3 compatibility\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\n- score=0.305 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Workflow_dialog_boxes.md kind=md\nuest Assets Access configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n\n \nCreating workflows\n \n\n \nWorkflow basic configuration elements\n \n \n\n                Process variables\n                            \n\n                                Create a pool and lanes\n                \n\n \n\n \n\nWorkflow dialog boxes\n\nThe most common scenario for dialog boxes is when you need to provide data in a workflow start form before the workflow starts.\n\nStart forms\n\nWhen the start event of your workflow has a form reference, a dialog box appears before the start of the workflow. You must fill in the required information or accept the default values and submit them to start the workflow. If you close the dialog box instead of submitting the form, the workflow does not start. If you do not provide the required information and continue, the workflow starts but might not complete.\n\nIf you start a workflow from another workflow or via the API, you must provide the required information for the start forms with your request to start the workflow. In these cases, the workflow cannot generate a dialog box to request the information.\n\nUser tasks\n\nThere are some scenarios where the dialog boxes appear automatically for user tasks.\n\n- score=0.305 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Workflow_dialog_boxes.md kind=md\nuest Assets Access configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n\n \nCreating workflows\n \n\n \nWorkflow basic configuration elements\n \n \n\n                Process variables\n                            \n\n                                Create a pool and lanes\n                \n\n \n\n \n\nWorkflow dialog boxes\n\nThe most common scenario for dialog boxes is when you need to provide d",
+            "scripts": {
+              "childApply": {
+                "autocorrected": true,
+                "compileResults": [
+                  {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  }
+                ],
+                "elementId": "childApply",
+                "elementName": "Apply child decision",
+                "elementType": "scriptTask",
+                "generatedByAutocorrect": false,
+                "groovy": "// #importFile NONE\nexecution.setVariable('childWorkflowStatus', 'approved')\nexecution.setVariable('childWorkflowCompleted', true)",
+                "repairAttempts": [
+                  {
+                    "iteration": 0,
+                    "result": {
+                      "errorText": "",
+                      "ok": true,
+                      "skipped": false,
+                      "standards": [],
+                      "status": "passed",
+                      "stderr": "",
+                      "stdout": "",
+                      "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                    },
+                    "strategy": "initial_compile"
+                  }
+                ],
+                "scriptFormat": "groovy",
+                "source": "autonomous-agent",
+                "updatedAt": "2026-05-22T15:19:15"
+              }
+            },
+            "uuidMappings": {},
+            "validationRules": []
+          },
+          "bpmnXml": "<?xml version='1.0' encoding='utf-8'?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:dsc=\"https://dsc.local/collibra/workflows/designer\" xmlns:flowable=\"http://flowable.org/bpmn\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" id=\"FinanceApprovalWorkflow_definitions\" targetNamespace=\"https://dsc.local/collibra/workflows\">\n  <bpmn:collaboration id=\"FinanceApprovalWorkflow_collaboration\">\n    <bpmn:participant id=\"FinanceApprovalWorkflow_pool\" name=\"FinanceApprovalWorkflow Called Workflow\" processRef=\"FinanceApprovalWorkflow\" />\n  </bpmn:collaboration>\n  <bpmn:process id=\"FinanceApprovalWorkflow\" name=\"FinanceApprovalWorkflow Called Workflow\" isExecutable=\"true\">\n    <bpmn:documentation>Generated child workflow for parent prompt: Autocorrect and use FinanceApprovalWorkflow.zip as the caller activity source.</bpmn:documentation>\n    <bpmn:laneSet id=\"FinanceApprovalWorkflow_lanes\">\n      <bpmn:lane id=\"lane_Requester\" name=\"Requester\">\n        <bpmn:flowNodeRef>childStart</bpmn:flowNodeRef>\n      </bpmn:lane>\n      <bpmn:lane id=\"lane_Data_Steward\" name=\"Data Steward\">\n        <bpmn:flowNodeRef>childReview</bpmn:flowNodeRef>\n        <bpmn:flowNodeRef>childRoute</bpmn:flowNodeRef>\n        <bpmn:flowNodeRef>childRejected</bpmn:flowNodeRef>\n      </bpmn:lane>\n      <bpmn:lane id=\"lane_Collibra_Automation\" name=\"Collibra Automation\">\n        <bpmn:flowNodeRef>childApply</bpmn:flowNodeRef>\n        <bpmn:flowNodeRef>childEnd</bpmn:flowNodeRef>\n      </bpmn:lane>\n    </bpmn:laneSet>\n    <bpmn:startEvent id=\"childStart\" name=\"Start child workflow\" flowable:formKey=\"FinanceApprovalWorkflowDecisionForm\" />\n    <bpmn:userTask id=\"childReview\" name=\"Review AutocorrectAndUseFinanceApprovalWorkflowZip\" flowable:formKey=\"FinanceApprovalWorkflowDecisionForm\" flowable:candidateGroups=\"${stewardGroup}\" />\n    <bpmn:exclusiveGateway id=\"childRoute\" name=\"Decision route\" />\n    <bpmn:scriptTask id=\"childApply\" name=\"Apply child decision\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n      <bpmn:script>// #importFile NONE\nexecution.setVariable('childWorkflowStatus', 'approved')\nexecution.setVariable('childWorkflowCompleted', true)\n</bpmn:script>\n    </bpmn:scriptTask>\n    <bpmn:endEvent id=\"childRejected\" name=\"Rejected\" />\n    <bpmn:endEvent id=\"childEnd\" name=\"Completed\" />\n    <bpmn:sequenceFlow id=\"childFlow_start_review\" sourceRef=\"childStart\" targetRef=\"childReview\">\n      <bpmn:extensionElements>\n        <dsc:transitionListenerGroovy>// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_start_review.\n// Source: Start child workflow\n// Target: Review AutocorrectAndUseFinanceApprovalWorkflowZip\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_start_review\")\nexecution.setVariable(\"childFlow_start_reviewTaken\", true)\nexecution.setVariable(\"childFlow_start_reviewSourceRef\", \"childStart\")\nexecution.setVariable(\"childFlow_start_reviewTargetRef\", \"childReview\")\n</dsc:transitionListenerGroovy>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"childFlow_review_route\" sourceRef=\"childReview\" targetRef=\"childRoute\">\n      <bpmn:extensionElements>\n        <dsc:transitionListenerGroovy>// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_review_route.\n// Source: Review AutocorrectAndUseFinanceApprovalWorkflowZip\n// Target: Decision route\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_review_route\")\nexecution.setVariable(\"childFlow_review_routeTaken\", true)\nexecution.setVariable(\"childFlow_review_routeSourceRef\", \"childReview\")\nexecution.setVariable(\"childFlow_review_routeTargetRef\", \"childRoute\")\n</dsc:transitionListenerGroovy>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"childFlow_approved\" sourceRef=\"childRoute\" targetRef=\"childApply\" name=\"Approved\">\n      <bpmn:extensionElements>\n        <dsc:transitionListenerGroovy>// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_approved.\n// Source: Decision route\n// Target: Apply child decision\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_approved\")\nexecution.setVariable(\"childFlow_approvedTaken\", true)\nexecution.setVariable(\"childFlow_approvedSourceRef\", \"childRoute\")\nexecution.setVariable(\"childFlow_approvedTargetRef\", \"childApply\")\n</dsc:transitionListenerGroovy>\n      </bpmn:extensionElements>\n      <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">${approvalDecision == 'approve'}</bpmn:conditionExpression>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"childFlow_rejected\" sourceRef=\"childRoute\" targetRef=\"childRejected\" name=\"Rejected\">\n      <bpmn:extensionElements>\n        <dsc:transitionListenerGroovy>// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_rejected.\n// Source: Decision route\n// Target: Rejected\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_rejected\")\nexecution.setVariable(\"childFlow_rejectedTaken\", true)\nexecution.setVariable(\"childFlow_rejectedSourceRef\", \"childRoute\")\nexecution.setVariable(\"childFlow_rejectedTargetRef\", \"childRejected\")\n</dsc:transitionListenerGroovy>\n      </bpmn:extensionElements>\n      <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">${approvalDecision != 'approve'}</bpmn:conditionExpression>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"childFlow_apply_end\" sourceRef=\"childApply\" targetRef=\"childEnd\">\n      <bpmn:extensionElements>\n        <dsc:transitionListenerGroovy>// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_apply_end.\n// Source: Apply child decision\n// Target: Completed\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_apply_end\")\nexecution.setVariable(\"childFlow_apply_endTaken\", true)\nexecution.setVariable(\"childFlow_apply_endSourceRef\", \"childApply\")\nexecution.setVariable(\"childFlow_apply_endTargetRef\", \"childEnd\")\n</dsc:transitionListenerGroovy>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n  </bpmn:process>\n  <bpmndi:BPMNDiagram id=\"FinanceApprovalWorkflow_diagram\">\n    <bpmndi:BPMNPlane id=\"FinanceApprovalWorkflow_plane\" bpmnElement=\"FinanceApprovalWorkflow_collaboration\">\n      <bpmndi:BPMNShape id=\"FinanceApprovalWorkflow_pool_di\" bpmnElement=\"FinanceApprovalWorkflow_pool\" isHorizontal=\"true\">\n        <dc:Bounds x=\"40\" y=\"40\" width=\"1270\" height=\"590\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"lane_Requester_di\" bpmnElement=\"lane_Requester\" isHorizontal=\"true\">\n        <dc:Bounds x=\"70\" y=\"40\" width=\"1240\" height=\"170\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"lane_Data_Steward_di\" bpmnElement=\"lane_Data_Steward\" isHorizontal=\"true\">\n        <dc:Bounds x=\"70\" y=\"210\" width=\"1240\" height=\"170\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"lane_Collibra_Automation_di\" bpmnElement=\"lane_Collibra_Automation\" isHorizontal=\"true\">\n        <dc:Bounds x=\"70\" y=\"380\" width=\"1240\" height=\"170\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"childStart_di\" bpmnElement=\"childStart\">\n        <dc:Bounds x=\"140\" y=\"120\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"childReview_di\" bpmnElement=\"childReview\">\n        <dc:Bounds x=\"340\" y=\"260\" width=\"128\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"childRoute_di\" bpmnElement=\"childRoute\">\n        <dc:Bounds x=\"570\" y=\"275\" width=\"50\" height=\"50\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"childApply_di\" bpmnElement=\"childApply\">\n        <dc:Bounds x=\"760\" y=\"430\" width=\"128\" height=\"80\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"childRejected_di\" bpmnElement=\"childRejected\">\n        <dc:Bounds x=\"790\" y=\"275\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape id=\"childEnd_di\" bpmnElement=\"childEnd\">\n        <dc:Bounds x=\"1010\" y=\"452\" width=\"36\" height=\"36\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge id=\"childFlow_start_review_di\" bpmnElement=\"childFlow_start_review\">\n        <di:waypoint x=\"176\" y=\"138\" />\n        <di:waypoint x=\"258\" y=\"138\" />\n        <di:waypoint x=\"258\" y=\"300\" />\n        <di:waypoint x=\"340\" y=\"300\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"childFlow_review_route_di\" bpmnElement=\"childFlow_review_route\">\n        <di:waypoint x=\"468\" y=\"300\" />\n        <di:waypoint x=\"570\" y=\"300\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"childFlow_approved_di\" bpmnElement=\"childFlow_approved\">\n        <di:waypoint x=\"620\" y=\"300\" />\n        <di:waypoint x=\"690\" y=\"300\" />\n        <di:waypoint x=\"690\" y=\"470\" />\n        <di:waypoint x=\"760\" y=\"470\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"childFlow_rejected_di\" bpmnElement=\"childFlow_rejected\">\n        <di:waypoint x=\"620\" y=\"300\" />\n        <di:waypoint x=\"705\" y=\"300\" />\n        <di:waypoint x=\"705\" y=\"293\" />\n        <di:waypoint x=\"790\" y=\"293\" />\n      </bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge id=\"childFlow_apply_end_di\" bpmnElement=\"childFlow_apply_end\">\n        <di:waypoint x=\"888\" y=\"470\" />\n        <di:waypoint x=\"1010\" y=\"470\" />\n      </bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>",
+          "forms": {
+            "FinanceApprovalWorkflowDecisionForm": {
+              "fields": [
+                {
+                  "default": null,
+                  "id": "decisionInfo",
+                  "label": "",
+                  "name": "Decision information",
+                  "readable": true,
+                  "required": false,
+                  "type": "textarea",
+                  "values": [],
+                  "writable": true
+                },
+                {
+                  "default": null,
+                  "id": "approvalDecision",
+                  "label": "",
+                  "name": "Approval decision",
+                  "readable": true,
+                  "required": true,
+                  "type": "dropdown",
+                  "values": [
+                    {
+                      "id": "approve",
+                      "name": "Approve"
+                    },
+                    {
+                      "id": "reject",
+                      "name": "Reject"
+                    },
+                    {
+                      "id": "rework",
+                      "name": "Rework"
+                    }
+                  ],
+                  "writable": true
+                }
+              ],
+              "key": "FinanceApprovalWorkflowDecisionForm",
+              "name": "FinanceApprovalWorkflow Decision Form"
+            }
+          },
+          "generated": true,
+          "key": "FinanceApprovalWorkflow",
+          "name": "FinanceApprovalWorkflow Called Workflow",
+          "parameterProfile": {
+            "availableVariables": [
+              "approvalDecision",
+              "approve",
+              "childFlow_apply_endSourceRef",
+              "childFlow_apply_endTaken",
+              "childFlow_apply_endTargetRef",
+              "childFlow_approvedSourceRef",
+              "childFlow_approvedTaken",
+              "childFlow_approvedTargetRef",
+              "childFlow_rejectedSourceRef",
+              "childFlow_rejectedTaken",
+              "childFlow_rejectedTargetRef",
+              "childFlow_review_routeSourceRef",
+              "childFlow_review_routeTaken",
+              "childFlow_review_routeTargetRef",
+              "childFlow_start_reviewSourceRef",
+              "childFlow_start_reviewTaken",
+              "childFlow_start_reviewTargetRef",
+              "childWorkflowCompleted",
+              "childWorkflowStatus",
+              "decisionInfo",
+              "lastSequenceFlowId",
+              "stewardGroup"
+            ],
+            "formFields": [
+              "approvalDecision",
+              "decisionInfo"
+            ],
+            "formKeys": [
+              "FinanceApprovalWorkflowDecisionForm"
+            ],
+            "inputVariables": [
+              "approvalDecision",
+              "approve",
+              "decisionInfo",
+              "stewardGroup"
+            ],
+            "outputVariables": [
+              "childFlow_apply_endSourceRef",
+              "childFlow_apply_endTaken",
+              "childFlow_apply_endTargetRef",
+              "childFlow_approvedSourceRef",
+              "childFlow_approvedTaken",
+              "childFlow_approvedTargetRef",
+              "childFlow_rejectedSourceRef",
+              "childFlow_rejectedTaken",
+              "childFlow_rejectedTargetRef",
+              "childFlow_review_routeSourceRef",
+              "childFlow_review_routeTaken",
+              "childFlow_review_routeTargetRef",
+              "childFlow_start_reviewSourceRef",
+              "childFlow_start_reviewTaken",
+              "childFlow_start_reviewTargetRef",
+              "childWorkflowCompleted",
+              "childWorkflowStatus",
+              "lastSequenceFlowId"
+            ]
+          },
+          "processKey": "FinanceApprovalWorkflow",
+          "quality": {
+            "blockingIssues": [],
+            "iterations": [
+              {
+                "calledWorkflowResults": [],
+                "changed": false,
+                "compileResults": {
+                  "childApply": {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  }
+                },
+                "formIssues": [],
+                "iteration": 1,
+                "listenerCompileResults": {
+                  "childFlow_apply_end": {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  },
+                  "childFlow_approved": {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  },
+                  "childFlow_rejected": {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  },
+                  "childFlow_review_route": {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  },
+                  "childFlow_start_review": {
+                    "errorText": "",
+                    "ok": true,
+                    "skipped": false,
+                    "standards": [],
+                    "status": "passed",
+                    "stderr": "",
+                    "stdout": "",
+                    "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                  }
+                },
+                "missingScriptIssues": [],
+                "structuralErrors": []
+              }
+            ],
+            "message": "Autonomous package test passed. Pass rate 100.0% (18/18 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+            "metrics": {
+              "failedChecks": 0,
+              "passPercent": 100.0,
+              "passedChecks": 18,
+              "totalChecks": 18
+            },
+            "ok": true,
+            "repairedAppModel": {
+              "elementProperties": {
+                "childApply": {
+                  "documentation": "",
+                  "elementId": "childApply",
+                  "elementName": "Apply child decision",
+                  "elementType": "bpmn:ScriptTask",
+                  "lane": "Collibra Automation",
+                  "scriptFormat": "groovy"
+                },
+                "childEnd": {
+                  "documentation": "",
+                  "elementId": "childEnd",
+                  "elementName": "Completed",
+                  "elementType": "bpmn:EndEvent",
+                  "lane": "Collibra Automation"
+                },
+                "childFlow_apply_end": {
+                  "condition": "",
+                  "documentation": "Autocorrected sequence flow from childApply to childEnd.",
+                  "elementId": "childFlow_apply_end",
+                  "elementName": "",
+                  "elementType": "bpmn:SequenceFlow",
+                  "execution": "gateway-condition",
+                  "flowType": "normal",
+                  "isDefault": false,
+                  "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_apply_end.\n// Source: Apply child decision\n// Target: Completed\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_apply_end\")\nexecution.setVariable(\"childFlow_apply_endTaken\", true)\nexecution.setVariable(\"childFlow_apply_endSourceRef\", \"childApply\")\nexecution.setVariable(\"childFlow_apply_endTargetRef\", \"childEnd\")\n",
+                  "scope": "global",
+                  "skipExpression": "",
+                  "sourceRef": "childApply",
+                  "targetRef": "childEnd",
+                  "updatedAt": "2026-05-22T15:19:13"
+                },
+                "childFlow_approved": {
+                  "condition": "${approvalDecision == 'approve'}",
+                  "documentation": "Autocorrected sequence flow from childRoute to childApply.",
+                  "elementId": "childFlow_approved",
+                  "elementName": "Approved",
+                  "elementType": "bpmn:SequenceFlow",
+                  "execution": "gateway-condition",
+                  "flowType": "conditional",
+                  "isDefault": false,
+                  "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_approved.\n// Source: Decision route\n// Target: Apply child decision\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_approved\")\nexecution.setVariable(\"childFlow_approvedTaken\", true)\nexecution.setVariable(\"childFlow_approvedSourceRef\", \"childRoute\")\nexecution.setVariable(\"childFlow_approvedTargetRef\", \"childApply\")\n",
+                  "scope": "global",
+                  "skipExpression": "",
+                  "sourceRef": "childRoute",
+                  "targetRef": "childApply",
+                  "updatedAt": "2026-05-22T15:19:13"
+                },
+                "childFlow_rejected": {
+                  "condition": "${approvalDecision != 'approve'}",
+                  "documentation": "Autocorrected sequence flow from childRoute to childRejected.",
+                  "elementId": "childFlow_rejected",
+                  "elementName": "Rejected",
+                  "elementType": "bpmn:SequenceFlow",
+                  "execution": "gateway-condition",
+                  "flowType": "conditional",
+                  "isDefault": false,
+                  "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_rejected.\n// Source: Decision route\n// Target: Rejected\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_rejected\")\nexecution.setVariable(\"childFlow_rejectedTaken\", true)\nexecution.setVariable(\"childFlow_rejectedSourceRef\", \"childRoute\")\nexecution.setVariable(\"childFlow_rejectedTargetRef\", \"childRejected\")\n",
+                  "scope": "global",
+                  "skipExpression": "",
+                  "sourceRef": "childRoute",
+                  "targetRef": "childRejected",
+                  "updatedAt": "2026-05-22T15:19:13"
+                },
+                "childFlow_review_route": {
+                  "condition": "",
+                  "documentation": "Autocorrected sequence flow from childReview to childRoute.",
+                  "elementId": "childFlow_review_route",
+                  "elementName": "",
+                  "elementType": "bpmn:SequenceFlow",
+                  "execution": "gateway-condition",
+                  "flowType": "normal",
+                  "isDefault": false,
+                  "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_review_route.\n// Source: Review AutocorrectAndUseFinanceApprovalWorkflowZip\n// Target: Decision route\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_review_route\")\nexecution.setVariable(\"childFlow_review_routeTaken\", true)\nexecution.setVariable(\"childFlow_review_routeSourceRef\", \"childReview\")\nexecution.setVariable(\"childFlow_review_routeTargetRef\", \"childRoute\")\n",
+                  "scope": "global",
+                  "skipExpression": "",
+                  "sourceRef": "childReview",
+                  "targetRef": "childRoute",
+                  "updatedAt": "2026-05-22T15:19:13"
+                },
+                "childFlow_start_review": {
+                  "condition": "",
+                  "documentation": "Autocorrected sequence flow from childStart to childReview.",
+                  "elementId": "childFlow_start_review",
+                  "elementName": "",
+                  "elementType": "bpmn:SequenceFlow",
+                  "execution": "gateway-condition",
+                  "flowType": "normal",
+                  "isDefault": false,
+                  "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow childFlow_start_review.\n// Source: Start child workflow\n// Target: Review AutocorrectAndUseFinanceApprovalWorkflowZip\nexecution.setVariable(\"lastSequenceFlowId\", \"childFlow_start_review\")\nexecution.setVariable(\"childFlow_start_reviewTaken\", true)\nexecution.setVariable(\"childFlow_start_reviewSourceRef\", \"childStart\")\nexecution.setVariable(\"childFlow_start_reviewTargetRef\", \"childReview\")\n",
+                  "scope": "global",
+                  "skipExpression": "",
+                  "sourceRef": "childStart",
+                  "targetRef": "childReview",
+                  "updatedAt": "2026-05-22T15:19:13"
+                },
+                "childRejected": {
+                  "documentation": "",
+                  "elementId": "childRejected",
+                  "elementName": "Rejected",
+                  "elementType": "bpmn:EndEvent",
+                  "lane": "Data Steward"
+                },
+                "childReview": {
+                  "candidateGroups": "${stewardGroup}",
+                  "documentation": "",
+                  "elementId": "childReview",
+                  "elementName": "Review AutocorrectAndUseFinanceApprovalWorkflowZip",
+                  "elementType": "bpmn:UserTask",
+                  "formKey": "FinanceApprovalWorkflowDecisionForm",
+                  "lane": "Data Steward"
+                },
+                "childRoute": {
+                  "documentation": "",
+                  "elementId": "childRoute",
+                  "elementName": "Decision route",
+                  "elementType": "bpmn:ExclusiveGateway",
+                  "lane": "Data Steward"
+                },
+                "childStart": {
+                  "documentation": "",
+                  "elementId": "childStart",
+                  "elementName": "Start child workflow",
+                  "elementType": "bpmn:StartEvent",
+                  "formKey": "FinanceApprovalWorkflowDecisionForm",
+                  "lane": "Requester"
+                }
+              },
+              "forms": {
+                "FinanceApprovalWorkflowDecisionForm": {
+                  "fields": [
+                    {
+                      "default": null,
+                      "id": "decisionInfo",
+                      "label": "",
+                      "name": "Decision information",
+                      "readable": true,
+                      "required": false,
+                      "type": "textarea",
+                      "values": [],
+                      "writable": true
+                    },
+                    {
+                      "default": null,
+                      "id": "approvalDecision",
+                      "label": "",
+                      "name": "Approval decision",
+                      "readable": true,
+                      "required": true,
+                      "type": "dropdown",
+                      "values": [
+                        {
+                          "id": "approve",
+                          "name": "Approve"
+                        },
+                        {
+                          "id": "reject",
+                          "name": "Reject"
+                        },
+                        {
+                          "id": "rework",
+                          "name": "Rework"
+                        }
+                      ],
+                      "writable": true
+                    }
+                  ],
+                  "key": "FinanceApprovalWorkflowDecisionForm",
+                  "name": "FinanceApprovalWorkflow Decision Form"
+                }
+              },
+              "metadata": {
+                "format": "DSC_AUTONOMOUS_AGENT_APP_V1",
+                "generator": "DSC Collibra Workflow Automation Agent",
+                "name": "FinanceApprovalWorkflow Called Workflow",
+                "processId": "FinanceApprovalWorkflow"
+              },
+              "ragContextPreview": "Question: Autocorrect and use FinanceApprovalWorkflow.zip as the caller activity source.\ncalled activity caller workflow subprocess package zip bpmn source existing OOTB workflow Groovy sequence flow condition listener\n\nRetrieved context:\n\n- score=0.333 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md kind=md\nsks and service/script tasks use the organization's standard execution variables.\n- Keep the exported ZIP, generated documentation and compile logs together as the deployment evidence package.\n\n## Retrieved RAG Context\n\nQuestion: Document the prompt-only AI generated Collibra workflow, forms, call activity, Groovy scripts, sequence-flow routing, RAG assumptions, and test evidence.\n\nRetrieved context:\n\n- score=0.325 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Upgrading_your_scripts_for_Collibra_2024.02_compatibility.md kind=md\nkflow, the running workflow continues to use the old version until it completes. If there is a Javax EE \njavax.*\n function that still needs to be executed and that is not compatible with Jakarta EE, the workflow fails.\n\nAfter you have identified and deployed the workflows that require an update, check if any of the workflows that are currently running need to be restarted:\n\nView the running workflow instances\n.\n\nDelete the workflow instance if required.\n\nRestart the updated workflow.\n\nAdditional resources\n\nCollibra Support\n\n                The \"groovy-lib\" folder\n                            \n\n                                Upgrading your scripts for Groovy 3 compatibility\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\n- score=0.305 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Workflow_dialog_boxes.md kind=md\nuest Assets Access configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n\n \nCreating workflows\n \n\n \nWorkflow basic configuration elements\n \n \n\n                Process variables\n                            \n\n                                Create a pool and lanes\n                \n\n \n\n \n\nWorkflow dialog boxes\n\nThe most common scenario for dialog boxes is when you need to provide data in a workflow start form before the workflow starts.\n\nStart forms\n\nWhen the start event of your workflow has a form reference, a dialog box appears before the start of the workflow. You must fill in the required information or accept the default values and submit them to start the workflow. If you close the dialog box instead of submitting the form, the workflow does not start. If you do not provide the required information and continue, the workflow starts but might not complete.\n\nIf you start a workflow from another workflow or via the API, you must provide the required information for the start forms with your request to start the workflow. In these cases, the workflow cannot generate a dialog box to request the information.\n\nUser tasks\n\nThere are some scenarios where the dialog boxes appear automatically for user tasks.\n\n- score=0.305 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Workflow_dialog_boxes.md kind=md\nuest Assets Access configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n\n \nCreating workflows\n \n\n \nWorkflow basic configuration elements\n \n \n\n                Process variables\n                            \n\n                                Create a pool and lanes\n                \n\n \n\n \n\nWorkflow dialog boxes\n\nThe most common scenario for dialog boxes is when you need to provide d",
+              "scripts": {
+                "childApply": {
+                  "autocorrected": true,
+                  "compileResults": [
+                    {
+                      "errorText": "",
+                      "ok": true,
+                      "skipped": false,
+                      "standards": [],
+                      "status": "passed",
+                      "stderr": "",
+                      "stdout": "",
+                      "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                    }
+                  ],
+                  "elementId": "childApply",
+                  "elementName": "Apply child decision",
+                  "elementType": "scriptTask",
+                  "generatedByAutocorrect": false,
+                  "groovy": "// #importFile NONE\nexecution.setVariable('childWorkflowStatus', 'approved')\nexecution.setVariable('childWorkflowCompleted', true)",
+                  "repairAttempts": [
+                    {
+                      "iteration": 0,
+                      "result": {
+                        "errorText": "",
+                        "ok": true,
+                        "skipped": false,
+                        "standards": [],
+                        "status": "passed",
+                        "stderr": "",
+                        "stdout": "",
+                        "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                      },
+                      "strategy": "initial_compile"
+                    }
+                  ],
+                  "scriptFormat": "groovy",
+                  "source": "autonomous-agent",
+                  "updatedAt": "2026-05-22T15:19:15"
+                }
+              },
+              "uuidMappings": {},
+              "validationRules": []
+            },
+            "status": "passed",
+            "summary": {
+              "blockingIssues": 0,
+              "calledWorkflows": 0,
+              "flows": 5,
+              "forms": 1,
+              "iterations": 1,
+              "nodes": 6,
+              "passPercent": 100.0,
+              "processId": "FinanceApprovalWorkflow",
+              "scripts": 1
+            },
+            "summaryText": "Autonomous package test passed. Pass rate 100.0% (18/18 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+          },
+          "sourceName": "FinanceApprovalWorkflow.zip"
+        }
+      },
+      "elementProperties": {
+        "callProvisioning": {
+          "calledElement": "FinanceApprovalWorkflow",
+          "calledElementType": "key",
+          "calledWorkflowGenerated": true,
+          "calledWorkflowParameters": {
+            "availableParentVariables": [
+              "scriptCompleted"
+            ],
+            "formKeys": [
+              "FinanceApprovalWorkflowDecisionForm"
+            ],
+            "inputs": [
+              {
+                "sourceExpression": "${approvalDecision}",
+                "target": "approvalDecision"
+              },
+              {
+                "sourceExpression": "${approve}",
+                "target": "approve"
+              },
+              {
+                "sourceExpression": "${decisionInfo}",
+                "target": "decisionInfo"
+              },
+              {
+                "sourceExpression": "${stewardGroup}",
+                "target": "stewardGroup"
+              }
+            ],
+            "outputs": [
+              {
+                "source": "childFlow_apply_endSourceRef",
+                "target": "childFlow_apply_endSourceRef"
+              },
+              {
+                "source": "childFlow_apply_endTaken",
+                "target": "childFlow_apply_endTaken"
+              },
+              {
+                "source": "childFlow_apply_endTargetRef",
+                "target": "childFlow_apply_endTargetRef"
+              },
+              {
+                "source": "childFlow_approvedSourceRef",
+                "target": "childFlow_approvedSourceRef"
+              },
+              {
+                "source": "childFlow_approvedTaken",
+                "target": "childFlow_approvedTaken"
+              },
+              {
+                "source": "childFlow_approvedTargetRef",
+                "target": "childFlow_approvedTargetRef"
+              },
+              {
+                "source": "childFlow_rejectedSourceRef",
+                "target": "childFlow_rejectedSourceRef"
+              },
+              {
+                "source": "childFlow_rejectedTaken",
+                "target": "childFlow_rejectedTaken"
+              },
+              {
+                "source": "childFlow_rejectedTargetRef",
+                "target": "childFlow_rejectedTargetRef"
+              },
+              {
+                "source": "childFlow_review_routeSourceRef",
+                "target": "childFlow_review_routeSourceRef"
+              },
+              {
+                "source": "childFlow_review_routeTaken",
+                "target": "childFlow_review_routeTaken"
+              },
+              {
+                "source": "childFlow_review_routeTargetRef",
+                "target": "childFlow_review_routeTargetRef"
+              },
+              {
+                "source": "childFlow_start_reviewSourceRef",
+                "target": "childFlow_start_reviewSourceRef"
+              },
+              {
+                "source": "childFlow_start_reviewTaken",
+                "target": "childFlow_start_reviewTaken"
+              },
+              {
+                "source": "childFlow_start_reviewTargetRef",
+                "target": "childFlow_start_reviewTargetRef"
+              },
+              {
+                "source": "childWorkflowCompleted",
+                "target": "childWorkflowCompleted"
+              },
+              {
+                "source": "childWorkflowStatus",
+                "target": "childWorkflowStatus"
+              },
+              {
+                "source": "lastSequenceFlowId",
+                "target": "lastSequenceFlowId"
+              }
+            ],
+            "producedOutputs": [
+              "childFlow_apply_endSourceRef",
+              "childFlow_apply_endTaken",
+              "childFlow_apply_endTargetRef",
+              "childFlow_approvedSourceRef",
+              "childFlow_approvedTaken",
+              "childFlow_approvedTargetRef",
+              "childFlow_rejectedSourceRef",
+              "childFlow_rejectedTaken",
+              "childFlow_rejectedTargetRef",
+              "childFlow_review_routeSourceRef",
+              "childFlow_review_routeTaken",
+              "childFlow_review_routeTargetRef",
+              "childFlow_start_reviewSourceRef",
+              "childFlow_start_reviewTaken",
+              "childFlow_start_reviewTargetRef",
+              "childWorkflowCompleted",
+              "childWorkflowStatus",
+              "lastSequenceFlowId"
+            ],
+            "requiredInputs": [
+              "approvalDecision",
+              "approve",
+              "decisionInfo",
+              "stewardGroup"
+            ],
+            "warnings": [
+              "Input `approvalDecision` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `approve` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `decisionInfo` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `stewardGroup` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution."
+            ]
+          },
+          "calledWorkflowSource": "FinanceApprovalWorkflow.zip",
+          "documentation": "Stitched to workflow `FinanceApprovalWorkflow` from `FinanceApprovalWorkflow.zip`. Mapped 4 input parameter(s) and 18 output parameter(s).",
+          "fallbackToDefaultTenant": "true",
+          "inheritVariables": "true",
+          "inputs": [
+            {
+              "sourceExpression": "${approvalDecision}",
+              "target": "approvalDecision"
+            },
+            {
+              "sourceExpression": "${approve}",
+              "target": "approve"
+            },
+            {
+              "sourceExpression": "${decisionInfo}",
+              "target": "decisionInfo"
+            },
+            {
+              "sourceExpression": "${stewardGroup}",
+              "target": "stewardGroup"
+            }
+          ],
+          "outputs": [
+            {
+              "source": "childFlow_apply_endSourceRef",
+              "target": "childFlow_apply_endSourceRef"
+            },
+            {
+              "source": "childFlow_apply_endTaken",
+              "target": "childFlow_apply_endTaken"
+            },
+            {
+              "source": "childFlow_apply_endTargetRef",
+              "target": "childFlow_apply_endTargetRef"
+            },
+            {
+              "source": "childFlow_approvedSourceRef",
+              "target": "childFlow_approvedSourceRef"
+            },
+            {
+              "source": "childFlow_approvedTaken",
+              "target": "childFlow_approvedTaken"
+            },
+            {
+              "source": "childFlow_approvedTargetRef",
+              "target": "childFlow_approvedTargetRef"
+            },
+            {
+              "source": "childFlow_rejectedSourceRef",
+              "target": "childFlow_rejectedSourceRef"
+            },
+            {
+              "source": "childFlow_rejectedTaken",
+              "target": "childFlow_rejectedTaken"
+            },
+            {
+              "source": "childFlow_rejectedTargetRef",
+              "target": "childFlow_rejectedTargetRef"
+            },
+            {
+              "source": "childFlow_review_routeSourceRef",
+              "target": "childFlow_review_routeSourceRef"
+            },
+            {
+              "source": "childFlow_review_routeTaken",
+              "target": "childFlow_review_routeTaken"
+            },
+            {
+              "source": "childFlow_review_routeTargetRef",
+              "target": "childFlow_review_routeTargetRef"
+            },
+            {
+              "source": "childFlow_start_reviewSourceRef",
+              "target": "childFlow_start_reviewSourceRef"
+            },
+            {
+              "source": "childFlow_start_reviewTaken",
+              "target": "childFlow_start_reviewTaken"
+            },
+            {
+              "source": "childFlow_start_reviewTargetRef",
+              "target": "childFlow_start_reviewTargetRef"
+            },
+            {
+              "source": "childWorkflowCompleted",
+              "target": "childWorkflowCompleted"
+            },
+            {
+              "source": "childWorkflowStatus",
+              "target": "childWorkflowStatus"
+            },
+            {
+              "source": "lastSequenceFlowId",
+              "target": "lastSequenceFlowId"
+            }
+          ],
+          "sameDeployment": "true",
+          "updatedAt": "2026-05-22T15:19:23"
+        },
+        "flow_approved": {
+          "condition": "${approvalDecision == 'approve'}",
+          "documentation": "Autocorrected sequence flow from route to callProvisioning.",
+          "execution": "gateway-condition",
+          "flowType": "conditional",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow_approved.\n// Source: Approved?\n// Target: Call provisioning workflow\nexecution.setVariable(\"lastSequenceFlowId\", \"flow_approved\")\nexecution.setVariable(\"flow_approvedTaken\", true)\nexecution.setVariable(\"flow_approvedSourceRef\", \"route\")\nexecution.setVariable(\"flow_approvedTargetRef\", \"callProvisioning\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:19:23"
+        },
+        "flow_call_end": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from callProvisioning to end.",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow_call_end.\n// Source: Call provisioning workflow\n// Target: Complete\nexecution.setVariable(\"lastSequenceFlowId\", \"flow_call_end\")\nexecution.setVariable(\"flow_call_endTaken\", true)\nexecution.setVariable(\"flow_call_endSourceRef\", \"callProvisioning\")\nexecution.setVariable(\"flow_call_endTargetRef\", \"end\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:19:23"
+        },
+        "flow_rejected": {
+          "condition": "${approvalDecision != 'approve'}",
+          "documentation": "Autocorrected sequence flow from route to rejected.",
+          "execution": "gateway-condition",
+          "flowType": "conditional",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow_rejected.\n// Source: Approved?\n// Target: Rejected\nexecution.setVariable(\"lastSequenceFlowId\", \"flow_rejected\")\nexecution.setVariable(\"flow_rejectedTaken\", true)\nexecution.setVariable(\"flow_rejectedSourceRef\", \"route\")\nexecution.setVariable(\"flow_rejectedTargetRef\", \"rejected\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:19:23"
+        },
+        "flow_review_script": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from review to script.",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow_review_script.\n// Source: Approval Review\n// Target: Prepare payload\nexecution.setVariable(\"lastSequenceFlowId\", \"flow_review_script\")\nexecution.setVariable(\"flow_review_scriptTaken\", true)\nexecution.setVariable(\"flow_review_scriptSourceRef\", \"review\")\nexecution.setVariable(\"flow_review_scriptTargetRef\", \"script\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:19:23"
+        },
+        "flow_script_route": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from script to route.",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow_script_route.\n// Source: Prepare payload\n// Target: Approved?\nexecution.setVariable(\"lastSequenceFlowId\", \"flow_script_route\")\nexecution.setVariable(\"flow_script_routeTaken\", true)\nexecution.setVariable(\"flow_script_routeSourceRef\", \"script\")\nexecution.setVariable(\"flow_script_routeTargetRef\", \"route\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:19:23"
+        },
+        "flow_start_review": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from start to review.",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow_start_review.\n// Source: Start\n// Target: Approval Review\nexecution.setVariable(\"lastSequenceFlowId\", \"flow_start_review\")\nexecution.setVariable(\"flow_start_reviewTaken\", true)\nexecution.setVariable(\"flow_start_reviewSourceRef\", \"start\")\nexecution.setVariable(\"flow_start_reviewTargetRef\", \"review\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:19:23"
+        }
+      },
+      "metadata": {
+        "name": "Caller Repair Workflow",
+        "with_timestamp": "20260522_151912"
+      },
+      "scripts": {
+        "script": {
+          "autocorrected": true,
+          "compileResults": [
+            {
+              "errorText": "",
+              "ok": true,
+              "skipped": false,
+              "standards": [],
+              "status": "passed",
+              "stderr": "",
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+            }
+          ],
+          "elementName": "Prepare payload",
+          "elementType": "scriptTask",
+          "generatedByAutocorrect": true,
+          "groovy": "// #importFile NONE\n\n// Generated for BPMN element: script\n// Prompt: Autocorrect and use FinanceApprovalWorkflow.zip as the caller activity source.\n// Retrieved Collibra context is available in the AI console response. UUID values must come from forms, config, or RAG mappings.\n\nexecution.setVariable('scriptCompleted', true)\nloggerApi.info('Completed workflow step script')\n",
+          "repairAttempts": [
+            {
+              "iteration": 0,
+              "result": {
+                "errorText": "",
+                "ok": true,
+                "skipped": false,
+                "standards": [],
+                "status": "passed",
+                "stderr": "",
+                "stdout": "",
+                "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+              },
+              "strategy": "initial_compile"
+            }
+          ],
+          "updatedAt": "2026-05-22T15:19:25"
+        }
+      }
+    },
+    "status": "passed",
+    "summary": {
+      "blockingIssues": 0,
+      "calledWorkflows": 1,
+      "flows": 6,
+      "forms": 0,
+      "iterations": 1,
+      "nodes": 7,
+      "passPercent": 100.0,
+      "processId": "callerRepairWorkflow",
+      "scripts": 1
+    },
+    "summaryText": "Autonomous package test passed. Pass rate 100.0% (38/38 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+  },
+  "relatedPackagePaths": [
+    "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_autocorrect_repair_with_timestamp_20260522_151912__called__FinanceApprovalWorkflow.zip"
+  ],
+  "status": "passed",
+  "timestamp": "20260522_151912",
+  "trace": [
+    {
+      "processKey": "FinanceApprovalWorkflow",
+      "source": "FinanceApprovalWorkflow.zip",
+      "status": "completed",
+      "step": "called_workflow_generate"
+    },
+    {
+      "calledElement": "FinanceApprovalWorkflow",
+      "elementId": "callProvisioning",
+      "generated": true,
+      "inputs": 4,
+      "outputs": 18,
+      "source": "FinanceApprovalWorkflow.zip",
+      "status": "completed",
+      "step": "call_activity_stitch",
+      "warnings": [
+        "Input `approvalDecision` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `approve` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `decisionInfo` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `stewardGroup` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution."
+      ]
+    },
+    {
+      "condition": "",
+      "elementId": "flow_start_review",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "",
+      "elementId": "flow_review_script",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "",
+      "elementId": "flow_script_route",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "${approvalDecision == 'approve'}",
+      "elementId": "flow_approved",
+      "flowType": "conditional",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "${approvalDecision != 'approve'}",
+      "elementId": "flow_rejected",
+      "flowType": "conditional",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "",
+      "elementId": "flow_call_end",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "attempts": 1,
+      "elementId": "script",
+      "generated": true,
+      "status": "passed",
+      "step": "script_task_autocorrect"
+    }
+  ],
+  "zipPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_autocorrect_repair_with_timestamp_20260522_151912.zip"
+}

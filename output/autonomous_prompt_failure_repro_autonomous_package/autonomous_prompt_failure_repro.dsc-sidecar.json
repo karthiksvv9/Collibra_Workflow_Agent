@@ -1,0 +1,251 @@
+{
+  "elementProperties": {
+    "applyMetadata": {
+      "documentation": "Create or update Collibra metadata and optional relation using Java API v2 builders.",
+      "elementId": "applyMetadata",
+      "elementName": "Apply metadata changes",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "approvalGateway": {
+      "documentation": "",
+      "elementId": "approvalGateway",
+      "elementName": "Approved?",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Data Steward"
+    },
+    "flow_apply_success": {
+      "condition": "",
+      "elementId": "flow_apply_success",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "applyMetadata",
+      "targetRef": "successEnd"
+    },
+    "flow_gateway_apply": {
+      "condition": "${approvalDecision == 'approve'}",
+      "elementId": "flow_gateway_apply",
+      "elementName": "Approve",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "approvalGateway",
+      "targetRef": "applyMetadata"
+    },
+    "flow_gateway_reject": {
+      "condition": "${approvalDecision != 'approve'}",
+      "elementId": "flow_gateway_reject",
+      "elementName": "Reject",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "approvalGateway",
+      "targetRef": "rejectedEnd"
+    },
+    "flow_review_gateway": {
+      "condition": "",
+      "elementId": "flow_review_gateway",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "reviewRequest",
+      "targetRef": "approvalGateway"
+    },
+    "flow_start_validate": {
+      "condition": "",
+      "elementId": "flow_start_validate",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "start",
+      "targetRef": "validateRequest"
+    },
+    "flow_validate_review": {
+      "condition": "",
+      "elementId": "flow_validate_review",
+      "elementName": "",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "validateRequest",
+      "targetRef": "reviewRequest"
+    },
+    "rejectedEnd": {
+      "documentation": "",
+      "elementId": "rejectedEnd",
+      "elementName": "Rejected",
+      "elementType": "bpmn:EndEvent",
+      "lane": "Requester"
+    },
+    "reviewRequest": {
+      "candidateGroups": "${stewardGroup}",
+      "documentation": "Review generated metadata changes before execution.",
+      "elementId": "reviewRequest",
+      "elementName": "Steward review",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateACollibraGovernedAssetWorkflowStartForm",
+      "lane": "Data Steward"
+    },
+    "start": {
+      "documentation": "Collect configuration and request data.",
+      "elementId": "start",
+      "elementName": "Start request",
+      "elementType": "bpmn:StartEvent",
+      "formKey": "CreateACollibraGovernedAssetWorkflowStartForm",
+      "lane": "Requester"
+    },
+    "successEnd": {
+      "documentation": "",
+      "elementId": "successEnd",
+      "elementName": "Completed",
+      "elementType": "bpmn:EndEvent",
+      "lane": "Requester"
+    },
+    "validateRequest": {
+      "documentation": "Validate required variables and normalize UUIDs.",
+      "elementId": "validateRequest",
+      "elementName": "Validate request",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    }
+  },
+  "forms": {
+    "CreateACollibraGovernedAssetWorkflowStartForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "assetName",
+          "label": "",
+          "name": "Asset name",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "domainId",
+          "label": "",
+          "name": "Domain UUID",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "assetTypePublicId",
+          "label": "",
+          "name": "Asset type public ID",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "relationSourceId",
+          "label": "",
+          "name": "Relation source UUID",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "relationTargetId",
+          "label": "",
+          "name": "Relation target UUID",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "relationTypePublicId",
+          "label": "",
+          "name": "Relation type public ID",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "approvalDecision",
+          "label": "",
+          "name": "Approval decision",
+          "readable": true,
+          "required": false,
+          "type": "enum",
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ],
+          "writable": true
+        }
+      ],
+      "key": "CreateACollibraGovernedAssetWorkflowStartForm",
+      "name": "Workflow Request"
+    }
+  },
+  "metadata": {
+    "format": "DSC_AUTONOMOUS_AGENT_APP_V1",
+    "generator": "DSC Collibra Workflow Automation Agent",
+    "name": "Create A Collibra Governed Asset Intake Workflow With",
+    "processId": "CreateACollibraGovernedAssetWorkflow"
+  },
+  "ragContextPreview": "Question: Create a Collibra governed asset intake workflow with steward approval, conditional rejection, one automation script, requester notification, forms, and production-ready package. Collibra workflow BPMN forms Groovy Java API v2 relation UUID roles organization standards OOTB workflow\n\nRetrieved context:\n\n- score=0.561 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-ai-complex-workflow-final.zip kind=zip\n# Workflow ZIP: prompt-driven-ai-complex-workflow-final.zip\n\n## BPMN/XML: workflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.543 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt_driven_ai_complex_workflow.zip kind=zip\n# Workflow ZIP: prompt_driven_ai_complex_workflow.zip\n\n## BPMN/XML: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.483 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt_driven_ai_complex_workflow.zip kind=zip\nned Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\nprocess: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow isExecutable=true name=Create A Production Collibra Governed Access And Policy Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions,",
+  "scripts": {
+    "applyMetadata": {
+      "elementId": "applyMetadata",
+      "elementName": "Apply metadata changes",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\nimport com.collibra.dgc.core.api.dto.instance.asset.AddAssetRequest\nimport com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest\n\nString assetName = execution.getVariable(\"assetNameNormalized\") as String\nString domainIdText = execution.getVariable(\"domainIdNormalized\") as String\nString assetTypePublicId = execution.getVariable(\"assetTypePublicIdNormalized\") as String\n\nAddAssetRequest addAssetRequest = AddAssetRequest.builder()\n    .name(assetName)\n    .displayName(assetName)\n    .domainId(string2Uuid(domainIdText))\n    .typePublicId(assetTypePublicId)\n    .build()\n\ndef asset = assetApi.addAsset(addAssetRequest)\nexecution.setVariable(\"createdAssetId\", asset.getId().toString())\n\nString sourceId = execution.getVariable(\"relationSourceId\") as String\nString targetId = execution.getVariable(\"relationTargetId\") as String\nString relationTypePublicId = execution.getVariable(\"relationTypePublicId\") as String\n\nif (sourceId?.trim() && targetId?.trim() && relationTypePublicId?.trim()) {\n    AddRelationRequest relationRequest = AddRelationRequest.builder()\n        .sourceId(string2Uuid(sourceId.trim()))\n        .targetId(string2Uuid(targetId.trim()))\n        .typePublicId(relationTypePublicId.trim())\n        .build()\n    def relation = relationApi.addRelation(relationRequest)\n    execution.setVariable(\"createdRelationId\", relation.getId().toString())\n}\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    },
+    "validateRequest": {
+      "elementId": "validateRequest",
+      "elementName": "Validate request",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\n\nString assetName = execution.getVariable(\"assetName\") as String\nString domainIdText = execution.getVariable(\"domainId\") as String\nString assetTypePublicId = execution.getVariable(\"assetTypePublicId\") as String\n\nif (!assetName?.trim()) {\n    throw new IllegalArgumentException(\"assetName is required\")\n}\nif (!domainIdText?.trim()) {\n    throw new IllegalArgumentException(\"domainId is required\")\n}\nif (!assetTypePublicId?.trim()) {\n    throw new IllegalArgumentException(\"assetTypePublicId is required\")\n}\n\ndef domainId = string2Uuid(domainIdText.trim())\nexecution.setVariable(\"domainIdNormalized\", domainId.toString())\nexecution.setVariable(\"assetNameNormalized\", assetName.trim())\nexecution.setVariable(\"assetTypePublicIdNormalized\", assetTypePublicId.trim())\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    }
+  },
+  "uuidMappings": {},
+  "validationRules": []
+}

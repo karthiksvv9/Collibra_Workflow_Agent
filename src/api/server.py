@@ -6,6 +6,8 @@ import re
 import time
 import zipfile
 from dataclasses import asdict
+from datetime import datetime
+from hashlib import sha1
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
@@ -16,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from src.agents.groovy_compiler import GroovyCompiler
 from src.agents.groovy_ootb import load_ootb_groovy_profile
 from src.agents.llm_client import (
+    LLMRequestError,
     model_api_key_configured,
     model_options_payload,
     request_text_completion,
@@ -45,6 +48,7 @@ from src.rag.engine import RAGEngine
 from src.rag.collibra_docs import CollibraDocsMirror
 from src.workflow.bpmn import (
     DI_NS,
+    DSC_NS,
     FLOWABLE_NS,
     XSI_NS,
     BpmnModel,
@@ -53,7 +57,7 @@ from src.workflow.bpmn import (
     SequenceFlow,
     diagram_waypoints,
 )
-from src.workflow.form import FormModel, form_field_from_mapping
+from src.workflow.form import FormField, FormModel, form_field_from_mapping
 from src.workflow.package import WorkflowPackage
 from src.workflow.simulator import WorkflowSimulator
 
@@ -88,7 +92,7 @@ agent = CollibraWorkflowAgent(rag_engine, config=settings)
 simulator = WorkflowSimulator()
 groovy_compiler = GroovyCompiler(settings.groovy)
 latest_ingest_report: IngestResponse | None = None
-active_model_id = (settings.models.available_chat_models[0].id if settings.models.available_chat_models else settings.models.chat_model)
+active_model_id = resolve_model_profile(settings).id
 ensure_usage_workbook(settings)
 
 UI_ROOT = Path(__file__).resolve().parents[1] / "ui"
@@ -141,7 +145,10 @@ def select_model(payload: dict) -> dict:
     requested = str(payload.get("modelId") or payload.get("id") or "").strip()
     if not requested:
         raise HTTPException(status_code=400, detail="modelId is required.")
-    profile = resolve_model_profile(settings, requested)
+    try:
+        profile = resolve_model_profile(settings, requested)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not model_api_key_configured(settings, profile.id):
         raise HTTPException(
             status_code=400,
@@ -150,9 +157,36 @@ def select_model(payload: dict) -> dict:
                 "Set models.api_key once in config.yaml or set the shared openai.api_key/openai.api_key_env value, then restart."
             ),
         )
+    if payload.get("validateConnection", True) is not False:
+        try:
+            probe = request_text_completion(
+                settings,
+                "Reply with OK only.",
+                model_id=profile.id,
+                action="model_connection_test",
+                raise_on_error=True,
+            )
+        except (LLMRequestError, ValueError) as exc:
+            log_action(
+                "model_selection_failed",
+                status="error",
+                detail={"modelId": profile.id, "provider": profile.provider, "model": profile.model, "error": _safe_public_error(str(exc))},
+            )
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Model profile '{profile.label or profile.id}' failed API validation. "
+                    f"Check the endpoint, model name and API key in config.yaml. Provider error: {_safe_public_error(str(exc))}"
+                ),
+            ) from exc
+        if not str(probe or "").strip():
+            raise HTTPException(
+                status_code=400,
+                detail=f"Model profile '{profile.label or profile.id}' returned an empty validation response. Check config.yaml.",
+            )
     active_model_id = profile.id
-    log_action("model_selected", detail={"modelId": profile.id, "provider": profile.provider, "model": profile.model})
-    return {"activeModelId": active_model_id, "model": profile.id, "provider": profile.provider}
+    log_action("model_selected", detail={"modelId": profile.id, "provider": profile.provider, "model": profile.model, "validated": True})
+    return {"activeModelId": active_model_id, "model": profile.id, "provider": profile.provider, "validated": True}
 
 
 @app.post("/api/ingest", response_model=IngestResponse)
@@ -226,7 +260,7 @@ def retrieve(request: RetrieveRequest) -> RetrieveResponse:
 
 @app.post("/api/workflows/build", response_model=BuildWorkflowResponse)
 def build_workflow(request: BuildWorkflowRequest) -> BuildWorkflowResponse:
-    result = agent.build(request.master_prompt, request.output_name, model_id=active_model_id)
+    result = agent.build(request.master_prompt, request.output_name, model_id=request.modelId or active_model_id)
     package = result.package
     return BuildWorkflowResponse(
         zip_path=str(result.output_zip),
@@ -276,7 +310,7 @@ def export_workflow(request: ExportWorkflowRequest) -> dict:
         errors = package.validate()
         if errors:
             return {"zip_path": "", "bpmn_xml": package.process.to_xml(), "validation_errors": errors}
-        safe_name = "".join(char if char.isalnum() or char in "._-" else "_" for char in request.output_name).strip("_")
+        safe_name = _compact_name_part(request.output_name, 54)
         output = settings.paths.output_dir / f"{safe_name or 'designer_workflow'}.zip"
         package.export_zip(output)
         return {
@@ -391,11 +425,21 @@ def export_workflow_workbench(payload: dict) -> StreamingResponse:
     if not bpmn_xml:
         raise HTTPException(status_code=400, detail="bpmnXml is required.")
     package_name = _safe_filename(payload.get("packageName") or "generated-collibra-workflow.zip")
-    if not package_name.lower().endswith(".zip"):
-        package_name = f"{package_name}.zip"
+    if payload.get("withTimestamp"):
+        package_name = f"{_short_export_stem(package_name)}.zip"
+    else:
+        package_name = f"{_compact_name_part(Path(package_name).stem or 'workflow', 64)}.zip"
     app_model = payload.get("appModel") or {}
     forms = payload.get("forms") or {}
-    base_name = _safe_filename(Path(package_name).stem or "workflow")
+    base_name = _compact_name_part(Path(package_name).stem or "workflow", 64)
+    if payload.get("withTimestamp"):
+        app_model = {
+            **app_model,
+            "metadata": {
+                **(app_model.get("metadata") if isinstance(app_model.get("metadata"), dict) else {}),
+                "timestamp": _timestamp_suffix(),
+            },
+        }
     export_bpmn_xml = _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model)
     form_items = _workbench_form_items(_merge_export_forms(forms, app_model))
     app_manifest = _collibra_app_manifest(base_name, app_model, form_items, export_bpmn_xml)
@@ -433,27 +477,38 @@ def simulate_workbench(payload: dict) -> dict:
 @app.post("/api/agent/design")
 def design_workflow_workbench(payload: dict) -> dict:
     prompt = payload.get("prompt") or payload.get("master_prompt") or "Create a Collibra governance workflow."
+    model_id = _selected_model_id(payload)
+    force_ai = bool(payload.get("forceAi"))
+    allow_fallback = bool(payload.get("preferAi") or payload.get("allowFallback"))
+    strict_ai = bool(payload.get("strictAi") or payload.get("requireAi") or (force_ai and not allow_fallback))
     try:
         result = agent.build(
             prompt,
             "agent_generated_workflow",
-            model_id=_selected_model_id(payload),
-            require_ai=bool(payload.get("forceAi")),
+            model_id=model_id,
+            require_ai=strict_ai,
         )
+        model = result.package.process
+        forms = _forms_dict_from_package(result.package)
+        app_model = _app_model_from_package(result.package, result.retrieved_context)
+        repair_trace: list[dict] = []
+        try:
+            model, app_model, forms, repair_trace = _autocorrect_model_and_app(
+                model,
+                app_model,
+                forms,
+                prompt=prompt,
+                model_id=model_id,
+                max_iterations=3,
+            )
+        except Exception as repair_exc:
+            repair_trace.append({"step": "design_autocorrect", "status": "skipped", "reason": _safe_public_error(str(repair_exc))})
         return {
-            "bpmnXml": result.package.process.to_xml(),
-            "appModel": {
-                "metadata": {"name": result.package.process.name, "format": "DSC_SIDE_CAR_APP_V1"},
-                "scripts": {
-                    node.id: {"groovy": node.script, "elementType": node.type, "elementName": node.name}
-                    for node in result.package.process.nodes
-                    if node.script
-                },
-                "forms": {form.key: asdict(form) for form in result.package.forms},
-                "uuidMappings": {},
-                "validationRules": result.package.validate(),
-            },
-            "summary": "\n".join(result.assumptions) or "Workflow generated.",
+            "bpmnXml": _embed_app_model_scripts_in_bpmn(model.to_xml(), app_model),
+            "appModel": app_model,
+            "forms": forms,
+            "summary": (f"Workflow generated with selected model profile: {model_id}.\n" + "\n".join(result.assumptions)).strip(),
+            "trace": repair_trace,
         }
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -520,9 +575,7 @@ def autonomous_agent_run(payload: dict) -> dict:
     mode = str(payload.get("mode") or "prompt").lower()
     prompt = str(payload.get("prompt") or payload.get("businessUseCase") or "").strip()
     max_iterations = max(1, min(8, int(payload.get("maxIterations") or 5)))
-    output_name = _safe_filename(payload.get("packageName") or payload.get("outputName") or "autonomous_collibra_workflow")
-    if output_name.lower().endswith(".zip"):
-        output_name = output_name[:-4]
+    output_name = _short_export_stem(payload.get("packageName") or payload.get("outputName") or "autonomous_collibra_workflow")
 
     rag_query = " ".join(
         filter(
@@ -546,15 +599,11 @@ def autonomous_agent_run(payload: dict) -> dict:
     if mode == "prompt":
         if not prompt:
             raise HTTPException(status_code=400, detail="prompt is required for autonomous prompt mode.")
-        build_result = agent.build(
-            prompt,
-            f"{output_name}_draft",
-            model_id=_selected_model_id(payload),
-            require_ai=bool(payload.get("forceAi")),
-        )
+        build_result, design_trace = _autonomous_build_from_prompt(prompt, output_name, payload)
         model = build_result.package.process
         forms = _forms_dict_from_package(build_result.package)
         app_model = _app_model_from_package(build_result.package, rag_context.render())
+        trace.extend(design_trace)
         trace.append(
             {
                 "step": "design_from_prompt",
@@ -590,6 +639,16 @@ def autonomous_agent_run(payload: dict) -> dict:
 
     user_test_cases = str(payload.get("userTestCases") or "")
     business_use_case = prompt or str(payload.get("businessUseCase") or f"Validate {model.name} end to end.")
+    stitched_model, stitched_app_model, stitched_forms, stitch_trace = _autocorrect_model_and_app(
+        model,
+        app_model,
+        forms,
+        prompt=business_use_case,
+        model_id=_selected_model_id(payload),
+        max_iterations=max_iterations,
+    )
+    model, app_model, forms = stitched_model, stitched_app_model, stitched_forms
+    trace.extend(stitch_trace)
     final_quality: dict = {}
     final_cases: dict = {}
     for iteration in range(1, max_iterations + 1):
@@ -657,11 +716,12 @@ def autonomous_agent_run(payload: dict) -> dict:
         ),
     )
     settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
-    doc_path = settings.paths.output_dir / f"{output_name}_autonomous_documentation.md"
-    report_path = settings.paths.output_dir / f"{output_name}_autonomous_report.json"
-    zip_path = settings.paths.output_dir / f"{output_name}_autonomous_package.zip"
+    doc_path = settings.paths.output_dir / f"{output_name}_doc.md"
+    report_path = settings.paths.output_dir / f"{output_name}_report.json"
+    zip_path = settings.paths.output_dir / f"{output_name}.zip"
     doc_path.write_text(markdown, encoding="utf-8")
     _write_workbench_zip(zip_path, bpmn_xml, app_model, forms, doc_path, report_path)
+    related_package_paths = [str(path) for path in _called_workflow_package_paths(zip_path, app_model) if path.exists()]
     report = {
         "mode": mode,
         "ok": bool(final_cases.get("ok")),
@@ -671,10 +731,14 @@ def autonomous_agent_run(payload: dict) -> dict:
         "cases": final_cases,
         "documentationPath": str(doc_path),
         "zipPath": str(zip_path),
+        "relatedPackagePaths": related_package_paths,
         "ragContextPreview": rag_context.render()[:6000],
     }
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
     _write_workbench_zip(zip_path, bpmn_xml, app_model, forms, doc_path, report_path)
+    related_package_paths = [str(path) for path in _called_workflow_package_paths(zip_path, app_model) if path.exists()]
+    report["relatedPackagePaths"] = related_package_paths
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
     return {
         "ok": report["ok"],
         "status": report["status"],
@@ -686,10 +750,54 @@ def autonomous_agent_run(payload: dict) -> dict:
         "cases": final_cases,
         "documentation": {"path": str(doc_path), "markdown": markdown},
         "zipPath": str(zip_path),
+        "relatedPackagePaths": related_package_paths,
         "downloadUrl": f"/api/workflows/download?path={zip_path}",
         "reportPath": str(report_path),
         "trace": trace,
     }
+
+
+def _autonomous_build_from_prompt(prompt: str, output_name: str, payload: dict) -> tuple[object, list[dict]]:
+    model_id = _selected_model_id(payload)
+    strict_ai = bool(payload.get("strictAi") or payload.get("requireAi"))
+    prefer_ai = bool(payload.get("forceAi", True) or payload.get("preferAi", True))
+    trace = [
+        {
+            "step": "ai_design_preference",
+            "status": "strict" if strict_ai else "preferred" if prefer_ai else "optional",
+            "modelId": model_id,
+        }
+    ]
+    try:
+        return (
+            agent.build(
+                prompt,
+                f"{output_name}_draft",
+                model_id=model_id,
+                require_ai=strict_ai,
+            ),
+            trace,
+        )
+    except Exception as exc:
+        if strict_ai:
+            raise
+        trace.append(
+            {
+                "step": "ai_design_fallback",
+                "status": "completed",
+                "reason": _safe_public_error(str(exc)),
+                "message": "AI design did not complete, so autonomous mode used deterministic RAG-backed workflow generation.",
+            }
+        )
+        return (
+            agent.build(
+                prompt,
+                f"{output_name}_draft",
+                model_id=model_id,
+                require_ai=False,
+            ),
+            trace,
+        )
 
 
 @app.get("/api/rag/status")
@@ -873,8 +981,9 @@ def generate_workbench_documentation(payload: dict) -> dict:
     if ai_doc:
         markdown = f"{markdown}\n\n## AI Business Narrative\n\n{ai_doc}\n"
     settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = settings.paths.output_dir / f"{_safe_filename(model.process_id)}_workbench_documentation.md"
-    html_path = settings.paths.output_dir / f"{_safe_filename(model.process_id)}_workbench_documentation.html"
+    doc_base = _compact_name_part(model.process_id, 42)
+    output_path = settings.paths.output_dir / f"{doc_base}_doc.md"
+    html_path = settings.paths.output_dir / f"{doc_base}_doc.html"
     output_path.write_text(markdown, encoding="utf-8")
     html_path.write_text(_markdown_to_confluence_html(markdown), encoding="utf-8")
     return {
@@ -903,6 +1012,94 @@ def test_workbench_package(payload: dict) -> dict:
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Could not parse BPMN XML: {exc}") from exc
     return _run_package_quality_loop(model, app_model, forms, int(payload.get("maxIterations") or 3))
+
+
+@app.post("/api/workflow/autocorrect")
+def autocorrect_workbench_package(payload: dict) -> dict:
+    bpmn_xml = payload.get("bpmnXml") or payload.get("bpmn_xml") or ""
+    if not bpmn_xml.strip():
+        raise HTTPException(status_code=400, detail="bpmnXml is required.")
+    app_model = payload.get("appModel") or {}
+    forms = payload.get("forms") or app_model.get("forms") or {}
+    prompt = str(payload.get("prompt") or payload.get("businessUseCase") or "Autocorrect the Collibra workflow to production readiness.")
+    model_id = _selected_model_id(payload)
+    max_iterations = max(1, min(8, int(payload.get("maxIterations") or 6)))
+    timestamp = _timestamp_suffix()
+    output_base = _short_export_stem(payload.get("packageName") or "autocorrected-collibra-workflow.zip", timestamp)
+    try:
+        model = BpmnModel.from_xml(_sanitize_bpmn_xml(bpmn_xml))
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Could not parse BPMN XML: {exc}") from exc
+
+    repaired_model, repaired_app_model, repaired_forms, repair_trace = _autocorrect_model_and_app(
+        model,
+        app_model,
+        forms,
+        prompt=prompt,
+        model_id=model_id,
+        max_iterations=max_iterations,
+    )
+    bpmn_after = repaired_model.to_xml()
+    quality = _run_package_quality_loop(repaired_model, repaired_app_model, repaired_forms, max_iterations)
+    repaired_app_model = quality.get("repairedAppModel") or repaired_app_model
+    bpmn_after = _embed_app_model_scripts_in_bpmn(bpmn_after, repaired_app_model)
+    markdown = _workbench_documentation_markdown(
+        repaired_model,
+        repaired_app_model,
+        repaired_forms,
+        f"Autocorrect evidence for production readiness.\n\n{prompt}",
+    )
+    settings.paths.output_dir.mkdir(parents=True, exist_ok=True)
+    doc_path = settings.paths.output_dir / f"{output_base}_doc.md"
+    report_path = settings.paths.output_dir / f"{output_base}_report.json"
+    zip_path = settings.paths.output_dir / f"{output_base}.zip"
+    doc_path.write_text(markdown, encoding="utf-8")
+    _write_workbench_zip(zip_path, bpmn_after, repaired_app_model, repaired_forms, doc_path, report_path)
+    related_package_paths = [str(path) for path in _called_workflow_package_paths(zip_path, repaired_app_model) if path.exists()]
+    report = {
+        "ok": bool(quality.get("ok")),
+        "status": quality.get("status"),
+        "timestamp": timestamp,
+        "modelId": model_id,
+        "quality": quality,
+        "trace": repair_trace,
+        "zipPath": str(zip_path),
+        "relatedPackagePaths": related_package_paths,
+        "documentationPath": str(doc_path),
+    }
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    _write_workbench_zip(zip_path, bpmn_after, repaired_app_model, repaired_forms, doc_path, report_path)
+    related_package_paths = [str(path) for path in _called_workflow_package_paths(zip_path, repaired_app_model) if path.exists()]
+    report["relatedPackagePaths"] = related_package_paths
+    report_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+    summary_text = (
+        f"Autocorrect {quality.get('status')}. Package quality is "
+        f"{quality.get('metrics', {}).get('passPercent', 0)}%. "
+        f"Timestamped ZIP: {zip_path.name}. "
+        f"{'All blocking issues are resolved.' if quality.get('ok') else 'Remaining blockers: ' + '; '.join((quality.get('blockingIssues') or [])[:5])}"
+    )
+    log_action(
+        "workflow_autocorrect",
+        status="ok" if quality.get("ok") else "error",
+        detail={"processId": repaired_model.process_id, "passPercent": quality.get("metrics", {}).get("passPercent"), "zipPath": str(zip_path)},
+    )
+    return {
+        "ok": bool(quality.get("ok")),
+        "status": quality.get("status"),
+        "summaryText": summary_text,
+        "metrics": quality.get("metrics", {}),
+        "bpmnXml": bpmn_after,
+        "appModel": repaired_app_model,
+        "forms": repaired_forms,
+        "quality": quality,
+        "trace": repair_trace,
+        "timestamp": timestamp,
+        "zipPath": str(zip_path),
+        "relatedPackagePaths": related_package_paths,
+        "downloadUrl": f"/api/workflows/download?path={zip_path}",
+        "documentation": {"path": str(doc_path), "markdown": markdown},
+        "reportPath": str(report_path),
+    }
 
 
 @app.post("/api/workflow/test-cases")
@@ -1127,7 +1324,7 @@ def _write_workbench_zip(
 ) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     form_items = _workbench_form_items(_merge_export_forms(forms, app_model))
-    base_name = _safe_filename(output_path.stem.replace("_autonomous_package", "").replace("_package", "") or "workflow")
+    base_name = _compact_name_part(output_path.stem.replace("_autonomous_package", "").replace("_package", "") or "workflow", 64)
     export_bpmn_xml = _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model)
     app_manifest = _collibra_app_manifest(base_name, app_model, form_items, export_bpmn_xml)
     with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as package:
@@ -1136,6 +1333,7 @@ def _write_workbench_zip(
         for key, value in form_items:
             package.writestr(f"form-{_safe_filename(str(key))}.form", json.dumps(_collibra_form_payload(key, value), indent=2, sort_keys=True))
     _write_workbench_artifacts(output_path, base_name, app_model, documentation_path, report_path)
+    _write_called_workflow_packages(output_path, app_model)
     return output_path
 
 
@@ -1157,7 +1355,7 @@ def _write_workbench_artifacts(
     for element_id, script_info in (app_model.get("scripts") or {}).items():
         groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
         if groovy.strip():
-            (scripts_dir / f"{_safe_filename(str(element_id))}.groovy").write_text(groovy.rstrip() + "\n", encoding="utf-8")
+            (scripts_dir / f"{_compact_name_part(str(element_id), 48)}.groovy").write_text(groovy.rstrip() + "\n", encoding="utf-8")
     if documentation_path and documentation_path.exists():
         target = artifact_dir / documentation_path.name
         if documentation_path.resolve() != target.resolve():
@@ -1166,6 +1364,52 @@ def _write_workbench_artifacts(
         target = artifact_dir / report_path.name
         if report_path.resolve() != target.resolve():
             target.write_text(report_path.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def _write_called_workflow_packages(parent_output_path: Path, app_model: dict) -> list[Path]:
+    written: list[Path] = []
+    for workflow in _called_workflow_items(app_model):
+        process_key = _safe_model_key(workflow.get("processKey") or workflow.get("key") or "calledWorkflow")
+        output_path = _called_workflow_package_path(parent_output_path, process_key)
+        child_app_model = workflow.get("appModel") if isinstance(workflow.get("appModel"), dict) else {}
+        child_forms = _workbench_form_items(workflow.get("forms") or child_app_model.get("forms") or {})
+        child_bpmn = _embed_app_model_scripts_in_bpmn(str(workflow.get("bpmnXml") or ""), child_app_model)
+        if not child_bpmn.strip():
+            continue
+        child_manifest = _collibra_app_manifest(
+            process_key,
+            {
+                **child_app_model,
+                "metadata": {
+                    **(child_app_model.get("metadata") if isinstance(child_app_model.get("metadata"), dict) else {}),
+                    "key": child_app_model.get("key") or f"{process_key}App",
+                    "name": child_app_model.get("name") or workflow.get("name") or f"{process_key} App",
+                },
+            },
+            child_forms,
+            child_bpmn,
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as package:
+            package.writestr(f"{process_key}.bpmn", child_bpmn)
+            package.writestr(f"{process_key}.app", json.dumps(child_manifest, indent=2, sort_keys=True))
+            for key, value in child_forms:
+                package.writestr(f"form-{_safe_filename(str(key))}.form", json.dumps(_collibra_form_payload(key, value), indent=2, sort_keys=True))
+        written.append(output_path)
+    return written
+
+
+def _called_workflow_package_paths(parent_output_path: Path, app_model: dict) -> list[Path]:
+    return [
+        _called_workflow_package_path(parent_output_path, _safe_model_key(workflow.get("processKey") or workflow.get("key") or "calledWorkflow"))
+        for workflow in _called_workflow_items(app_model)
+    ]
+
+
+def _called_workflow_package_path(parent_output_path: Path, process_key: str) -> Path:
+    parent_stem = _compact_name_part(parent_output_path.stem, 40)
+    child_key = _compact_name_part(process_key, 28)
+    return parent_output_path.with_name(f"{parent_stem}_child_{child_key}.zip")
 
 
 def _node_from_payload(data: dict) -> BpmnNode:
@@ -1566,15 +1810,61 @@ def _merge_export_forms(forms: dict | list, app_model: dict) -> dict | list:
     return forms
 
 
-def _collibra_app_manifest(base_name: str, app_model: dict, form_items: list[tuple[str, dict]], bpmn_xml: str) -> dict:
+def _called_workflow_items(app_model: dict) -> list[dict]:
+    if not isinstance(app_model, dict):
+        return []
+    raw = app_model.get("calledWorkflows") or app_model.get("childWorkflows") or {}
+    if isinstance(raw, dict):
+        values = raw.values()
+    elif isinstance(raw, list):
+        values = raw
+    else:
+        values = []
+    workflows: list[dict] = []
+    seen: set[str] = set()
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        process_key = _safe_model_key(value.get("processKey") or value.get("key") or _process_key_from_bpmn(str(value.get("bpmnXml") or ""), "calledWorkflow"))
+        if process_key in seen:
+            continue
+        bpmn_xml = str(value.get("bpmnXml") or "").strip()
+        if not bpmn_xml:
+            continue
+        workflows.append({**value, "processKey": process_key, "key": process_key})
+        seen.add(process_key)
+    return workflows
+
+
+def _merge_called_workflow_forms(form_items: list[tuple[str, dict]], called_workflows: list[dict]) -> list[tuple[str, dict]]:
+    merged: dict[str, dict] = {str(key): value for key, value in form_items}
+    for workflow in called_workflows:
+        for key, value in _workbench_form_items(workflow.get("forms") or (workflow.get("appModel") or {}).get("forms") or {}):
+            merged.setdefault(str(key), value)
+    return list(merged.items())
+
+
+def _collibra_app_manifest(
+    base_name: str,
+    app_model: dict,
+    form_items: list[tuple[str, dict]],
+    bpmn_xml: str,
+) -> dict:
     metadata = app_model.get("metadata") if isinstance(app_model.get("metadata"), dict) else {}
     process_key = _process_key_from_bpmn(bpmn_xml, base_name)
     app_key = _safe_model_key(metadata.get("key") or app_model.get("key") or f"{process_key}App")
     app_name = str(metadata.get("name") or app_model.get("name") or app_key)
     child_models = []
+    seen_models: set[tuple[str, str]] = set()
     for key, _ in form_items:
-        child_models.append({"key": _safe_model_key(key), "type": "form"})
-    child_models.append({"key": process_key, "type": "bpmn"})
+        item = (_safe_model_key(key), "form")
+        if item not in seen_models:
+            child_models.append({"key": item[0], "type": item[1]})
+            seen_models.add(item)
+    item = (_safe_model_key(process_key), "bpmn")
+    if item not in seen_models:
+        child_models.append({"key": item[0], "type": item[1]})
+        seen_models.add(item)
     return {
         "key": app_key,
         "name": app_name,
@@ -1873,6 +2163,12 @@ def _extract_bpmn_package_metadata(bpmn_xml: str, source_name: str, known_forms:
             "triggerable",
             "skipExpression",
             "formFieldValidation",
+            "calledElement",
+            "calledElementType",
+            "inheritVariables",
+            "sameDeployment",
+            "fallbackToDefaultTenant",
+            "businessKey",
         ):
             if key in attrs:
                 property_payload[key] = attrs[key]
@@ -1902,6 +2198,13 @@ def _extract_bpmn_package_metadata(bpmn_xml: str, source_name: str, known_forms:
             )
             if listener_code:
                 property_payload["listenerCode"] = listener_code
+
+        if local == "callActivity":
+            inputs, outputs = _call_activity_io_mappings(node)
+            if inputs:
+                property_payload["inputs"] = inputs
+            if outputs:
+                property_payload["outputs"] = outputs
 
         inline_fields = _inline_form_properties(node)
         if inline_fields:
@@ -1950,8 +2253,10 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
     form_map = dict(_workbench_form_items(forms))
     iterations: list[dict] = []
     repaired_scripts = dict(scripts)
+    repaired_element_properties = dict(element_properties)
     for iteration in range(1, max(1, max_iterations) + 1):
         compile_results = {}
+        listener_compile_results = {}
         changed = False
         for element_id, script_info in repaired_scripts.items():
             groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
@@ -1966,13 +2271,40 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
                         repaired_scripts[element_id] = {"groovy": repaired, "repairedAtIteration": iteration}
                     result = groovy_compiler.compile_script(repaired)
             compile_results[element_id] = _compile_result_dict(result)
+        for flow in model.flows:
+            props = repaired_element_properties.get(flow.id) if isinstance(repaired_element_properties.get(flow.id), dict) else {}
+            listener_code = str((props or {}).get("listenerCode") or flow.listener_code or "").strip()
+            if not listener_code:
+                continue
+            result = groovy_compiler.compile_script(listener_code)
+            if not result.ok:
+                repaired = _deterministic_groovy_repair(listener_code)
+                if repaired != listener_code:
+                    changed = True
+                    listener_code = repaired
+                    props = {**props, "listenerCode": listener_code, "repairedAtIteration": iteration}
+                    repaired_element_properties[flow.id] = props
+                    flow.listener_code = listener_code
+                    result = groovy_compiler.compile_script(listener_code)
+            listener_compile_results[flow.id] = _compile_result_dict(result)
         structural_errors = model.validate()
-        form_issues = _validate_workbench_forms(form_map, element_properties)
+        called_workflow_results = _validate_called_workflows(app_model)
+        form_issues = _validate_workbench_forms(form_map, repaired_element_properties)
         missing_script_issues = _missing_script_issues(model, repaired_scripts)
         errors = structural_errors + [issue for issue in form_issues if issue["severity"] == "error"]
         errors += [
+            f"Called workflow {result['processKey']}: {error}"
+            for result in called_workflow_results
+            for error in result.get("errors", [])
+        ]
+        errors += [
             _compile_failure_message(element_id, issue)
             for element_id, issue in compile_results.items()
+            if not issue.get("ok")
+        ]
+        errors += [
+            _compile_failure_message(flow_id, issue)
+            for flow_id, issue in listener_compile_results.items()
             if not issue.get("ok")
         ]
         iterations.append(
@@ -1983,17 +2315,34 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
                 "formIssues": form_issues,
                 "missingScriptIssues": missing_script_issues,
                 "compileResults": compile_results,
+                "listenerCompileResults": listener_compile_results,
+                "calledWorkflowResults": called_workflow_results,
             }
         )
         if not changed:
             break
     final_iteration = iterations[-1] if iterations else {}
     final_compile = final_iteration.get("compileResults", {})
+    final_listener_compile = final_iteration.get("listenerCompileResults", {})
     blocking = []
     blocking.extend(final_iteration.get("structuralErrors", []))
+    blocking.extend(
+        f"Called workflow {result['processKey']}: {error}"
+        for result in final_iteration.get("calledWorkflowResults", [])
+        for error in result.get("errors", [])
+    )
     blocking.extend(issue["message"] for issue in final_iteration.get("formIssues", []) if issue["severity"] == "error")
     blocking.extend(_compile_failure_message(element_id, result) for element_id, result in final_compile.items() if not result.get("ok"))
-    total_checks = max(1, len(model.nodes) + len(model.flows) + len(form_map) + max(1, len(repaired_scripts)))
+    blocking.extend(_compile_failure_message(flow_id, result) for flow_id, result in final_listener_compile.items() if not result.get("ok"))
+    total_checks = max(
+        1,
+        len(model.nodes)
+        + len(model.flows)
+        + len(form_map)
+        + max(1, len(repaired_scripts))
+        + len(final_listener_compile)
+        + sum(max(1, result.get("checks", 1)) for result in final_iteration.get("calledWorkflowResults", [])),
+    )
     passed_checks = max(0, total_checks - len(blocking))
     pass_percent = round((passed_checks / total_checks) * 100, 2)
     status = "passed" if not blocking else "failed"
@@ -2019,14 +2368,774 @@ def _run_package_quality_loop(model: BpmnModel, app_model: dict, forms: dict | l
             "flows": len(model.flows),
             "forms": len(form_map),
             "scripts": len(repaired_scripts),
+            "calledWorkflows": len(_called_workflow_items(app_model)),
             "iterations": len(iterations),
             "blockingIssues": len(blocking),
             "passPercent": pass_percent,
         },
         "blockingIssues": blocking,
         "iterations": iterations,
-        "repairedAppModel": {**app_model, "scripts": repaired_scripts},
+        "repairedAppModel": {**app_model, "scripts": repaired_scripts, "elementProperties": repaired_element_properties},
     }
+
+
+def _validate_called_workflows(app_model: dict) -> list[dict]:
+    results: list[dict] = []
+    for workflow in _called_workflow_items(app_model):
+        process_key = _safe_model_key(workflow.get("processKey") or workflow.get("key") or "calledWorkflow")
+        errors: list[str] = []
+        checks = 1
+        bpmn_xml = str(workflow.get("bpmnXml") or "")
+        try:
+            child_model = BpmnModel.from_xml(_sanitize_bpmn_xml(bpmn_xml))
+            structural_errors = child_model.validate()
+            errors.extend(structural_errors)
+            checks += len(child_model.nodes) + len(child_model.flows)
+        except Exception as exc:
+            errors.append(f"Could not parse child BPMN: {_safe_public_error(str(exc))}")
+            child_model = None
+        child_app_model = workflow.get("appModel") if isinstance(workflow.get("appModel"), dict) else {}
+        for element_id, script_info in (child_app_model.get("scripts") or {}).items():
+            groovy = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info)
+            if not str(groovy).strip():
+                continue
+            result = groovy_compiler.compile_script(str(groovy))
+            checks += 1
+            if not result.ok:
+                errors.append(_compile_failure_message(f"{process_key}.{element_id}", _compile_result_dict(result)))
+        for flow_id, props in (child_app_model.get("elementProperties") or {}).items():
+            if not isinstance(props, dict) or not str(props.get("listenerCode") or "").strip():
+                continue
+            result = groovy_compiler.compile_script(str(props.get("listenerCode")))
+            checks += 1
+            if not result.ok:
+                errors.append(_compile_failure_message(f"{process_key}.{flow_id}", _compile_result_dict(result)))
+        results.append(
+            {
+                "processKey": process_key,
+                "ok": not errors,
+                "checks": checks,
+                "nodes": len(child_model.nodes) if child_model else 0,
+                "flows": len(child_model.flows) if child_model else 0,
+                "errors": errors,
+            }
+        )
+    return results
+
+
+def _autocorrect_model_and_app(
+    model: BpmnModel,
+    app_model: dict,
+    forms: dict | list,
+    *,
+    prompt: str,
+    model_id: str,
+    max_iterations: int,
+) -> tuple[BpmnModel, dict, dict, list[dict]]:
+    repaired_app_model = json.loads(json.dumps(app_model or {}, default=str))
+    repaired_forms = dict(_workbench_form_items(forms))
+    repaired_app_model.setdefault("scripts", {})
+    repaired_app_model.setdefault("elementProperties", {})
+    repaired_app_model.setdefault("metadata", {})
+    repaired_app_model["metadata"]["timestamp"] = _timestamp_suffix()
+    trace: list[dict] = []
+    rag_context = rag_engine.retrieve(
+        prompt
+        + "\ncalled activity caller workflow subprocess package zip bpmn source existing OOTB workflow Groovy sequence flow condition listener",
+        limit=12,
+    ).render()
+    _ensure_call_activity_stitching(model, repaired_app_model, repaired_forms, prompt, rag_context, model_id, max_iterations, trace)
+    _repair_sequence_flow_metadata(model, repaired_app_model, prompt, rag_context, trace)
+    _repair_script_tasks(model, repaired_app_model, prompt, rag_context, model_id, max_iterations, trace)
+    return model, repaired_app_model, repaired_forms, trace
+
+
+def _ensure_call_activity_stitching(
+    model: BpmnModel,
+    app_model: dict,
+    forms: dict,
+    prompt: str,
+    rag_context: str,
+    model_id: str,
+    max_iterations: int,
+    trace: list[dict],
+) -> None:
+    reference = _workflow_reference_from_prompt(prompt, rag_context)
+    generated_requested = _prompt_requests_generated_called_workflow(prompt)
+    if not any(node.type == "callActivity" for node in model.nodes) and (reference or generated_requested):
+        created = _insert_call_activity_before_end(model, reference["calledElement"] if reference else _called_workflow_key_from_prompt(prompt))
+        trace.append({"step": "call_activity_insert", "status": "completed" if created else "skipped"})
+    call_nodes = [node for node in model.nodes if node.type == "callActivity"]
+    if not call_nodes:
+        return
+    app_model.setdefault("calledWorkflows", {})
+    app_model.setdefault("elementProperties", {})
+    for index, node in enumerate(call_nodes):
+        node_reference = reference or _workflow_reference_from_node(node)
+        if generated_requested or not node_reference:
+            node_reference = node_reference or {
+                "sourceName": f"generated:{_called_workflow_key_from_prompt(prompt, index)}",
+                "calledElement": _called_workflow_key_from_prompt(prompt, index),
+            }
+        payload, stitch_trace = _resolve_called_workflow_payload(node_reference, prompt, rag_context, model_id, max_iterations)
+        trace.extend(stitch_trace)
+        if not payload:
+            if node_reference:
+                _apply_called_element_without_payload(node, app_model, node_reference, trace)
+            continue
+        process_key = _safe_model_key(payload["processKey"])
+        payload["processKey"] = process_key
+        app_model["calledWorkflows"][process_key] = payload
+        contract = _called_workflow_parameter_contract(model, app_model, forms, payload)
+        node.properties = {
+            **(node.properties or {}),
+            "calledElement": process_key,
+            "calledElementType": "key",
+            "inheritVariables": "true",
+            "sameDeployment": "true",
+            "fallbackToDefaultTenant": "true",
+        }
+        props = app_model["elementProperties"].get(node.id, {}) if isinstance(app_model["elementProperties"].get(node.id), dict) else {}
+        app_model["elementProperties"][node.id] = {
+            **props,
+            "calledElement": process_key,
+            "calledElementType": "key",
+            "inheritVariables": "true",
+            "sameDeployment": "true",
+            "fallbackToDefaultTenant": "true",
+            "calledWorkflowSource": payload.get("sourceName") or node_reference.get("sourceName", ""),
+            "calledWorkflowGenerated": bool(payload.get("generated")),
+            "calledWorkflowParameters": contract,
+            "inputs": contract["inputs"],
+            "outputs": contract["outputs"],
+            "documentation": (
+                str(props.get("documentation") or node.documentation or "").strip()
+                + f"\nStitched to workflow `{process_key}` from `{payload.get('sourceName', 'generated child workflow')}`. "
+                + f"Mapped {len(contract['inputs'])} input parameter(s) and {len(contract['outputs'])} output parameter(s)."
+            ).strip(),
+            "updatedAt": datetime.now().isoformat(timespec="seconds"),
+        }
+        trace.append(
+            {
+                "step": "call_activity_stitch",
+                "status": "completed",
+                "elementId": node.id,
+                "calledElement": process_key,
+                "source": payload.get("sourceName"),
+                "generated": bool(payload.get("generated")),
+                "inputs": len(contract["inputs"]),
+                "outputs": len(contract["outputs"]),
+                "warnings": contract.get("warnings", []),
+            }
+        )
+
+
+def _apply_called_element_without_payload(node: BpmnNode, app_model: dict, reference: dict, trace: list[dict]) -> None:
+    process_key = _safe_model_key(reference.get("calledElement") or "calledWorkflow")
+    node.properties = {**(node.properties or {}), "calledElement": process_key, "calledElementType": "key", "inheritVariables": "true"}
+    props = app_model.setdefault("elementProperties", {}).get(node.id, {})
+    if not isinstance(props, dict):
+        props = {}
+    app_model["elementProperties"][node.id] = {
+        **props,
+        "calledElement": process_key,
+        "calledElementType": "key",
+        "inheritVariables": "true",
+        "calledWorkflowSource": reference.get("sourceName", ""),
+        "stitchStatus": "referenced-only-source-not-found",
+    }
+    trace.append({"step": "call_activity_stitch", "status": "referenced_only", "calledElement": process_key, "source": reference.get("sourceName")})
+
+
+def _resolve_called_workflow_payload(
+    reference: dict,
+    prompt: str,
+    rag_context: str,
+    model_id: str,
+    max_iterations: int,
+) -> tuple[dict | None, list[dict]]:
+    trace: list[dict] = []
+    source_name = str(reference.get("sourceName") or "")
+    source_path = None if source_name.startswith("prompt:") or source_name.startswith("generated:") else _find_workflow_source_file(source_name)
+    if source_path:
+        try:
+            payload = _called_workflow_from_file(source_path, reference.get("calledElement"))
+            trace.append({"step": "called_workflow_source_load", "status": "completed", "source": str(source_path), "processKey": payload["processKey"]})
+            return payload, trace
+        except Exception as exc:
+            trace.append({"step": "called_workflow_source_load", "status": "failed", "source": str(source_path), "error": _safe_public_error(str(exc))})
+    allow_ai_generation = _prompt_requests_generated_called_workflow(prompt) or source_name.startswith("generated:")
+    if allow_ai_generation or source_name.startswith("prompt:") or not source_path:
+        payload = _generate_called_workflow_payload(reference, prompt, rag_context, model_id, max_iterations, allow_ai=allow_ai_generation)
+        trace.append({"step": "called_workflow_generate", "status": "completed", "processKey": payload["processKey"], "source": payload["sourceName"]})
+        return payload, trace
+    return None, trace
+
+
+def _called_workflow_from_file(path: Path, preferred_key: str | None = None) -> dict:
+    app_model = _empty_app_model(path.name)
+    forms: dict = {}
+    candidates: list[tuple[int, str, str]] = []
+    if path.suffix.lower() == ".zip":
+        with zipfile.ZipFile(path) as package:
+            members = _validated_zip_member_names(package)
+            for member in members:
+                text = _decode_text(package.read(member))
+                lower = member.lower()
+                if lower.endswith((".bpmn", ".bpmn20.xml", ".xml")) and _looks_like_bpmn(text):
+                    process_key = _process_key_from_bpmn(text, Path(member).stem)
+                    score = 0 if preferred_key and process_key.lower() == str(preferred_key).lower() else 2
+                    candidates.append((score, member, _sanitize_bpmn_xml(text)))
+                elif lower.endswith(".form"):
+                    form_key, form_payload = _parse_collibra_form(text, member)
+                    forms[form_key] = form_payload
+                elif lower.endswith(".app"):
+                    parsed = _parse_json_or_text(text)
+                    if isinstance(parsed, dict):
+                        app_model = _deep_merge(app_model, parsed)
+                elif lower.endswith(".groovy"):
+                    app_model.setdefault("scripts", {})[_basename(member)] = {"groovy": text, "source": member}
+    else:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        if _looks_like_bpmn(text):
+            candidates.append((0, path.name, _sanitize_bpmn_xml(text)))
+    if not candidates:
+        raise ValueError(f"No BPMN child workflow found in {path.name}.")
+    candidates.sort(key=lambda item: (item[0], item[1]))
+    source_member = candidates[0][1]
+    bpmn_xml = candidates[0][2]
+    extracted = _extract_bpmn_package_metadata(bpmn_xml, source_member, forms)
+    app_model["scripts"] = _deep_merge(app_model.get("scripts") or {}, extracted["scripts"])
+    app_model["elementProperties"] = _deep_merge(app_model.get("elementProperties") or {}, extracted["elementProperties"])
+    forms = _deep_merge(forms, extracted["forms"])
+    existing_forms = app_model.get("forms") or {}
+    if not isinstance(existing_forms, dict):
+        app_model["manifestForms"] = existing_forms
+        existing_forms = {}
+    app_model["forms"] = _deep_merge(existing_forms, forms)
+    process_key = _process_key_from_bpmn(bpmn_xml, Path(source_member).stem)
+    return {
+        "key": process_key,
+        "processKey": process_key,
+        "name": process_key,
+        "sourceName": path.name,
+        "sourceMember": source_member,
+        "bpmnXml": _embed_app_model_scripts_in_bpmn(bpmn_xml, app_model),
+        "forms": forms,
+        "appModel": app_model,
+        "generated": False,
+        "parameterProfile": _workflow_parameter_profile(bpmn_xml, app_model, forms),
+    }
+
+
+def _generate_called_workflow_payload(reference: dict, prompt: str, rag_context: str, model_id: str, max_iterations: int, allow_ai: bool = True) -> dict:
+    process_key = _safe_model_key(reference.get("calledElement") or _called_workflow_key_from_prompt(prompt))
+    child_prompt = (
+        f"Design a standalone Collibra child workflow with process id {process_key}. "
+        "This workflow will be invoked by a parent BPMN callActivity. Do not include another call activity unless the user explicitly requests nested orchestration. "
+        "Include pools, lanes, forms, Groovy script tasks, sequence-flow conditions, input variables, output variables, and failure/rework paths. "
+        f"Parent request:\n{prompt}"
+    )
+    try:
+        if not allow_ai:
+            raise RuntimeError("AI generation disabled for deterministic missing-source stitch.")
+        package = agent.design_from_prompt(child_prompt, model_id=model_id)
+    except Exception:
+        package = _generated_called_workflow_fallback(process_key, prompt)
+    package.process.process_id = process_key
+    package.process.name = package.process.name or process_key
+    package.process.nodes = [node for node in package.process.nodes if node.type != "callActivity"]
+    package.process.flows = _repair_child_flow_continuity(package.process.nodes, package.process.flows)
+    app_model = _app_model_from_package(package, rag_context)
+    forms = _forms_dict_from_package(package)
+    child_trace: list[dict] = []
+    _repair_sequence_flow_metadata(package.process, app_model, child_prompt, rag_context, child_trace)
+    _repair_script_tasks(package.process, app_model, child_prompt, rag_context, model_id, max(1, min(3, max_iterations)), child_trace)
+    quality = _run_package_quality_loop(package.process, app_model, forms, max_iterations=max(1, min(3, max_iterations)))
+    app_model = quality.get("repairedAppModel") or app_model
+    bpmn_xml = _embed_app_model_scripts_in_bpmn(package.process.to_xml(), app_model)
+    return {
+        "key": process_key,
+        "processKey": process_key,
+        "name": package.process.name,
+        "sourceName": reference.get("sourceName") or f"generated:{process_key}",
+        "bpmnXml": bpmn_xml,
+        "forms": forms,
+        "appModel": app_model,
+        "generated": True,
+        "quality": quality,
+        "parameterProfile": _workflow_parameter_profile(bpmn_xml, app_model, forms),
+    }
+
+
+def _generated_called_workflow_fallback(process_key: str, prompt: str) -> WorkflowPackage:
+    form_key = f"{process_key}DecisionForm"
+    normalized = _safe_model_key(_summarise_prompt_for_key(prompt) or process_key)
+    form = FormModel(
+        key=form_key,
+        name=f"{process_key} Decision Form",
+        fields=[
+            FormField(id="decisionInfo", name="Decision information", type="textarea", required=False),
+            FormField(
+                id="approvalDecision",
+                name="Approval decision",
+                type="dropdown",
+                required=True,
+                values=[
+                    {"id": "approve", "name": "Approve"},
+                    {"id": "reject", "name": "Reject"},
+                    {"id": "rework", "name": "Rework"},
+                ],
+            ),
+        ],
+    )
+    nodes = [
+        BpmnNode("childStart", "startEvent", "Start child workflow", "Requester", form_key=form_key, x=140, y=120),
+        BpmnNode("childReview", "userTask", f"Review {normalized}", "Data Steward", candidate_groups="${stewardGroup}", form_key=form_key, x=340, y=260),
+        BpmnNode("childRoute", "exclusiveGateway", "Decision route", "Data Steward", x=570, y=275),
+        BpmnNode(
+            "childApply",
+            "scriptTask",
+            "Apply child decision",
+            "Collibra Automation",
+            script="// #importFile NONE\nexecution.setVariable('childWorkflowStatus', 'approved')\nexecution.setVariable('childWorkflowCompleted', true)",
+            x=760,
+            y=430,
+        ),
+        BpmnNode("childRejected", "endEvent", "Rejected", "Data Steward", x=790, y=275),
+        BpmnNode("childEnd", "endEvent", "Completed", "Collibra Automation", x=1010, y=452),
+    ]
+    flows = [
+        SequenceFlow("childFlow_start_review", "childStart", "childReview"),
+        SequenceFlow("childFlow_review_route", "childReview", "childRoute"),
+        SequenceFlow("childFlow_approved", "childRoute", "childApply", name="Approved", condition="${approvalDecision == 'approve'}", flow_type="conditional"),
+        SequenceFlow("childFlow_rejected", "childRoute", "childRejected", name="Rejected", condition="${approvalDecision != 'approve'}", flow_type="conditional"),
+        SequenceFlow("childFlow_apply_end", "childApply", "childEnd"),
+    ]
+    return WorkflowPackage(
+        process=BpmnModel(
+            process_id=process_key,
+            name=f"{process_key} Called Workflow",
+            pools=[BpmnPool(id=f"{process_key}_pool", name=f"{process_key} Called Workflow", process_ref=process_key, width=1220, height=560)],
+            lanes=["Requester", "Data Steward", "Collibra Automation"],
+            nodes=nodes,
+            flows=flows,
+            documentation=f"Generated child workflow for parent prompt: {prompt[:600]}",
+        ),
+        forms=[form],
+        app_name=f"{process_key} Called Workflow",
+    )
+
+
+def _repair_child_flow_continuity(nodes: list[BpmnNode], flows: list[SequenceFlow]) -> list[SequenceFlow]:
+    node_ids = {node.id for node in nodes}
+    valid_flows = [flow for flow in flows if flow.source_ref in node_ids and flow.target_ref in node_ids and flow.source_ref != flow.target_ref]
+    start = next((node for node in nodes if node.type == "startEvent"), None)
+    end = next((node for node in nodes if node.type == "endEvent"), None)
+    if not start or not end:
+        return valid_flows
+    outgoing = {flow.source_ref for flow in valid_flows}
+    incoming = {flow.target_ref for flow in valid_flows}
+    ordered = sorted(nodes, key=lambda node: (node.x, node.y, node.id))
+    for source, target in zip(ordered, ordered[1:]):
+        if source.type == "endEvent" or target.type == "startEvent":
+            continue
+        if source.id not in outgoing or target.id not in incoming:
+            flow_id = _safe_model_key(f"flow_{source.id}_{target.id}")
+            if not any(flow.id == flow_id for flow in valid_flows):
+                valid_flows.append(SequenceFlow(flow_id, source.id, target.id))
+                outgoing.add(source.id)
+                incoming.add(target.id)
+    if start.id not in outgoing:
+        target = next((node for node in ordered if node.id != start.id), end)
+        valid_flows.append(SequenceFlow(_safe_model_key(f"flow_{start.id}_{target.id}"), start.id, target.id))
+    if end.id not in incoming:
+        source = next((node for node in reversed(ordered) if node.id != end.id and node.type != "endEvent"), start)
+        valid_flows.append(SequenceFlow(_safe_model_key(f"flow_{source.id}_{end.id}"), source.id, end.id))
+    return valid_flows
+
+
+def _insert_call_activity_before_end(model: BpmnModel, called_key: str) -> bool:
+    end_node = next((node for node in model.nodes if node.type == "endEvent"), None)
+    if end_node is None:
+        return False
+    incoming_flow = next((flow for flow in model.flows if flow.target_ref == end_node.id), None)
+    source_id = incoming_flow.source_ref if incoming_flow else next((node.id for node in model.nodes if node.type == "startEvent"), "")
+    if not source_id:
+        return False
+    call_id = _safe_model_key(f"call_{called_key}")
+    if any(node.id == call_id for node in model.nodes):
+        return False
+    source_node = next((node for node in model.nodes if node.id == source_id), end_node)
+    lane = "Collibra Automation" if "Collibra Automation" in model.lanes else (source_node.lane or (model.lanes[-1] if model.lanes else None))
+    model.nodes.append(
+        BpmnNode(
+            id=call_id,
+            type="callActivity",
+            name=f"Call {called_key}",
+            lane=lane,
+            documentation="Inserted by Autocorrect to invoke the requested child workflow.",
+            properties={"calledElement": _safe_model_key(called_key), "calledElementType": "key", "inheritVariables": "true"},
+            x=max(source_node.x + 220, end_node.x - 180),
+            y=source_node.y,
+        )
+    )
+    if incoming_flow:
+        model.flows = [flow for flow in model.flows if flow.id != incoming_flow.id]
+    model.flows.append(SequenceFlow(_safe_model_key(f"flow_{source_id}_{call_id}"), source_id, call_id))
+    model.flows.append(SequenceFlow(_safe_model_key(f"flow_{call_id}_{end_node.id}"), call_id, end_node.id))
+    return True
+
+
+def _find_workflow_source_file(source_name: str) -> Path | None:
+    raw = str(source_name or "").strip().strip("'\"")
+    if not raw:
+        return None
+    direct = Path(raw)
+    if direct.exists() and direct.is_file():
+        return direct
+    candidates = [
+        settings.paths.rag_user_dropzone_dir,
+        settings.paths.rag_ootb_workflows_dir,
+        settings.paths.rag_generated_training_dir,
+        settings.paths.docs_dir,
+    ]
+    wanted = raw.replace("\\", "/").split("/")[-1].lower()
+    wanted_stem = re.sub(r"\.(?:zip|bpmn|bpmn20\.xml)$", "", wanted, flags=re.IGNORECASE)
+    for folder in candidates:
+        if not folder.exists():
+            continue
+        for path in folder.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in {".zip", ".bpmn", ".xml"}:
+                continue
+            name = path.name.lower()
+            stem = re.sub(r"\.(?:zip|bpmn|bpmn20\.xml)$", "", name, flags=re.IGNORECASE)
+            if name == wanted or stem == wanted_stem:
+                return path
+    return None
+
+
+def _workflow_reference_from_node(node: BpmnNode) -> dict | None:
+    called = str((node.properties or {}).get("calledElement") or "").strip()
+    if not called:
+        return None
+    return {"sourceName": f"prompt:{called}", "calledElement": _safe_model_key(called)}
+
+
+def _prompt_requests_generated_called_workflow(prompt: str) -> bool:
+    text = str(prompt or "").lower()
+    return any(
+        phrase in text
+        for phrase in (
+            "generate caller workflow",
+            "generate called workflow",
+            "generate subworkflow",
+            "generate sub workflow",
+            "create caller workflow",
+            "create called workflow",
+            "create subworkflow",
+            "design caller workflow",
+            "design called workflow",
+            "design subworkflow",
+            "also generate caller",
+            "also generate called",
+        )
+    )
+
+
+def _called_workflow_key_from_prompt(prompt: str, index: int = 0) -> str:
+    reference = _workflow_reference_from_prompt(prompt, "")
+    if reference:
+        return _safe_model_key(reference.get("calledElement") or "calledWorkflow")
+    summary = _summarise_prompt_for_key(prompt)
+    suffix = "" if index == 0 else str(index + 1)
+    return _safe_model_key(f"{summary or 'called'}SubWorkflow{suffix}")
+
+
+def _summarise_prompt_for_key(prompt: str) -> str:
+    words = re.findall(r"[A-Za-z][A-Za-z0-9]+", str(prompt or ""))[:5]
+    return "".join(word[:1].upper() + word[1:] for word in words) or "Called"
+
+
+def _called_workflow_parameter_contract(model: BpmnModel, app_model: dict, forms: dict, payload: dict) -> dict:
+    profile = payload.get("parameterProfile") if isinstance(payload.get("parameterProfile"), dict) else {}
+    required_inputs = sorted(set(profile.get("inputVariables") or []))
+    produced_outputs = sorted(set(profile.get("outputVariables") or []))
+    main_profile = _workflow_parameter_profile(model.to_xml(), app_model, forms)
+    available = set(main_profile.get("availableVariables") or [])
+    inputs: list[dict] = []
+    warnings: list[str] = []
+    for variable in required_inputs:
+        if not _safe_variable_name(variable):
+            continue
+        if variable in available:
+            inputs.append({"source": variable, "target": variable})
+        else:
+            inputs.append({"sourceExpression": f"${{{variable}}}", "target": variable})
+            warnings.append(f"Input `{variable}` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.")
+    outputs = [{"source": variable, "target": variable} for variable in produced_outputs if _safe_variable_name(variable)]
+    if not inputs:
+        inputs = [{"source": "businessItemId", "target": "businessItemId"}]
+    if not outputs:
+        outputs = [{"source": "childWorkflowStatus", "target": "childWorkflowStatus"}]
+    return {
+        "inputs": inputs,
+        "outputs": outputs,
+        "requiredInputs": required_inputs,
+        "producedOutputs": produced_outputs,
+        "availableParentVariables": sorted(available),
+        "formKeys": sorted(set(profile.get("formKeys") or [])),
+        "warnings": warnings,
+    }
+
+
+def _workflow_parameter_profile(bpmn_xml: str, app_model: dict, forms: dict | list) -> dict:
+    text_parts = [str(bpmn_xml or "")]
+    for script_info in (app_model.get("scripts") or {}).values() if isinstance(app_model, dict) else []:
+        if isinstance(script_info, dict):
+            text_parts.append(str(script_info.get("groovy") or ""))
+        else:
+            text_parts.append(str(script_info))
+    element_props = app_model.get("elementProperties") if isinstance(app_model, dict) else {}
+    if isinstance(element_props, dict):
+        text_parts.append(json.dumps(element_props, default=str))
+    form_items = _workbench_form_items(forms)
+    form_fields: set[str] = set()
+    form_keys: set[str] = set()
+    for key, form in form_items:
+        form_keys.add(str(key))
+        for field in _flatten_collibra_form_fields(form):
+            field_id = str(field.get("id") or field.get("key") or "").strip()
+            if field_id:
+                form_fields.add(field_id)
+    combined = "\n".join(text_parts)
+    input_variables = _variables_read_from_text(combined) | form_fields
+    output_variables = _variables_written_from_text(combined)
+    return {
+        "inputVariables": sorted(input_variables - output_variables),
+        "outputVariables": sorted(output_variables),
+        "availableVariables": sorted(input_variables | output_variables | form_fields),
+        "formKeys": sorted(form_keys),
+        "formFields": sorted(form_fields),
+    }
+
+
+def _variables_read_from_text(text: str) -> set[str]:
+    variables = set(re.findall(r"getVariable\s*\(\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]", text or ""))
+    for expression in re.findall(r"\$\{([^}]+)\}", text or ""):
+        for token in re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\b", expression):
+            if token not in {"true", "false", "null", "and", "or", "not", "execution"}:
+                variables.add(token)
+    return {variable for variable in variables if _safe_variable_name(variable)}
+
+
+def _variables_written_from_text(text: str) -> set[str]:
+    variables = set(re.findall(r"setVariable\s*\(\s*['\"]([A-Za-z_][A-Za-z0-9_]*)['\"]", text or ""))
+    return {variable for variable in variables if _safe_variable_name(variable)}
+
+
+def _safe_variable_name(value: str) -> bool:
+    return bool(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,80}", str(value or "")))
+
+
+def _repair_script_tasks(
+    model: BpmnModel,
+    app_model: dict,
+    prompt: str,
+    rag_context: str,
+    model_id: str,
+    max_iterations: int,
+    trace: list[dict],
+) -> None:
+    scripts = app_model.setdefault("scripts", {})
+    for node in model.nodes:
+        if node.type != "scriptTask":
+            continue
+        script_info = scripts.get(node.id)
+        existing = script_info.get("groovy", "") if isinstance(script_info, dict) else str(script_info or "")
+        groovy = existing.strip() or node.script.strip()
+        generated = False
+        if not groovy:
+            groovy = _compat_groovy({"id": node.id, "type": "bpmn:ScriptTask", "name": node.name}, prompt, rag_context)
+            generated = True
+        repaired, result, attempts = _compile_and_repair_groovy(
+            groovy,
+            element={"id": node.id, "type": "bpmn:ScriptTask", "name": node.name},
+            prompt=f"Autocorrect Groovy for script task {node.name or node.id}. {prompt}",
+            context=rag_context,
+            org_profile=_organization_code_profile(rag_context, app_model, node.id),
+            model_id=model_id,
+            max_iterations=max_iterations,
+        )
+        node.script = repaired
+        scripts[node.id] = {
+            **(script_info if isinstance(script_info, dict) else {}),
+            "groovy": repaired,
+            "elementType": "scriptTask",
+            "elementName": node.name,
+            "autocorrected": True,
+            "generatedByAutocorrect": generated,
+            "compileResults": [_compile_result_dict(result)] if result else [],
+            "repairAttempts": attempts,
+            "updatedAt": datetime.now().isoformat(timespec="seconds"),
+        }
+        trace.append(
+            {
+                "step": "script_task_autocorrect",
+                "elementId": node.id,
+                "generated": generated,
+                "status": _compile_status(result),
+                "attempts": len(attempts),
+            }
+        )
+
+
+def _repair_sequence_flow_metadata(model: BpmnModel, app_model: dict, prompt: str, rag_context: str, trace: list[dict]) -> None:
+    element_properties = app_model.setdefault("elementProperties", {})
+    outgoing: dict[str, list[SequenceFlow]] = {}
+    for flow in model.flows:
+        outgoing.setdefault(flow.source_ref, []).append(flow)
+    node_by_id = {node.id: node for node in model.nodes}
+    for source_id, flows in outgoing.items():
+        source = node_by_id.get(source_id)
+        has_default = any(flow.is_default for flow in flows)
+        for index, flow in enumerate(flows):
+            props = element_properties.get(flow.id, {}) if isinstance(element_properties.get(flow.id), dict) else {}
+            inferred_condition, flow_type, is_default = _infer_sequence_flow_rule(flow, source, index, len(flows), has_default)
+            if not flow.condition and inferred_condition:
+                flow.condition = inferred_condition
+            if flow_type:
+                flow.flow_type = flow_type
+            if is_default:
+                flow.is_default = True
+                has_default = True
+            listener_code = str(props.get("listenerCode") or flow.listener_code or "").strip()
+            generated_listener = False
+            if not listener_code:
+                listener_code = _sequence_flow_listener_code(flow, source, node_by_id.get(flow.target_ref), prompt, rag_context)
+                generated_listener = True
+            flow.listener_code = listener_code
+            element_properties[flow.id] = {
+                **props,
+                "execution": "gateway-condition",
+                "scope": "global",
+                "flowType": flow.flow_type,
+                "condition": flow.condition or props.get("condition") or "",
+                "isDefault": flow.is_default,
+                "listenerCode": listener_code,
+                "documentation": props.get("documentation") or f"Autocorrected sequence flow from {flow.source_ref} to {flow.target_ref}.",
+                "updatedAt": datetime.now().isoformat(timespec="seconds"),
+            }
+            trace.append(
+                {
+                    "step": "sequence_flow_autocorrect",
+                    "elementId": flow.id,
+                    "flowType": flow.flow_type,
+                    "condition": flow.condition,
+                    "listenerGenerated": generated_listener,
+                }
+            )
+
+
+def _infer_sequence_flow_rule(
+    flow: SequenceFlow,
+    source: BpmnNode | None,
+    index: int,
+    sibling_count: int,
+    has_default: bool,
+) -> tuple[str, str | None, bool]:
+    label = f"{flow.id} {flow.name} {flow.target_ref}".lower()
+    if flow.condition:
+        return flow.condition, "conditional", False
+    if flow.is_default or flow.flow_type == "default":
+        return "", "default", True
+    if "reject" in label or "decline" in label or "denied" in label:
+        return "${approvalDecision != 'approve'}", "conditional", False
+    if "approve" in label or "approved" in label:
+        return "${approvalDecision == 'approve'}", "conditional", False
+    if "rework" in label or "reroute" in label:
+        return "${approvalDecision == 'rework'}", "conditional", False
+    if "fail" in label or "error" in label or "remediation" in label:
+        return "${provisioningStatus != 'success'}", "conditional", False
+    if "success" in label or "complete" in label or "done" in label or "provisioned" in label:
+        return "${provisioningStatus == 'success'}", "conditional", False
+    if source and source.type.endswith("Gateway") and sibling_count > 1 and index == sibling_count - 1 and not has_default:
+        return "", "default", True
+    if flow.flow_type in {"conditional", "skip"}:
+        return "${routeApproved == true}", "conditional", False
+    return "", flow.flow_type or "normal", False
+
+
+def _sequence_flow_listener_code(flow: SequenceFlow, source: BpmnNode | None, target: BpmnNode | None, prompt: str, rag_context: str) -> str:
+    variable = _groovy_var(flow.id)
+    source_name = (source.name if source else flow.source_ref) or flow.source_ref
+    target_name = (target.name if target else flow.target_ref) or flow.target_ref
+    return f"""// #importFile NONE
+
+// Autogenerated transition listener for sequence flow {flow.id}.
+// Source: {source_name}
+// Target: {target_name}
+execution.setVariable("lastSequenceFlowId", "{flow.id}")
+execution.setVariable("{variable}Taken", true)
+execution.setVariable("{variable}SourceRef", "{flow.source_ref}")
+execution.setVariable("{variable}TargetRef", "{flow.target_ref}")
+"""
+
+
+def _workflow_reference_from_prompt(prompt: str, rag_context: str) -> dict | None:
+    explicit = _workflow_file_mentions(prompt)
+    prompt_mentions_source = any(token in prompt.lower() for token in ("caller activity", "call activity", "called workflow", "subworkflow", "sub workflow", "use workflow", "use zip", "from rag", "source folder"))
+    if explicit:
+        source = Path(str(explicit[0]).strip().strip("'\"")).name
+        stem = re.sub(r"\.(?:zip|bpmn|bpmn20\.xml)$", "", source, flags=re.IGNORECASE)
+        return {"sourceName": source, "calledElement": _safe_model_key(stem)}
+    named = re.findall(
+        r"(?:called workflow|call activity|subworkflow|sub workflow|caller workflow)\s+(?:named|called|key|to|as)\s+['\"]?([A-Za-z][A-Za-z0-9_-]{2,80})",
+        prompt,
+        flags=re.IGNORECASE,
+    )
+    if named:
+        called_element = _safe_model_key(named[0])
+        return {"sourceName": f"prompt:{called_element}", "calledElement": called_element}
+    if not prompt_mentions_source:
+        return None
+    candidates = re.findall(r"source=([^\s]+(?:\.zip|\.bpmn|\.bpmn20\.xml))", rag_context, flags=re.IGNORECASE)
+    if not candidates:
+        candidates = _workflow_file_mentions(rag_context)
+    if not candidates:
+        return None
+    source = Path(str(candidates[0]).strip().strip("'\"")).name
+    stem = re.sub(r"\.(?:zip|bpmn|bpmn20\.xml)$", "", source, flags=re.IGNORECASE)
+    return {"sourceName": source, "calledElement": _safe_model_key(stem)}
+
+
+def _workflow_file_mentions(text: str) -> list[str]:
+    quoted = re.findall(r"['\"]([^'\"]+\.(?:zip|bpmn|bpmn20\.xml))['\"]", text or "", flags=re.IGNORECASE)
+    bare = re.findall(r"(?<![A-Za-z0-9_.()\\/-])([A-Za-z0-9_.()\\/-]+\.(?:zip|bpmn|bpmn20\.xml))", text or "", flags=re.IGNORECASE)
+    return quoted + bare
+
+
+def _timestamp_suffix() -> str:
+    return datetime.now().strftime("%Y%m%d_%H%M%S")
+
+
+def _short_export_stem(value: str | None, timestamp: str | None = None, max_length: int = 62) -> str:
+    ts = timestamp or _timestamp_suffix()
+    raw = Path(str(value or "workflow")).stem
+    raw = re.sub(r"_with_timestamp_\d{8}_\d{6}.*$", "", raw, flags=re.IGNORECASE)
+    raw = re.sub(r"_\d{8}_\d{6}.*$", "", raw, flags=re.IGNORECASE)
+    suffix = f"_{ts}"
+    core_max = max(12, max_length - len(suffix))
+    return f"{_compact_name_part(raw or 'workflow', core_max)}{suffix}"
+
+
+def _compact_name_part(value: str | None, max_length: int = 48) -> str:
+    safe = _safe_filename(value or "workflow")
+    if len(safe) <= max_length:
+        return safe
+    digest = sha1(safe.encode("utf-8", errors="ignore")).hexdigest()[:7]
+    keep = max(8, max_length - len(digest) - 1)
+    return f"{safe[:keep].rstrip('._-')}_{digest}"
 
 
 def _generate_business_test_cases(model: BpmnModel, app_model: dict, forms: dict | list, business_use_case: str) -> list[dict]:
@@ -2476,6 +3585,11 @@ def _embed_app_model_scripts_in_bpmn(bpmn_xml: str, app_model: dict) -> str:
         elif local == "sequenceFlow":
             if _normalize_sequence_flow_condition(node, element_properties):
                 changed = True
+            if _normalize_sequence_flow_listener(node, element_properties):
+                changed = True
+        elif local == "callActivity":
+            if _normalize_call_activity_stitching(node, element_properties):
+                changed = True
     if _normalize_bpmn_di_waypoints(root):
         changed = True
     if not changed:
@@ -2491,6 +3605,7 @@ def _register_bpmn_namespaces() -> None:
         "di": "http://www.omg.org/spec/DD/20100524/DI",
         "flowable": "http://flowable.org/bpmn",
         "camunda": "http://camunda.org/schema/1.0/bpmn",
+        "dsc": DSC_NS,
         "xsi": "http://www.w3.org/2001/XMLSchema-instance",
     }
     for prefix, uri in namespaces.items():
@@ -2539,6 +3654,117 @@ def _normalize_sequence_flow_condition(flow: ET.Element, element_properties: dic
         return True
     flow.remove(condition_el)
     return True
+
+
+def _normalize_sequence_flow_listener(flow: ET.Element, element_properties: dict) -> bool:
+    flow_id = flow.attrib.get("id", "")
+    props = element_properties.get(flow_id) if isinstance(element_properties, dict) else {}
+    if not isinstance(props, dict):
+        return False
+    listener_code = str(props.get("listenerCode") or props.get("listener_code") or "").strip()
+    if not listener_code:
+        return False
+    changed = False
+    extension_el = next((child for child in flow if _xml_local(child.tag) == "extensionElements"), None)
+    if extension_el is None:
+        extension_el = ET.Element(_qname_for_existing(flow.tag, "extensionElements"))
+        children = list(flow)
+        condition_index = next(
+            (index for index, child in enumerate(children) if _xml_local(child.tag) == "conditionExpression"),
+            len(children),
+        )
+        flow.insert(condition_index, extension_el)
+        changed = True
+    listener_el = next((child for child in extension_el if _xml_local(child.tag) == "transitionListenerGroovy"), None)
+    if listener_el is None:
+        listener_el = ET.SubElement(extension_el, _qname_for_namespace(DSC_NS, "transitionListenerGroovy"))
+        changed = True
+    normalized = listener_code.rstrip() + "\n"
+    if listener_el.text != normalized:
+        listener_el.text = normalized
+        changed = True
+    return changed
+
+
+def _normalize_call_activity_stitching(node: ET.Element, element_properties: dict) -> bool:
+    element_id = node.attrib.get("id", "")
+    props = element_properties.get(element_id) if isinstance(element_properties, dict) else {}
+    if not isinstance(props, dict):
+        return False
+    changed = False
+    called_element = str(props.get("calledElement") or "").strip()
+    if called_element and node.attrib.get("calledElement") != called_element:
+        node.attrib["calledElement"] = called_element
+        changed = True
+    for prop_key, attr_name in (
+        ("calledElementType", "calledElementType"),
+        ("inheritVariables", "inheritVariables"),
+        ("sameDeployment", "sameDeployment"),
+        ("fallbackToDefaultTenant", "fallbackToDefaultTenant"),
+        ("businessKey", "businessKey"),
+    ):
+        if prop_key in props and props[prop_key] not in (None, ""):
+            value = str(props[prop_key]).lower() if isinstance(props[prop_key], bool) else str(props[prop_key])
+            qname = _qname_for_namespace(FLOWABLE_NS, attr_name)
+            if node.attrib.get(qname) != value:
+                node.attrib[qname] = value
+                changed = True
+    inputs = props.get("inputs") or props.get("inputParameters") or []
+    outputs = props.get("outputs") or props.get("outputParameters") or []
+    if not isinstance(inputs, list):
+        inputs = []
+    if not isinstance(outputs, list):
+        outputs = []
+    if not inputs and not outputs:
+        return changed
+    extension_el = next((child for child in node if _xml_local(child.tag) == "extensionElements"), None)
+    if extension_el is None:
+        extension_el = ET.Element(_qname_for_existing(node.tag, "extensionElements"))
+        node.insert(0, extension_el)
+        changed = True
+    for child in list(extension_el):
+        if child.tag in {_qname_for_namespace(FLOWABLE_NS, "in"), _qname_for_namespace(FLOWABLE_NS, "out")}:
+            extension_el.remove(child)
+            changed = True
+    for mapping in inputs:
+        if not isinstance(mapping, dict) or not mapping.get("target"):
+            continue
+        attrs = {"target": str(mapping["target"])}
+        if mapping.get("sourceExpression"):
+            attrs["sourceExpression"] = str(mapping["sourceExpression"])
+        elif mapping.get("source"):
+            attrs["source"] = str(mapping["source"])
+        else:
+            attrs["source"] = str(mapping["target"])
+        ET.SubElement(extension_el, _qname_for_namespace(FLOWABLE_NS, "in"), attrs)
+        changed = True
+    for mapping in outputs:
+        if not isinstance(mapping, dict) or not mapping.get("source"):
+            continue
+        attrs = {"source": str(mapping["source"]), "target": str(mapping.get("target") or mapping["source"])}
+        ET.SubElement(extension_el, _qname_for_namespace(FLOWABLE_NS, "out"), attrs)
+        changed = True
+    return changed
+
+
+def _call_activity_io_mappings(node: ET.Element) -> tuple[list[dict], list[dict]]:
+    inputs: list[dict] = []
+    outputs: list[dict] = []
+    for child in node.iter():
+        if child.tag == _qname_for_namespace(FLOWABLE_NS, "in"):
+            mapping = {
+                "target": child.attrib.get("target", ""),
+                "source": child.attrib.get("source", ""),
+                "sourceExpression": child.attrib.get("sourceExpression", ""),
+            }
+            inputs.append({key: value for key, value in mapping.items() if value})
+        elif child.tag == _qname_for_namespace(FLOWABLE_NS, "out"):
+            mapping = {
+                "source": child.attrib.get("source", ""),
+                "target": child.attrib.get("target", ""),
+            }
+            outputs.append({key: value for key, value in mapping.items() if value})
+    return inputs, outputs
 
 
 def _normalize_bpmn_di_waypoints(root: ET.Element) -> bool:
@@ -2661,6 +3887,14 @@ def _deep_merge(left: dict, right: dict) -> dict:
 def _safe_filename(value: str) -> str:
     safe = "".join(char if char.isalnum() or char in "._-" else "_" for char in str(value)).strip("_")
     return safe or "workflow"
+
+
+def _safe_public_error(value: str) -> str:
+    text = str(value or "")
+    text = re.sub(r"sk-[^\s,'\")]+", "sk-***", text)
+    text = re.sub(r"Bearer\s+[^\s,'\")]+", "Bearer ***", text)
+    text = re.sub(r"(?i)(api[_ -]?key\s*(?:is|=|:)?\s*)[^\s,'\")]+", r"\1***", text)
+    return text[:1000]
 
 
 def _pydantic_dict(model) -> dict:

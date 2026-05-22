@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
-import { Bot, Code2, Database, Download, EyeOff, FileText, Maximize, Play, RefreshCw, Rocket, Search, ShieldCheck, Terminal } from 'lucide-react';
-import { compileGroovy, exportWorkflow, getModelProfiles, selectModelProfile, simulateWorkflow, testWorkflowPackage } from '../api.js';
+import { Bot, Code2, Database, Download, EyeOff, FileText, Maximize, Play, RefreshCw, Rocket, Search, ShieldCheck, Terminal, Wrench } from 'lucide-react';
+import { autocorrectWorkflow, compileGroovy, exportWorkflow, getModelProfiles, selectModelProfile, simulateWorkflow, testWorkflowPackage } from '../api.js';
 import { syncAllLaneMembership, syncLaneMembership } from '../bpmnLaneSync.js';
 import BlockLibrary from './BlockLibrary.jsx';
 import PackageImporter from './PackageImporter.jsx';
@@ -204,8 +204,9 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
   async function doExport() {
     try {
       const bpmnXml = await getBpmnXml();
-      const exportName = packageName?.trim() || 'generated-collibra-workflow.zip';
-      await exportWorkflow({ bpmnXml, appModel, forms, packageName: exportName, modelId: activeModelId });
+      const exportName = withTimestampName(packageName?.trim() || 'generated-collibra-workflow.zip');
+      await exportWorkflow({ bpmnXml, appModel, forms, packageName: exportName, withTimestamp: true, modelId: activeModelId });
+      setPackageName(exportName);
       addConsole({ level: 'success', message: 'Package exported', detail: exportName });
       setRightTab('console');
     } catch (err) {
@@ -241,6 +242,50 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
       setRightTab('console');
     } catch (err) {
       addConsole({ level: 'error', message: 'Autonomous package test failed', detail: err.message });
+      setRightTab('console');
+    }
+  }
+
+  async function autocorrectAll() {
+    try {
+      const bpmnXml = await getBpmnXml();
+      const exportName = withTimestampName(packageName?.trim() || 'autocorrected-collibra-workflow.zip');
+      setRightTab('console');
+      addConsole({
+        level: 'info',
+        message: 'Autocorrect started',
+        detail: 'Checking BPMN structure, sequence-flow Groovy, script-task Groovy, forms, package export, and business-test readiness.'
+      });
+      const autocorrectPrompt = appModel?.metadata?.businessUseCase || appModel?.metadata?.prompt || importSummary || 'Autocorrect the current Collibra workflow and resolve all production-readiness issues.';
+      const result = await autocorrectWorkflow({
+        bpmnXml,
+        appModel,
+        forms,
+        prompt: autocorrectPrompt,
+        packageName: exportName,
+        maxIterations: 6,
+        modelId: activeModelId
+      });
+      if (result.bpmnXml) {
+        await importBpmnXml(result.bpmnXml, 'autocorrected workflow');
+      }
+      if (result.appModel) {
+        setAppModel(prev => deepMerge(prev, {
+          ...result.appModel,
+          scripts: { ...(prev.scripts || {}), ...(result.appModel.scripts || {}) },
+          forms: { ...(prev.forms || {}), ...(result.forms || {}), ...(result.appModel.forms || {}) },
+          elementProperties: { ...(prev.elementProperties || {}), ...(result.appModel.elementProperties || {}) }
+        }));
+      }
+      if (result.forms) setForms(prev => ({ ...prev, ...result.forms }));
+      if (result.zipPath) setPackageName(result.zipPath.split(/[\\/]/).pop() || exportName);
+      addConsole({
+        level: result.ok ? 'success' : 'error',
+        message: result.summaryText || `Autocorrect ${result.status || (result.ok ? 'passed' : 'failed')}`,
+        detail: result
+      });
+    } catch (err) {
+      addConsole({ level: 'error', message: 'Autocorrect failed', detail: err.message });
       setRightTab('console');
     }
   }
@@ -384,6 +429,7 @@ export default function BpmnAgentCanvas({ appModel, setAppModel, forms, setForms
           <button onClick={compileSelected}><Code2 size={16}/> Compile selected</button>
           <button onClick={simulate}><Play size={16}/> Run simulation</button>
           <button onClick={testPackage}><ShieldCheck size={16}/> Test all</button>
+          <button onClick={autocorrectAll} className="accent-button"><Wrench size={16}/> Autocorrect</button>
           <button onClick={() => setRightTab('docs')}><FileText size={16}/> Docs</button>
           <button onClick={doExport} className="primary-button"><Download size={16}/> Export ZIP</button>
         </div>
@@ -476,6 +522,34 @@ function deepMerge(left, right) {
     }
   });
   return result;
+}
+
+function timestampSuffix() {
+  const value = new Date();
+  const pad = number => String(number).padStart(2, '0');
+  return `${value.getFullYear()}${pad(value.getMonth() + 1)}${pad(value.getDate())}_${pad(value.getHours())}${pad(value.getMinutes())}${pad(value.getSeconds())}`;
+}
+
+function withTimestampName(name) {
+  const fallback = 'generated-collibra-workflow.zip';
+  const rawName = String(name || fallback).trim() || fallback;
+  const stem = rawName
+    .replace(/\.zip$/i, '')
+    .replace(/_with_timestamp_\d{8}_\d{6}.*$/i, '')
+    .replace(/_\d{8}_\d{6}.*$/i, '');
+  const suffix = `_${timestampSuffix()}`;
+  return `${compactNamePart(stem || 'workflow', 62 - suffix.length)}${suffix}.zip`;
+}
+
+function compactNamePart(value, maxLength = 36) {
+  const safe = String(value || 'workflow').replace(/[^A-Za-z0-9._-]+/g, '_').replace(/^_+|_+$/g, '') || 'workflow';
+  if (safe.length <= maxLength) return safe;
+  let hash = 0;
+  for (let index = 0; index < safe.length; index += 1) {
+    hash = ((hash << 5) - hash + safe.charCodeAt(index)) | 0;
+  }
+  const digest = Math.abs(hash).toString(16).slice(0, 6).padStart(6, '0');
+  return `${safe.slice(0, Math.max(8, maxLength - 7)).replace(/[._-]+$/g, '')}_${digest}`;
 }
 
 function isConnectableFlowNode(element) {

@@ -1,0 +1,1959 @@
+{
+  "documentationPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_ootb_stitch_with_timestamp_20260522_151425_autocorrect_documentation.md",
+  "modelId": "openai-gpt-5-4",
+  "ok": true,
+  "quality": {
+    "blockingIssues": [],
+    "iterations": [
+      {
+        "calledWorkflowResults": [
+          {
+            "checks": 24,
+            "errors": [],
+            "flows": 7,
+            "nodes": 8,
+            "ok": true,
+            "processKey": "votingSubProcess"
+          }
+        ],
+        "changed": false,
+        "compileResults": {},
+        "formIssues": [],
+        "iteration": 1,
+        "listenerCompileResults": {
+          "flow1": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow2": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          }
+        },
+        "missingScriptIssues": [],
+        "structuralErrors": []
+      }
+    ],
+    "message": "Autonomous package test passed. Pass rate 100.0% (32/32 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+    "metrics": {
+      "failedChecks": 0,
+      "passPercent": 100.0,
+      "passedChecks": 32,
+      "totalChecks": 32
+    },
+    "ok": true,
+    "repairedAppModel": {
+      "calledWorkflows": {
+        "votingSubProcess": {
+          "appModel": {
+            "description": "",
+            "elementProperties": {
+              "boundarytimer1": {
+                "documentation": "",
+                "elementId": "boundarytimer1",
+                "elementName": "",
+                "elementType": "bpmn:BoundaryEvent",
+                "execution": "service-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "attachedToRef": "voteSubProcess",
+                  "cancelActivity": "true",
+                  "id": "boundarytimer1"
+                },
+                "scope": "asset"
+              },
+              "boundarytimer2": {
+                "documentation": "",
+                "elementId": "boundarytimer2",
+                "elementName": "boundarytimer2",
+                "elementType": "bpmn:BoundaryEvent",
+                "execution": "service-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "attachedToRef": "vote",
+                  "cancelActivity": "false",
+                  "id": "boundarytimer2",
+                  "name": "boundarytimer2"
+                },
+                "scope": "asset"
+              },
+              "endVoteSubProcess": {
+                "documentation": "",
+                "elementId": "endVoteSubProcess",
+                "elementName": "End",
+                "elementType": "bpmn:EndEvent",
+                "execution": "service-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "endVoteSubProcess",
+                  "name": "End"
+                },
+                "scope": "asset"
+              },
+              "endevent2": {
+                "documentation": "",
+                "elementId": "endevent2",
+                "elementName": "End",
+                "elementType": "bpmn:EndEvent",
+                "execution": "service-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "endevent2",
+                  "name": "End"
+                },
+                "scope": "asset"
+              },
+              "exclusivegateway1": {
+                "documentation": "",
+                "elementId": "exclusivegateway1",
+                "elementName": "Exclusive Gateway",
+                "elementType": "bpmn:ExclusiveGateway",
+                "execution": "gateway-condition",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "exclusivegateway1",
+                  "name": "Exclusive Gateway"
+                },
+                "scope": "global"
+              },
+              "flow13": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow13",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow13",
+                  "sourceRef": "scripttask7",
+                  "targetRef": "endevent2"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow15": {
+                "condition": "${addComments}",
+                "documentation": "",
+                "elementId": "flow15",
+                "elementName": "addComments",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "conditional",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow15",
+                  "name": "addComments",
+                  "sourceRef": "exclusivegateway1",
+                  "targetRef": "scripttask3"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow17": {
+                "condition": "${!addComments}",
+                "documentation": "",
+                "elementId": "flow17",
+                "elementName": "!addComments",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "conditional",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow17",
+                  "name": "!addComments",
+                  "sourceRef": "exclusivegateway1",
+                  "targetRef": "endVoteSubProcess"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow18": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow18",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow18",
+                  "sourceRef": "startVoteSubProcess",
+                  "targetRef": "scripttask5"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow19": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow19",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow19",
+                  "sourceRef": "startevent2",
+                  "targetRef": "scripttaskCheckOptionalVariables"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow21": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow21",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow21",
+                  "sourceRef": "vote",
+                  "targetRef": "scripttask2"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow25": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow25",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow25",
+                  "sourceRef": "scripttask3",
+                  "targetRef": "endVoteSubProcess"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow26": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow26",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow26",
+                  "sourceRef": "boundarytimer1",
+                  "targetRef": "scripttask4"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow27": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow27",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow27",
+                  "sourceRef": "voteSubProcess",
+                  "targetRef": "scripttask4"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow28": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow28",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow28",
+                  "sourceRef": "scripttask4",
+                  "targetRef": "scripttask7"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow29": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow29",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow29",
+                  "sourceRef": "scripttask2",
+                  "targetRef": "exclusivegateway1"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow30": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow30",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow30",
+                  "sourceRef": "scripttaskCheckOptionalVariables",
+                  "targetRef": "scripttask1"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow31": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow31",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow31",
+                  "sourceRef": "scripttask1",
+                  "targetRef": "voteSubProcess"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow32": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow32",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow32",
+                  "sourceRef": "scripttask5",
+                  "targetRef": "vote"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "flow7": {
+                "condition": "",
+                "documentation": "",
+                "elementId": "flow7",
+                "elementName": "",
+                "elementType": "bpmn:SequenceFlow",
+                "execution": "gateway-condition",
+                "flowType": "normal",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "flow7",
+                  "sourceRef": "boundarytimer2",
+                  "targetRef": "scripttask6"
+                },
+                "scope": "global",
+                "skipExpression": ""
+              },
+              "scripttask1": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask1",
+                "elementName": "Create list of voters",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask1",
+                  "name": "Create list of voters",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttask2": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask2",
+                "elementName": "Add vote outcome to list",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask2",
+                  "name": "Add vote outcome to list",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttask3": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask3",
+                "elementName": "Store comment",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask3",
+                  "name": "Store comment",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttask4": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask4",
+                "elementName": "Count voting result",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask4",
+                  "name": "Count voting result",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttask5": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask5",
+                "elementName": "Create local variable for comment",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask5",
+                  "name": "Create local variable for comment",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttask6": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask6",
+                "elementName": "Send reminder mail",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask6",
+                  "name": "Send reminder mail",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttask7": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttask7",
+                "elementName": "Publish result",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttask7",
+                  "name": "Publish result",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "scripttaskCheckOptionalVariables": {
+                "autoStoreVariables": "false",
+                "documentation": "",
+                "elementId": "scripttaskCheckOptionalVariables",
+                "elementName": "Check Optional Variables",
+                "elementType": "bpmn:ScriptTask",
+                "execution": "script-groovy",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:autoStoreVariables": "false",
+                  "id": "scripttaskCheckOptionalVariables",
+                  "name": "Check Optional Variables",
+                  "scriptFormat": "groovy"
+                },
+                "scope": "asset",
+                "scriptFormat": "groovy"
+              },
+              "startVoteSubProcess": {
+                "documentation": "",
+                "elementId": "startVoteSubProcess",
+                "elementName": "Start",
+                "elementType": "bpmn:StartEvent",
+                "execution": "service-groovy",
+                "formFieldValidation": "false",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:formFieldValidation": "false",
+                  "id": "startVoteSubProcess",
+                  "name": "Start"
+                },
+                "scope": "asset"
+              },
+              "startevent2": {
+                "documentation": "",
+                "elementId": "startevent2",
+                "elementName": "Start",
+                "elementType": "bpmn:StartEvent",
+                "execution": "service-groovy",
+                "formFieldValidation": "false",
+                "formKey": "startevent2InlineForm",
+                "importedFrom": "votingSubProcess.bpmn",
+                "inlineFormProperties": [
+                  {
+                    "expression": null,
+                    "id": "decisionInfo",
+                    "label": "Decision Info",
+                    "name": "Decision Info",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voterUserExpression",
+                    "label": "The user expression resulting to users required to vote",
+                    "name": "The user expression resulting to users required to vote",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "votePercentage",
+                    "label": "The percentage of voters that are needed to approve (%)",
+                    "name": "The percentage of voters that are needed to approve (%)",
+                    "readable": true,
+                    "required": true,
+                    "type": "long",
+                    "value": "50",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voteWarningTimeDuration",
+                    "label": "Time duration before a warning mail is send to vote",
+                    "name": "Time duration before a warning mail is send to vote",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": "B3D",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voteTimeoutDuration",
+                    "label": "Time duration before the voting is stopped and the process continued",
+                    "name": "Time duration before the voting is stopped and the process continued",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": "B5D",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "addComments",
+                    "label": "Add voting comments to resource",
+                    "name": "Add voting comments to resource",
+                    "readable": true,
+                    "required": true,
+                    "type": "boolean",
+                    "value": "false",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "addCommentsToParent",
+                    "label": "Provide the id if you want comments to be added to a parent comment",
+                    "name": "Provide the id if you want comments to be added to a parent comment",
+                    "readable": true,
+                    "required": false,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "earlyComplete",
+                    "label": "Stop voting if votingPercentage is impossible to reach",
+                    "name": "Stop voting if votingPercentage is impossible to reach",
+                    "readable": true,
+                    "required": true,
+                    "type": "boolean",
+                    "value": "false",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voteTaskName",
+                    "label": "The name of the actual voting task",
+                    "name": "The name of the actual voting task",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "sendActionEmail",
+                    "label": "Send a mail to the users allowing completing the vote by sending a email",
+                    "name": "Send a mail to the users allowing completing the vote by sending a email",
+                    "readable": true,
+                    "required": false,
+                    "type": "boolean",
+                    "value": "false",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "resultTemplate",
+                    "label": "Email template for sending voting result",
+                    "name": "Email template for sending voting result",
+                    "readable": true,
+                    "required": false,
+                    "type": "string",
+                    "value": "result",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "reminderTemplate",
+                    "label": "Email template for sending voting reminder",
+                    "name": "Email template for sending voting reminder",
+                    "readable": true,
+                    "required": false,
+                    "type": "string",
+                    "value": "reminder",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "names",
+                    "label": "Email Template Names",
+                    "name": "Email Template Names",
+                    "readable": false,
+                    "required": true,
+                    "type": "string",
+                    "value": "resultTemplate,reminderTemplate",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "defaults",
+                    "label": "Defaults",
+                    "name": "Defaults",
+                    "readable": false,
+                    "required": true,
+                    "type": "string",
+                    "value": "result,reminder",
+                    "variable": null,
+                    "writable": true
+                  }
+                ],
+                "rawAttributes": {
+                  "flowable:formFieldValidation": "false",
+                  "flowable:initiator": "initiator",
+                  "id": "startevent2",
+                  "name": "Start"
+                },
+                "scope": "asset"
+              },
+              "vote": {
+                "candidateUsers": "{user(${voter})}",
+                "documentation": "${decisionInfo}",
+                "elementId": "vote",
+                "elementName": "${voteTaskName}",
+                "elementType": "bpmn:UserTask",
+                "execution": "user-form",
+                "formFieldValidation": "false",
+                "formKey": "votingSubProcessVoteForm",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "flowable:candidateUsers": "{user(${voter})}",
+                  "flowable:formFieldValidation": "false",
+                  "flowable:formKey": "votingSubProcessVoteForm",
+                  "id": "vote",
+                  "name": "${voteTaskName}"
+                },
+                "scope": "asset"
+              },
+              "voteSubProcess": {
+                "documentation": "",
+                "elementId": "voteSubProcess",
+                "elementName": "Vote ",
+                "elementType": "bpmn:SubProcess",
+                "execution": "container",
+                "importedFrom": "votingSubProcess.bpmn",
+                "rawAttributes": {
+                  "id": "voteSubProcess",
+                  "name": "Vote "
+                },
+                "scope": "global"
+              }
+            },
+            "extension": {
+              "design": {
+                "childModels": [
+                  {
+                    "key": "votingSubProcess",
+                    "type": "bpmn"
+                  },
+                  {
+                    "key": "votingSubProcessVoteForm",
+                    "type": "form"
+                  }
+                ]
+              }
+            },
+            "flowApp": false,
+            "forms": {
+              "startevent2InlineForm": {
+                "description": "Inline flowable:formProperty definitions extracted from BPMN.",
+                "fields": [
+                  {
+                    "expression": null,
+                    "id": "decisionInfo",
+                    "label": "Decision Info",
+                    "name": "Decision Info",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voterUserExpression",
+                    "label": "The user expression resulting to users required to vote",
+                    "name": "The user expression resulting to users required to vote",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "votePercentage",
+                    "label": "The percentage of voters that are needed to approve (%)",
+                    "name": "The percentage of voters that are needed to approve (%)",
+                    "readable": true,
+                    "required": true,
+                    "type": "long",
+                    "value": "50",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voteWarningTimeDuration",
+                    "label": "Time duration before a warning mail is send to vote",
+                    "name": "Time duration before a warning mail is send to vote",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": "B3D",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voteTimeoutDuration",
+                    "label": "Time duration before the voting is stopped and the process continued",
+                    "name": "Time duration before the voting is stopped and the process continued",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": "B5D",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "addComments",
+                    "label": "Add voting comments to resource",
+                    "name": "Add voting comments to resource",
+                    "readable": true,
+                    "required": true,
+                    "type": "boolean",
+                    "value": "false",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "addCommentsToParent",
+                    "label": "Provide the id if you want comments to be added to a parent comment",
+                    "name": "Provide the id if you want comments to be added to a parent comment",
+                    "readable": true,
+                    "required": false,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "earlyComplete",
+                    "label": "Stop voting if votingPercentage is impossible to reach",
+                    "name": "Stop voting if votingPercentage is impossible to reach",
+                    "readable": true,
+                    "required": true,
+                    "type": "boolean",
+                    "value": "false",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "voteTaskName",
+                    "label": "The name of the actual voting task",
+                    "name": "The name of the actual voting task",
+                    "readable": true,
+                    "required": true,
+                    "type": "string",
+                    "value": null,
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "sendActionEmail",
+                    "label": "Send a mail to the users allowing completing the vote by sending a email",
+                    "name": "Send a mail to the users allowing completing the vote by sending a email",
+                    "readable": true,
+                    "required": false,
+                    "type": "boolean",
+                    "value": "false",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "resultTemplate",
+                    "label": "Email template for sending voting result",
+                    "name": "Email template for sending voting result",
+                    "readable": true,
+                    "required": false,
+                    "type": "string",
+                    "value": "result",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "reminderTemplate",
+                    "label": "Email template for sending voting reminder",
+                    "name": "Email template for sending voting reminder",
+                    "readable": true,
+                    "required": false,
+                    "type": "string",
+                    "value": "reminder",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "names",
+                    "label": "Email Template Names",
+                    "name": "Email Template Names",
+                    "readable": false,
+                    "required": true,
+                    "type": "string",
+                    "value": "resultTemplate,reminderTemplate",
+                    "variable": null,
+                    "writable": true
+                  },
+                  {
+                    "expression": null,
+                    "id": "defaults",
+                    "label": "Defaults",
+                    "name": "Defaults",
+                    "readable": false,
+                    "required": true,
+                    "type": "string",
+                    "value": "result,reminder",
+                    "variable": null,
+                    "writable": true
+                  }
+                ],
+                "key": "startevent2InlineForm",
+                "metadata": {
+                  "key": "startevent2InlineForm",
+                  "name": "Start Inline Form"
+                },
+                "modelType": "inline-form",
+                "name": "Start Inline Form",
+                "outcomes": [],
+                "ownerElementId": "startevent2",
+                "rows": [],
+                "source": "votingSubProcess.bpmn"
+              },
+              "votingSubProcessVoteForm": {
+                "description": "",
+                "fields": [
+                  {
+                    "column": 0,
+                    "enabled": true,
+                    "extraSettings": {
+                      "minRows": 1,
+                      "textFormat": "html",
+                      "useSpellCheck": false
+                    },
+                    "id": "rich-text1",
+                    "label": "What is your reason for approving/rejecting?",
+                    "name": "What is your reason for approving/rejecting?",
+                    "readable": true,
+                    "required": false,
+                    "row": 0,
+                    "size": 12,
+                    "stencilId": "cloud-rich-text",
+                    "stencilSuperIds": [
+                      "cloud-rich-text",
+                      "Component"
+                    ],
+                    "type": "richText",
+                    "value": "{{comment}}",
+                    "visible": true,
+                    "writable": true
+                  }
+                ],
+                "key": "votingSubProcessVoteForm",
+                "metadata": {
+                  "description": "",
+                  "flowableDesignVersion": 3110,
+                  "key": "votingSubProcessVoteForm",
+                  "modelType": "form",
+                  "name": "votingSubProcessVoteForm",
+                  "palette": "flowable-core-form-palette",
+                  "version": "1"
+                },
+                "modelType": "form",
+                "name": "votingSubProcessVoteForm",
+                "outcomes": [
+                  {
+                    "enabled": "",
+                    "label": "Reject",
+                    "primary": false,
+                    "value": "reject",
+                    "visible": ""
+                  },
+                  {
+                    "enabled": "",
+                    "label": "Approve",
+                    "primary": true,
+                    "value": "approve",
+                    "visible": ""
+                  }
+                ],
+                "palette": "flowable-core-form-palette",
+                "raw": {
+                  "metadata": {
+                    "description": "",
+                    "flowableDesignVersion": 3110,
+                    "key": "votingSubProcessVoteForm",
+                    "modelType": "form",
+                    "name": "votingSubProcessVoteForm",
+                    "palette": "flowable-core-form-palette",
+                    "version": "1"
+                  },
+                  "outcomes": [
+                    {
+                      "enabled": "",
+                      "ignorePayload": false,
+                      "ignoreValidation": false,
+                      "label": "Reject",
+                      "navigationUrl": "",
+                      "primary": false,
+                      "value": "reject",
+                      "visible": ""
+                    },
+                    {
+                      "enabled": "",
+                      "ignorePayload": false,
+                      "ignoreValidation": false,
+                      "label": "Approve",
+                      "navigationUrl": "",
+                      "primary": true,
+                      "value": "approve",
+                      "visible": ""
+                    }
+                  ],
+                  "rows": [
+                    {
+                      "cols": [
+                        {
+                          "designInfo": {
+                            "stencilId": "cloud-rich-text",
+                            "stencilSuperIds": [
+                              "cloud-rich-text",
+                              "Component"
+                            ]
+                          },
+                          "enabled": true,
+                          "extraSettings": {
+                            "minRows": 1,
+                            "textFormat": "html",
+                            "useSpellCheck": false
+                          },
+                          "id": "rich-text1",
+                          "ignore": false,
+                          "isRequired": false,
+                          "label": "What is your reason for approving/rejecting?",
+                          "size": 12,
+                          "type": "richText",
+                          "value": "{{comment}}",
+                          "visible": true
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "rows": [
+                  {
+                    "cols": [
+                      {
+                        "designInfo": {
+                          "stencilId": "cloud-rich-text",
+                          "stencilSuperIds": [
+                            "cloud-rich-text",
+                            "Component"
+                          ]
+                        },
+                        "enabled": true,
+                        "extraSettings": {
+                          "minRows": 1,
+                          "textFormat": "html",
+                          "useSpellCheck": false
+                        },
+                        "id": "rich-text1",
+                        "ignore": false,
+                        "isRequired": false,
+                        "label": "What is your reason for approving/rejecting?",
+                        "size": 12,
+                        "type": "richText",
+                        "value": "{{comment}}",
+                        "visible": true
+                      }
+                    ]
+                  }
+                ],
+                "source": "form-votingSubProcessVoteForm.form",
+                "version": "1"
+              }
+            },
+            "groupsAccess": null,
+            "icon": "glyphicon-asterisk",
+            "key": "votingSubProcessApp",
+            "metadata": {
+              "format": "DSC_SIDE_CAR_APP_V1",
+              "name": "VotingSubProcessApp.zip"
+            },
+            "name": "VotingSubProcessApp",
+            "paletteDefinitionCategory": "core",
+            "scripts": {
+              "scripttask1": {
+                "elementId": "scripttask1",
+                "elementName": "Create list of voters",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\ndef voterUserExpression = execution.getVariable(\"voterUserExpression\")\nfinal Set<String> voters = new HashSet<>();\n\nfor (String userExpression : utility.toList(voterUserExpression)) {\n\tvoters.addAll(users.getUserNamesWithParticipatePermissionWithError(userExpression));\n}\n\nexecution.setVariable(\"voters\", new ArrayList<>(voters));\nexecution.setVariable(\"votingResult\", []);\nexecution.setVariable(\"completion\", Boolean.FALSE);",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttask2": {
+                "elementId": "scripttask2",
+                "elementName": "Add vote outcome to list",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\ndef voter = execution.getVariable(\"voter\");\nBoolean approved = (Boolean) execution.getVariable(\"form_votingSubProcessVoteForm_outcome\").equals(\"approve\");\ncomment = execution.getVariable(\"comment\");\n\nvote = [\n        \"name\" : voter,\n        \"approved\": approved,\n        \"comment\": comment?.toString()\n]\nvoting = execution.getVariable(\"votingResult\");\nvoting.add(vote);\ncheckEarlyComplete(execution, voting);\n\nexecution.setVariable(\"votingResult\", voting);\n\ndef checkEarlyComplete(execution, voting) {\n    Boolean earlyComplete = (Boolean) execution.getVariable(\"earlyComplete\");\n    if (earlyComplete) {\n        Long percentage = (Long) execution.getVariable(\"votePercentage\");\n        List<String> voters = (List<String>) execution.getVariable(\"voters\");\n\n        double approved = 0;\n        double disapproved = 0;\n        double totalVoters = voters.size();\n        for (Map vote : voting) {\n            if (vote.approved) {\n                approved++;\n            } else {\n                disapproved++;\n            }\n        }\n\n        if (approved / totalVoters >= percentage / 100.0) {\n            execution.setVariable(\"completion\", Boolean.TRUE);\n        } else if (disapproved / totalVoters > (100 - percentage) / 100.0) {\n            execution.setVariable(\"completion\", Boolean.TRUE);\n        }\n    }\n}",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttask3": {
+                "elementId": "scripttask3",
+                "elementName": "Store comment",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\nimport com.collibra.dgc.core.api.dto.instance.comment.AddCommentRequest\n\ndef commentValue = execution.getVariable(\"comment\")\nif (comment == null || comment.toString().isEmpty()) {\n    loggerApi.info(\"Comment empty, not adding anything\")\n    return;\n}\ndef parent = execution.getVariable(\"addCommentsToParent\")\ndef commentBuilder = AddCommentRequest\n  .builder()\n  .content(comment.toString())\n  .baseResourceId(item.getId())\n  .baseResourceType(item.getType())\n\nif (parent != null && !parent.isEmpty()){\n    commentBuilder = commentBuilder.parentId(string2Uuid(parent))\n}\n\ncommentApi.addComment(commentBuilder.build())",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttask4": {
+                "elementId": "scripttask4",
+                "elementName": "Count voting result",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\ndef voting = execution.getVariable(\"votingResult\")\nboolean result = getResult(voting, execution)\nexecution.setVariable(\"votingSuccess\", result)\n\ndef getResult(voting, execution) {\n\t\tLong percentage = (Long) execution.getVariable(\"votePercentage\");\n\t\tif (!voting.isEmpty()) {\n\t\t\tint requiredToVote = ((List<String>) execution.getVariable(\"voters\")).size();\n\t\t\tint approved = getNumberOfApprovals(voting);\n\t\t\tdouble fraction = percentage / 100.0;\n\t\t\treturn approved >= requiredToVote * fraction;\n\t\t}\n\t\treturn false;\n\t}\n\ndef getNumberOfApprovals(List<Map> voting) {\n\t\tint approved = 0;\n\t\tfor (Map vote : voting) {\n\t\t\tif (vote.approved) {\n\t\t\t\tapproved++;\n\t\t\t}\n\t\t}\n\t\treturn approved;\n\t}",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttask5": {
+                "elementId": "scripttask5",
+                "elementName": "Create local variable for comment",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\nexecution.setVariableLocal(\"comment\", \"\");",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttask6": {
+                "elementId": "scripttask6",
+                "elementName": "Send reminder mail",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\ndef usersIds = users.getUserIds(\"user(${voter})\");\ndef template = \"${reminderTemplate}\";\nif (usersIds.isEmpty()){\n    loggerApi.warn(\"No users to send a mail to, no mail will be send\");\n} else if (template == null) {\n    loggerApi.warn(\"No template for mail, no mail will be send\");\n} else {\n    mail.sendMails(usersIds, template, null, execution);\n}",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttask7": {
+                "elementId": "scripttask7",
+                "elementName": "Publish result",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\ndef usersIds = users.getUserIds(\"${voterUserExpression}\");\ndef template = \"${resultTemplate}\";\nif (usersIds.isEmpty()){\n    loggerApi.warn(\"No users to send a mail to, no mail will be send\");\n} else if (template == null) {\n    loggerApi.warn(\"No template for mail, no mail will be send\");\n} else {\n    mail.sendMails(usersIds, template, null, execution);\n}",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              },
+              "scripttaskCheckOptionalVariables": {
+                "elementId": "scripttaskCheckOptionalVariables",
+                "elementName": "Check Optional Variables",
+                "elementType": "bpmn:ScriptTask",
+                "groovy": "// #importFile NONE\nimport com.collibra.dgc.workflow.api.exception.WorkflowException\n\nList<String> namesList = utility.toList(execution.getVariable(\"names\"))\nList<String> defaultsList = utility.toList(execution.getVariable(\"defaults\"))\n\nif (namesList.size() != defaultsList.size()) {\n    loggerApi.error(\"names list contains \" + namesList.size() + \" elements while the default values list contains \" +\n            defaultsList.size() + \" elements. Those sizes should be equal.\")\n\n    String errorMessage = translation.getMessage(\"workflowNamesAndDefaultsSizeDontMatch\", namesList.size(), defaultsList.size())\n    String errorTitle = translation.getMessage(\"workflowValueNotAllowed\");\n    WorkflowException workflowException = new WorkflowException(errorMessage);\n    ex.setTitleMessage(errorTitle);\n    throw workflowException;\n}\n\nfor (int i = 0; i < namesList.size(); i++) {\n    String currentName = namesList.get(i).trim();\n    String currentDefault = defaultsList.get(i);\n    if (!execution.hasVariable(currentName)) {\n        execution.setVariable(currentName, currentDefault);\n    }\n}",
+                "importedFrom": "bpmn:scriptTask",
+                "scriptFormat": "groovy",
+                "source": "votingSubProcess.bpmn"
+              }
+            },
+            "theme": "theme-1",
+            "url": null,
+            "usersAccess": null,
+            "uuidMappings": {},
+            "validationRules": []
+          },
+          "bpmnXml": "<?xml version='1.0' encoding='utf-8'?>\n<bpmn:definitions xmlns:bpmn=\"http://www.omg.org/spec/BPMN/20100524/MODEL\" xmlns:bpmndi=\"http://www.omg.org/spec/BPMN/20100524/DI\" xmlns:dc=\"http://www.omg.org/spec/DD/20100524/DC\" xmlns:di=\"http://www.omg.org/spec/DD/20100524/DI\" xmlns:flowable=\"http://flowable.org/bpmn\" xmlns:ns1=\"http://flowable.org/design\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" typeLanguage=\"http://www.w3.org/2001/XMLSchema\" expressionLanguage=\"http://www.w3.org/1999/XPath\" targetNamespace=\"http://www.collibra.com/apiv2\" exporter=\"Flowable Design\" exporterVersion=\"2025.1.08\" ns1:palette=\"flowable-core-process-palette\">\n  <bpmn:process id=\"votingSubProcess\" name=\"Voting Sub Process\" isExecutable=\"true\">\n    <bpmn:documentation>This is a voting process used as sub process in a wide range of processes. It is very configurable and is not intended to be used standalone. If you want to configure how voting is handled in the application, this is the process to configure.</bpmn:documentation>\n    <bpmn:extensionElements>\n      <ns1:stencilid>BPMNDiagram</ns1:stencilid>\n      <ns1:creationdate>2026-02-03T08:27:23.659Z</ns1:creationdate>\n      <ns1:modificationdate>2026-02-03T08:27:23.659Z</ns1:modificationdate>\n    </bpmn:extensionElements>\n    <bpmn:startEvent id=\"startevent2\" name=\"Start\" flowable:initiator=\"initiator\" flowable:formFieldValidation=\"false\">\n      <bpmn:extensionElements>\n        <flowable:formProperty id=\"decisionInfo\" name=\"Decision Info\" type=\"string\" required=\"true\" />\n        <flowable:formProperty id=\"voterUserExpression\" name=\"The user expression resulting to users required to vote\" type=\"string\" required=\"true\" />\n        <flowable:formProperty id=\"votePercentage\" name=\"The percentage of voters that are needed to approve (%)\" type=\"long\" default=\"50\" required=\"true\" />\n        <flowable:formProperty id=\"voteWarningTimeDuration\" name=\"Time duration before a warning mail is send to vote\" type=\"string\" default=\"B3D\" required=\"true\" />\n        <flowable:formProperty id=\"voteTimeoutDuration\" name=\"Time duration before the voting is stopped and the process continued\" type=\"string\" default=\"B5D\" required=\"true\" />\n        <flowable:formProperty id=\"addComments\" name=\"Add voting comments to resource\" type=\"boolean\" default=\"false\" required=\"true\" />\n        <flowable:formProperty id=\"addCommentsToParent\" name=\"Provide the id if you want comments to be added to a parent comment\" type=\"string\" />\n        <flowable:formProperty id=\"earlyComplete\" name=\"Stop voting if votingPercentage is impossible to reach\" type=\"boolean\" default=\"false\" required=\"true\" />\n        <flowable:formProperty id=\"voteTaskName\" name=\"The name of the actual voting task\" type=\"string\" required=\"true\" />\n        <flowable:formProperty id=\"sendActionEmail\" name=\"Send a mail to the users allowing completing the vote by sending a email\" type=\"boolean\" default=\"false\" />\n        <flowable:formProperty id=\"resultTemplate\" name=\"Email template for sending voting result\" type=\"string\" default=\"result\" />\n        <flowable:formProperty id=\"reminderTemplate\" name=\"Email template for sending voting reminder\" type=\"string\" default=\"reminder\" />\n        <flowable:formProperty id=\"names\" name=\"Email Template Names\" type=\"string\" default=\"resultTemplate,reminderTemplate\" readable=\"false\" required=\"true\" />\n        <flowable:formProperty id=\"defaults\" name=\"Defaults\" type=\"string\" default=\"result,reminder\" readable=\"false\" required=\"true\" />\n        <flowable:work-form-field-validation>false</flowable:work-form-field-validation>\n        <ns1:stencilid>StartNoneEvent</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:startEvent>\n    <bpmn:subProcess id=\"voteSubProcess\" name=\"Vote \">\n      <bpmn:extensionElements>\n        <ns1:stencilid>ExpandedSubProcess</ns1:stencilid>\n      </bpmn:extensionElements>\n      <bpmn:multiInstanceLoopCharacteristics isSequential=\"false\" flowable:collection=\"voters\" flowable:elementVariable=\"voter\">\n        <bpmn:extensionElements />\n        <bpmn:completionCondition>${completion}</bpmn:completionCondition>\n      </bpmn:multiInstanceLoopCharacteristics>\n      <bpmn:startEvent id=\"startVoteSubProcess\" name=\"Start\" flowable:formFieldValidation=\"false\">\n        <bpmn:extensionElements>\n          <flowable:work-form-field-validation>false</flowable:work-form-field-validation>\n          <ns1:stencilid>StartNoneEvent</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:startEvent>\n      <bpmn:userTask id=\"vote\" name=\"${voteTaskName}\" flowable:candidateUsers=\"{user(${voter})}\" flowable:formKey=\"votingSubProcessVoteForm\" flowable:formFieldValidation=\"false\">\n        <bpmn:documentation>${decisionInfo}</bpmn:documentation>\n        <bpmn:extensionElements>\n          <flowable:taskListener event=\"create\" class=\"com.collibra.dgc.workflow.api.listener.ActionMailSender\">\n            <flowable:field name=\"executeIfTrue\">\n              <flowable:expression>${sendActionEmail}</flowable:expression>\n            </flowable:field>\n          </flowable:taskListener>\n          <flowable:task-candidates-type>all</flowable:task-candidates-type>\n          <ns1:stencilid>FormTask</ns1:stencilid>\n          <ns1:candidatestype>all</ns1:candidatestype>\n        </bpmn:extensionElements>\n      </bpmn:userTask>\n      <bpmn:endEvent id=\"endVoteSubProcess\" name=\"End\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>EndNoneEvent</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:endEvent>\n      <bpmn:scriptTask id=\"scripttask6\" name=\"Send reminder mail\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>ScriptTask</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:script>// #importFile NONE\ndef usersIds = users.getUserIds(\"user(${voter})\");\ndef template = \"${reminderTemplate}\";\nif (usersIds.isEmpty()){\n    loggerApi.warn(\"No users to send a mail to, no mail will be send\");\n} else if (template == null) {\n    loggerApi.warn(\"No template for mail, no mail will be send\");\n} else {\n    mail.sendMails(usersIds, template, null, execution);\n}\n</bpmn:script>\n      </bpmn:scriptTask>\n      <bpmn:exclusiveGateway id=\"exclusivegateway1\" name=\"Exclusive Gateway\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>Exclusive_Databased_Gateway</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:exclusiveGateway>\n      <bpmn:scriptTask id=\"scripttask2\" name=\"Add vote outcome to list\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>ScriptTask</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:script>// #importFile NONE\ndef voter = execution.getVariable(\"voter\");\nBoolean approved = (Boolean) execution.getVariable(\"form_votingSubProcessVoteForm_outcome\").equals(\"approve\");\ncomment = execution.getVariable(\"comment\");\n\nvote = [\n        \"name\" : voter,\n        \"approved\": approved,\n        \"comment\": comment?.toString()\n]\nvoting = execution.getVariable(\"votingResult\");\nvoting.add(vote);\ncheckEarlyComplete(execution, voting);\n\nexecution.setVariable(\"votingResult\", voting);\n\ndef checkEarlyComplete(execution, voting) {\n    Boolean earlyComplete = (Boolean) execution.getVariable(\"earlyComplete\");\n    if (earlyComplete) {\n        Long percentage = (Long) execution.getVariable(\"votePercentage\");\n        List&lt;String&gt; voters = (List&lt;String&gt;) execution.getVariable(\"voters\");\n\n        double approved = 0;\n        double disapproved = 0;\n        double totalVoters = voters.size();\n        for (Map vote : voting) {\n            if (vote.approved) {\n                approved++;\n            } else {\n                disapproved++;\n            }\n        }\n\n        if (approved / totalVoters &gt;= percentage / 100.0) {\n            execution.setVariable(\"completion\", Boolean.TRUE);\n        } else if (disapproved / totalVoters &gt; (100 - percentage) / 100.0) {\n            execution.setVariable(\"completion\", Boolean.TRUE);\n        }\n    }\n}\n</bpmn:script>\n      </bpmn:scriptTask>\n      <bpmn:scriptTask id=\"scripttask3\" name=\"Store comment\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>ScriptTask</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:script>// #importFile NONE\nimport com.collibra.dgc.core.api.dto.instance.comment.AddCommentRequest\n\ndef commentValue = execution.getVariable(\"comment\")\nif (comment == null || comment.toString().isEmpty()) {\n    loggerApi.info(\"Comment empty, not adding anything\")\n    return;\n}\ndef parent = execution.getVariable(\"addCommentsToParent\")\ndef commentBuilder = AddCommentRequest\n  .builder()\n  .content(comment.toString())\n  .baseResourceId(item.getId())\n  .baseResourceType(item.getType())\n\nif (parent != null &amp;&amp; !parent.isEmpty()){\n    commentBuilder = commentBuilder.parentId(string2Uuid(parent))\n}\n\ncommentApi.addComment(commentBuilder.build())\n</bpmn:script>\n      </bpmn:scriptTask>\n      <bpmn:scriptTask id=\"scripttask5\" name=\"Create local variable for comment\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>ScriptTask</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:script>// #importFile NONE\nexecution.setVariableLocal(\"comment\", \"\");\n</bpmn:script>\n      </bpmn:scriptTask>\n      <bpmn:boundaryEvent id=\"boundarytimer2\" name=\"boundarytimer2\" attachedToRef=\"vote\" cancelActivity=\"false\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>IntermediateTimerEventBoundary</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:timerEventDefinition>\n          <bpmn:timeDuration>${voteWarningTimeDuration}</bpmn:timeDuration>\n        </bpmn:timerEventDefinition>\n      </bpmn:boundaryEvent>\n      <bpmn:sequenceFlow id=\"flow15\" name=\"addComments\" sourceRef=\"exclusivegateway1\" targetRef=\"scripttask3\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">${addComments}</bpmn:conditionExpression>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow17\" name=\"!addComments\" sourceRef=\"exclusivegateway1\" targetRef=\"endVoteSubProcess\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n        <bpmn:conditionExpression xsi:type=\"bpmn:tFormalExpression\">${!addComments}</bpmn:conditionExpression>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow18\" sourceRef=\"startVoteSubProcess\" targetRef=\"scripttask5\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow21\" sourceRef=\"vote\" targetRef=\"scripttask2\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow25\" sourceRef=\"scripttask3\" targetRef=\"endVoteSubProcess\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow29\" sourceRef=\"scripttask2\" targetRef=\"exclusivegateway1\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow32\" sourceRef=\"scripttask5\" targetRef=\"vote\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:sequenceFlow>\n      <bpmn:sequenceFlow id=\"flow7\" sourceRef=\"boundarytimer2\" targetRef=\"scripttask6\">\n        <bpmn:extensionElements>\n          <ns1:stencilid>SequenceFlow</ns1:stencilid>\n        </bpmn:extensionElements>\n      </bpmn:sequenceFlow>\n    </bpmn:subProcess>\n    <bpmn:endEvent id=\"endevent2\" name=\"End\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>EndNoneEvent</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:endEvent>\n    <bpmn:scriptTask id=\"scripttask7\" name=\"Publish result\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>ScriptTask</ns1:stencilid>\n      </bpmn:extensionElements>\n      <bpmn:script>// #importFile NONE\ndef usersIds = users.getUserIds(\"${voterUserExpression}\");\ndef template = \"${resultTemplate}\";\nif (usersIds.isEmpty()){\n    loggerApi.warn(\"No users to send a mail to, no mail will be send\");\n} else if (template == null) {\n    loggerApi.warn(\"No template for mail, no mail will be send\");\n} else {\n    mail.sendMails(usersIds, template, null, execution);\n}\n</bpmn:script>\n    </bpmn:scriptTask>\n    <bpmn:sequenceFlow id=\"flow13\" sourceRef=\"scripttask7\" targetRef=\"endevent2\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:scriptTask id=\"scripttaskCheckOptionalVariables\" name=\"Check Optional Variables\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>ScriptTask</ns1:stencilid>\n      </bpmn:extensionElements>\n      <bpmn:script>// #importFile NONE\nimport com.collibra.dgc.workflow.api.exception.WorkflowException\n\nList&lt;String&gt; namesList = utility.toList(execution.getVariable(\"names\"))\nList&lt;String&gt; defaultsList = utility.toList(execution.getVariable(\"defaults\"))\n\nif (namesList.size() != defaultsList.size()) {\n    loggerApi.error(\"names list contains \" + namesList.size() + \" elements while the default values list contains \" +\n            defaultsList.size() + \" elements. Those sizes should be equal.\")\n\n    String errorMessage = translation.getMessage(\"workflowNamesAndDefaultsSizeDontMatch\", namesList.size(), defaultsList.size())\n    String errorTitle = translation.getMessage(\"workflowValueNotAllowed\");\n    WorkflowException workflowException = new WorkflowException(errorMessage);\n    ex.setTitleMessage(errorTitle);\n    throw workflowException;\n}\n\nfor (int i = 0; i &lt; namesList.size(); i++) {\n    String currentName = namesList.get(i).trim();\n    String currentDefault = defaultsList.get(i);\n    if (!execution.hasVariable(currentName)) {\n        execution.setVariable(currentName, currentDefault);\n    }\n}\n</bpmn:script>\n    </bpmn:scriptTask>\n    <bpmn:sequenceFlow id=\"flow19\" sourceRef=\"startevent2\" targetRef=\"scripttaskCheckOptionalVariables\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:scriptTask id=\"scripttask1\" name=\"Create list of voters\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>ScriptTask</ns1:stencilid>\n      </bpmn:extensionElements>\n      <bpmn:script>// #importFile NONE\ndef voterUserExpression = execution.getVariable(\"voterUserExpression\")\nfinal Set&lt;String&gt; voters = new HashSet&lt;&gt;();\n\nfor (String userExpression : utility.toList(voterUserExpression)) {\n\tvoters.addAll(users.getUserNamesWithParticipatePermissionWithError(userExpression));\n}\n\nexecution.setVariable(\"voters\", new ArrayList&lt;&gt;(voters));\nexecution.setVariable(\"votingResult\", []);\nexecution.setVariable(\"completion\", Boolean.FALSE);\n</bpmn:script>\n    </bpmn:scriptTask>\n    <bpmn:scriptTask id=\"scripttask4\" name=\"Count voting result\" scriptFormat=\"groovy\" flowable:autoStoreVariables=\"false\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>ScriptTask</ns1:stencilid>\n      </bpmn:extensionElements>\n      <bpmn:script>// #importFile NONE\ndef voting = execution.getVariable(\"votingResult\")\nboolean result = getResult(voting, execution)\nexecution.setVariable(\"votingSuccess\", result)\n\ndef getResult(voting, execution) {\n\t\tLong percentage = (Long) execution.getVariable(\"votePercentage\");\n\t\tif (!voting.isEmpty()) {\n\t\t\tint requiredToVote = ((List&lt;String&gt;) execution.getVariable(\"voters\")).size();\n\t\t\tint approved = getNumberOfApprovals(voting);\n\t\t\tdouble fraction = percentage / 100.0;\n\t\t\treturn approved &gt;= requiredToVote * fraction;\n\t\t}\n\t\treturn false;\n\t}\n\ndef getNumberOfApprovals(List&lt;Map&gt; voting) {\n\t\tint approved = 0;\n\t\tfor (Map vote : voting) {\n\t\t\tif (vote.approved) {\n\t\t\t\tapproved++;\n\t\t\t}\n\t\t}\n\t\treturn approved;\n\t}\n</bpmn:script>\n    </bpmn:scriptTask>\n    <bpmn:sequenceFlow id=\"flow26\" sourceRef=\"boundarytimer1\" targetRef=\"scripttask4\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"flow27\" sourceRef=\"voteSubProcess\" targetRef=\"scripttask4\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"flow28\" sourceRef=\"scripttask4\" targetRef=\"scripttask7\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"flow30\" sourceRef=\"scripttaskCheckOptionalVariables\" targetRef=\"scripttask1\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:sequenceFlow id=\"flow31\" sourceRef=\"scripttask1\" targetRef=\"voteSubProcess\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>SequenceFlow</ns1:stencilid>\n      </bpmn:extensionElements>\n    </bpmn:sequenceFlow>\n    <bpmn:boundaryEvent id=\"boundarytimer1\" attachedToRef=\"voteSubProcess\" cancelActivity=\"true\">\n      <bpmn:extensionElements>\n        <ns1:stencilid>IntermediateTimerEventBoundary</ns1:stencilid>\n      </bpmn:extensionElements>\n      <bpmn:timerEventDefinition>\n        <bpmn:timeDuration>${voteTimeoutDuration}</bpmn:timeDuration>\n      </bpmn:timerEventDefinition>\n    </bpmn:boundaryEvent>\n  </bpmn:process>\n  <bpmndi:BPMNDiagram id=\"BPMNDiagram_votingSubProcess\">\n    <bpmndi:BPMNPlane bpmnElement=\"votingSubProcess\" id=\"BPMNPlane_votingSubProcess\">\n      <bpmndi:BPMNShape bpmnElement=\"startevent2\" id=\"BPMNShape_startevent2\">\n        <dc:Bounds height=\"30.0\" width=\"30.0\" x=\"57.5\" y=\"105.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"voteSubProcess\" id=\"BPMNShape_voteSubProcess\">\n        <dc:Bounds height=\"235.0\" width=\"1038.0\" x=\"177.0\" y=\"200.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"startVoteSubProcess\" id=\"BPMNShape_startVoteSubProcess\">\n        <dc:Bounds height=\"30.0\" width=\"30.0\" x=\"195.0\" y=\"255.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"vote\" id=\"BPMNShape_vote\">\n        <dc:Bounds height=\"61.0\" width=\"105.0\" x=\"465.0\" y=\"239.5\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"endVoteSubProcess\" id=\"BPMNShape_endVoteSubProcess\">\n        <dc:Bounds height=\"28.0\" width=\"28.0\" x=\"1155.0\" y=\"256.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask6\" id=\"BPMNShape_scripttask6\">\n        <dc:Bounds height=\"55.0\" width=\"121.0\" x=\"442.5\" y=\"350.9439834024896\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"exclusivegateway1\" id=\"BPMNShape_exclusivegateway1\">\n        <dc:Bounds height=\"40.0\" width=\"40.0\" x=\"840.0\" y=\"250.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask2\" id=\"BPMNShape_scripttask2\">\n        <dc:Bounds height=\"55.0\" width=\"105.0\" x=\"643.5\" y=\"242.5\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask3\" id=\"BPMNShape_scripttask3\">\n        <dc:Bounds height=\"55.0\" width=\"105.0\" x=\"990.0\" y=\"242.5\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask5\" id=\"BPMNShape_scripttask5\">\n        <dc:Bounds height=\"55.0\" width=\"105.0\" x=\"285.0\" y=\"242.5\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"boundarytimer2\" id=\"BPMNShape_boundarytimer2\">\n        <dc:Bounds height=\"30.0\" width=\"30.0\" x=\"488.0\" y=\"285.5\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"endevent2\" id=\"BPMNShape_endevent2\">\n        <dc:Bounds height=\"28.0\" width=\"28.0\" x=\"1455.0\" y=\"178.5\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask7\" id=\"BPMNShape_scripttask7\">\n        <dc:Bounds height=\"55.0\" width=\"105.0\" x=\"1275.0\" y=\"165.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttaskCheckOptionalVariables\" id=\"BPMNShape_scripttaskCheckOptionalVariables\">\n        <dc:Bounds height=\"61.0\" width=\"105.0\" x=\"20.0\" y=\"180.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask1\" id=\"BPMNShape_scripttask1\">\n        <dc:Bounds height=\"55.0\" width=\"105.0\" x=\"20.0\" y=\"290.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"scripttask4\" id=\"BPMNShape_scripttask4\">\n        <dc:Bounds height=\"55.0\" width=\"105.0\" x=\"1275.0\" y=\"273.0\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNShape bpmnElement=\"boundarytimer1\" id=\"BPMNShape_boundarytimer1\">\n        <dc:Bounds height=\"30.0\" width=\"30.0\" x=\"1200.0\" y=\"363.4439834024896\" />\n      </bpmndi:BPMNShape>\n      <bpmndi:BPMNEdge bpmnElement=\"flow17\" id=\"BPMNEdge_flow17\" flowable:sourceDockerX=\"20.0\" flowable:sourceDockerY=\"20.0\" flowable:targetDockerX=\"14.0\" flowable:targetDockerY=\"14.0\">\n        <di:waypoint x=\"880\" y=\"270\" /><di:waypoint x=\"1155\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow28\" id=\"BPMNEdge_flow28\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"28.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"1328\" y=\"273\" /><di:waypoint x=\"1328\" y=\"220\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow18\" id=\"BPMNEdge_flow18\" flowable:sourceDockerX=\"15.0\" flowable:sourceDockerY=\"15.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"225\" y=\"270\" /><di:waypoint x=\"285\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow29\" id=\"BPMNEdge_flow29\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"28.0\" flowable:targetDockerX=\"20.0\" flowable:targetDockerY=\"20.0\">\n        <di:waypoint x=\"749\" y=\"270\" /><di:waypoint x=\"840\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow19\" id=\"BPMNEdge_flow19\" flowable:sourceDockerX=\"15.0\" flowable:sourceDockerY=\"15.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"31.0\">\n        <di:waypoint x=\"73\" y=\"135\" /><di:waypoint x=\"72\" y=\"180\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow13\" id=\"BPMNEdge_flow13\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"28.0\" flowable:targetDockerX=\"14.0\" flowable:targetDockerY=\"14.0\">\n        <di:waypoint x=\"1380\" y=\"192\" /><di:waypoint x=\"1455\" y=\"192\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow25\" id=\"BPMNEdge_flow25\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"28.0\" flowable:targetDockerX=\"14.0\" flowable:targetDockerY=\"14.0\">\n        <di:waypoint x=\"1095\" y=\"270\" /><di:waypoint x=\"1155\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow15\" id=\"BPMNEdge_flow15\" flowable:sourceDockerX=\"20.0\" flowable:sourceDockerY=\"20.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"880\" y=\"270\" /><di:waypoint x=\"990\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow26\" id=\"BPMNEdge_flow26\" flowable:sourceDockerX=\"15.0\" flowable:sourceDockerY=\"15.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"1230\" y=\"378\" /><di:waypoint x=\"1252\" y=\"378\" /><di:waypoint x=\"1252\" y=\"300\" /><di:waypoint x=\"1275\" y=\"300\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow27\" id=\"BPMNEdge_flow27\" flowable:sourceDockerX=\"519.0\" flowable:sourceDockerY=\"118.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"1215\" y=\"318\" /><di:waypoint x=\"1245\" y=\"318\" /><di:waypoint x=\"1245\" y=\"300\" /><di:waypoint x=\"1275\" y=\"300\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow31\" id=\"BPMNEdge_flow31\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"28.0\" flowable:targetDockerX=\"519.0\" flowable:targetDockerY=\"118.0\">\n        <di:waypoint x=\"125\" y=\"318\" /><di:waypoint x=\"177\" y=\"318\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow21\" id=\"BPMNEdge_flow21\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"31.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"570\" y=\"270\" /><di:waypoint x=\"644\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow32\" id=\"BPMNEdge_flow32\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"28.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"31.0\">\n        <di:waypoint x=\"390\" y=\"270\" /><di:waypoint x=\"465\" y=\"270\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow7\" id=\"BPMNEdge_flow7\" flowable:sourceDockerX=\"15.0\" flowable:sourceDockerY=\"15.0\" flowable:targetDockerX=\"61.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"503\" y=\"316\" /><di:waypoint x=\"502\" y=\"351\" /></bpmndi:BPMNEdge>\n      <bpmndi:BPMNEdge bpmnElement=\"flow30\" id=\"BPMNEdge_flow30\" flowable:sourceDockerX=\"53.0\" flowable:sourceDockerY=\"31.0\" flowable:targetDockerX=\"53.0\" flowable:targetDockerY=\"28.0\">\n        <di:waypoint x=\"72\" y=\"241\" /><di:waypoint x=\"72\" y=\"290\" /></bpmndi:BPMNEdge>\n    </bpmndi:BPMNPlane>\n  </bpmndi:BPMNDiagram>\n</bpmn:definitions>",
+          "forms": {
+            "startevent2InlineForm": {
+              "description": "Inline flowable:formProperty definitions extracted from BPMN.",
+              "fields": [
+                {
+                  "expression": null,
+                  "id": "decisionInfo",
+                  "label": "Decision Info",
+                  "name": "Decision Info",
+                  "readable": true,
+                  "required": true,
+                  "type": "string",
+                  "value": null,
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "voterUserExpression",
+                  "label": "The user expression resulting to users required to vote",
+                  "name": "The user expression resulting to users required to vote",
+                  "readable": true,
+                  "required": true,
+                  "type": "string",
+                  "value": null,
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "votePercentage",
+                  "label": "The percentage of voters that are needed to approve (%)",
+                  "name": "The percentage of voters that are needed to approve (%)",
+                  "readable": true,
+                  "required": true,
+                  "type": "long",
+                  "value": "50",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "voteWarningTimeDuration",
+                  "label": "Time duration before a warning mail is send to vote",
+                  "name": "Time duration before a warning mail is send to vote",
+                  "readable": true,
+                  "required": true,
+                  "type": "string",
+                  "value": "B3D",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "voteTimeoutDuration",
+                  "label": "Time duration before the voting is stopped and the process continued",
+                  "name": "Time duration before the voting is stopped and the process continued",
+                  "readable": true,
+                  "required": true,
+                  "type": "string",
+                  "value": "B5D",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "addComments",
+                  "label": "Add voting comments to resource",
+                  "name": "Add voting comments to resource",
+                  "readable": true,
+                  "required": true,
+                  "type": "boolean",
+                  "value": "false",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "addCommentsToParent",
+                  "label": "Provide the id if you want comments to be added to a parent comment",
+                  "name": "Provide the id if you want comments to be added to a parent comment",
+                  "readable": true,
+                  "required": false,
+                  "type": "string",
+                  "value": null,
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "earlyComplete",
+                  "label": "Stop voting if votingPercentage is impossible to reach",
+                  "name": "Stop voting if votingPercentage is impossible to reach",
+                  "readable": true,
+                  "required": true,
+                  "type": "boolean",
+                  "value": "false",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "voteTaskName",
+                  "label": "The name of the actual voting task",
+                  "name": "The name of the actual voting task",
+                  "readable": true,
+                  "required": true,
+                  "type": "string",
+                  "value": null,
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "sendActionEmail",
+                  "label": "Send a mail to the users allowing completing the vote by sending a email",
+                  "name": "Send a mail to the users allowing completing the vote by sending a email",
+                  "readable": true,
+                  "required": false,
+                  "type": "boolean",
+                  "value": "false",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "resultTemplate",
+                  "label": "Email template for sending voting result",
+                  "name": "Email template for sending voting result",
+                  "readable": true,
+                  "required": false,
+                  "type": "string",
+                  "value": "result",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "reminderTemplate",
+                  "label": "Email template for sending voting reminder",
+                  "name": "Email template for sending voting reminder",
+                  "readable": true,
+                  "required": false,
+                  "type": "string",
+                  "value": "reminder",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "names",
+                  "label": "Email Template Names",
+                  "name": "Email Template Names",
+                  "readable": false,
+                  "required": true,
+                  "type": "string",
+                  "value": "resultTemplate,reminderTemplate",
+                  "variable": null,
+                  "writable": true
+                },
+                {
+                  "expression": null,
+                  "id": "defaults",
+                  "label": "Defaults",
+                  "name": "Defaults",
+                  "readable": false,
+                  "required": true,
+                  "type": "string",
+                  "value": "result,reminder",
+                  "variable": null,
+                  "writable": true
+                }
+              ],
+              "key": "startevent2InlineForm",
+              "metadata": {
+                "key": "startevent2InlineForm",
+                "name": "Start Inline Form"
+              },
+              "modelType": "inline-form",
+              "name": "Start Inline Form",
+              "outcomes": [],
+              "ownerElementId": "startevent2",
+              "rows": [],
+              "source": "votingSubProcess.bpmn"
+            },
+            "votingSubProcessVoteForm": {
+              "description": "",
+              "fields": [
+                {
+                  "column": 0,
+                  "enabled": true,
+                  "extraSettings": {
+                    "minRows": 1,
+                    "textFormat": "html",
+                    "useSpellCheck": false
+                  },
+                  "id": "rich-text1",
+                  "label": "What is your reason for approving/rejecting?",
+                  "name": "What is your reason for approving/rejecting?",
+                  "readable": true,
+                  "required": false,
+                  "row": 0,
+                  "size": 12,
+                  "stencilId": "cloud-rich-text",
+                  "stencilSuperIds": [
+                    "cloud-rich-text",
+                    "Component"
+                  ],
+                  "type": "richText",
+                  "value": "{{comment}}",
+                  "visible": true,
+                  "writable": true
+                }
+              ],
+              "key": "votingSubProcessVoteForm",
+              "metadata": {
+                "description": "",
+                "flowableDesignVersion": 3110,
+                "key": "votingSubProcessVoteForm",
+                "modelType": "form",
+                "name": "votingSubProcessVoteForm",
+                "palette": "flowable-core-form-palette",
+                "version": "1"
+              },
+              "modelType": "form",
+              "name": "votingSubProcessVoteForm",
+              "outcomes": [
+                {
+                  "enabled": "",
+                  "label": "Reject",
+                  "primary": false,
+                  "value": "reject",
+                  "visible": ""
+                },
+                {
+                  "enabled": "",
+                  "label": "Approve",
+                  "primary": true,
+                  "value": "approve",
+                  "visible": ""
+                }
+              ],
+              "palette": "flowable-core-form-palette",
+              "raw": {
+                "metadata": {
+                  "description": "",
+                  "flowableDesignVersion": 3110,
+                  "key": "votingSubProcessVoteForm",
+                  "modelType": "form",
+                  "name": "votingSubProcessVoteForm",
+                  "palette": "flowable-core-form-palette",
+                  "version": "1"
+                },
+                "outcomes": [
+                  {
+                    "enabled": "",
+                    "ignorePayload": false,
+                    "ignoreValidation": false,
+                    "label": "Reject",
+                    "navigationUrl": "",
+                    "primary": false,
+                    "value": "reject",
+                    "visible": ""
+                  },
+                  {
+                    "enabled": "",
+                    "ignorePayload": false,
+                    "ignoreValidation": false,
+                    "label": "Approve",
+                    "navigationUrl": "",
+                    "primary": true,
+                    "value": "approve",
+                    "visible": ""
+                  }
+                ],
+                "rows": [
+                  {
+                    "cols": [
+                      {
+                        "designInfo": {
+                          "stencilId": "cloud-rich-text",
+                          "stencilSuperIds": [
+                            "cloud-rich-text",
+                            "Component"
+                          ]
+                        },
+                        "enabled": true,
+                        "extraSettings": {
+                          "minRows": 1,
+                          "textFormat": "html",
+                          "useSpellCheck": false
+                        },
+                        "id": "rich-text1",
+                        "ignore": false,
+                        "isRequired": false,
+                        "label": "What is your reason for approving/rejecting?",
+                        "size": 12,
+                        "type": "richText",
+                        "value": "{{comment}}",
+                        "visible": true
+                      }
+                    ]
+                  }
+                ]
+              },
+              "rows": [
+                {
+                  "cols": [
+                    {
+                      "designInfo": {
+                        "stencilId": "cloud-rich-text",
+                        "stencilSuperIds": [
+                          "cloud-rich-text",
+                          "Component"
+                        ]
+                      },
+                      "enabled": true,
+                      "extraSettings": {
+                        "minRows": 1,
+                        "textFormat": "html",
+                        "useSpellCheck": false
+                      },
+                      "id": "rich-text1",
+                      "ignore": false,
+                      "isRequired": false,
+                      "label": "What is your reason for approving/rejecting?",
+                      "size": 12,
+                      "type": "richText",
+                      "value": "{{comment}}",
+                      "visible": true
+                    }
+                  ]
+                }
+              ],
+              "source": "form-votingSubProcessVoteForm.form",
+              "version": "1"
+            }
+          },
+          "generated": false,
+          "key": "votingSubProcess",
+          "name": "votingSubProcess",
+          "parameterProfile": {
+            "availableVariables": [
+              "addComments",
+              "addCommentsToParent",
+              "comment",
+              "completion",
+              "decisionInfo",
+              "defaults",
+              "earlyComplete",
+              "form_votingSubProcessVoteForm_outcome",
+              "names",
+              "reminderTemplate",
+              "resultTemplate",
+              "rich-text1",
+              "sendActionEmail",
+              "votePercentage",
+              "voteTaskName",
+              "voteTimeoutDuration",
+              "voteWarningTimeDuration",
+              "voter",
+              "voterUserExpression",
+              "voters",
+              "votingResult",
+              "votingSuccess"
+            ],
+            "formFields": [
+              "addComments",
+              "addCommentsToParent",
+              "decisionInfo",
+              "defaults",
+              "earlyComplete",
+              "names",
+              "reminderTemplate",
+              "resultTemplate",
+              "rich-text1",
+              "sendActionEmail",
+              "votePercentage",
+              "voteTaskName",
+              "voteTimeoutDuration",
+              "voteWarningTimeDuration",
+              "voterUserExpression"
+            ],
+            "formKeys": [
+              "startevent2InlineForm",
+              "votingSubProcessVoteForm"
+            ],
+            "inputVariables": [
+              "addComments",
+              "addCommentsToParent",
+              "comment",
+              "decisionInfo",
+              "defaults",
+              "earlyComplete",
+              "form_votingSubProcessVoteForm_outcome",
+              "names",
+              "reminderTemplate",
+              "resultTemplate",
+              "rich-text1",
+              "sendActionEmail",
+              "votePercentage",
+              "voteTaskName",
+              "voteTimeoutDuration",
+              "voteWarningTimeDuration",
+              "voter",
+              "voterUserExpression"
+            ],
+            "outputVariables": [
+              "completion",
+              "voters",
+              "votingResult",
+              "votingSuccess"
+            ]
+          },
+          "processKey": "votingSubProcess",
+          "sourceMember": "votingSubProcess.bpmn",
+          "sourceName": "VotingSubProcessApp.zip"
+        }
+      },
+      "elementProperties": {
+        "flow1": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from start to voteSubprocess.",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow1.\n// Source: start\n// Target: Run voting subprocess\nexecution.setVariable(\"lastSequenceFlowId\", \"flow1\")\nexecution.setVariable(\"flow1Taken\", true)\nexecution.setVariable(\"flow1SourceRef\", \"start\")\nexecution.setVariable(\"flow1TargetRef\", \"voteSubprocess\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:14:25"
+        },
+        "flow2": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from voteSubprocess to end.",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow2.\n// Source: Run voting subprocess\n// Target: end\nexecution.setVariable(\"lastSequenceFlowId\", \"flow2\")\nexecution.setVariable(\"flow2Taken\", true)\nexecution.setVariable(\"flow2SourceRef\", \"voteSubprocess\")\nexecution.setVariable(\"flow2TargetRef\", \"end\")\n",
+          "scope": "global",
+          "updatedAt": "2026-05-22T15:14:25"
+        },
+        "voteSubprocess": {
+          "calledElement": "votingSubProcess",
+          "calledElementType": "key",
+          "calledWorkflowGenerated": false,
+          "calledWorkflowParameters": {
+            "availableParentVariables": [],
+            "formKeys": [
+              "startevent2InlineForm",
+              "votingSubProcessVoteForm"
+            ],
+            "inputs": [
+              {
+                "sourceExpression": "${addComments}",
+                "target": "addComments"
+              },
+              {
+                "sourceExpression": "${addCommentsToParent}",
+                "target": "addCommentsToParent"
+              },
+              {
+                "sourceExpression": "${comment}",
+                "target": "comment"
+              },
+              {
+                "sourceExpression": "${decisionInfo}",
+                "target": "decisionInfo"
+              },
+              {
+                "sourceExpression": "${defaults}",
+                "target": "defaults"
+              },
+              {
+                "sourceExpression": "${earlyComplete}",
+                "target": "earlyComplete"
+              },
+              {
+                "sourceExpression": "${form_votingSubProcessVoteForm_outcome}",
+                "target": "form_votingSubProcessVoteForm_outcome"
+              },
+              {
+                "sourceExpression": "${names}",
+                "target": "names"
+              },
+              {
+                "sourceExpression": "${reminderTemplate}",
+                "target": "reminderTemplate"
+              },
+              {
+                "sourceExpression": "${resultTemplate}",
+                "target": "resultTemplate"
+              },
+              {
+                "sourceExpression": "${sendActionEmail}",
+                "target": "sendActionEmail"
+              },
+              {
+                "sourceExpression": "${votePercentage}",
+                "target": "votePercentage"
+              },
+              {
+                "sourceExpression": "${voteTaskName}",
+                "target": "voteTaskName"
+              },
+              {
+                "sourceExpression": "${voteTimeoutDuration}",
+                "target": "voteTimeoutDuration"
+              },
+              {
+                "sourceExpression": "${voteWarningTimeDuration}",
+                "target": "voteWarningTimeDuration"
+              },
+              {
+                "sourceExpression": "${voter}",
+                "target": "voter"
+              },
+              {
+                "sourceExpression": "${voterUserExpression}",
+                "target": "voterUserExpression"
+              }
+            ],
+            "outputs": [
+              {
+                "source": "completion",
+                "target": "completion"
+              },
+              {
+                "source": "voters",
+                "target": "voters"
+              },
+              {
+                "source": "votingResult",
+                "target": "votingResult"
+              },
+              {
+                "source": "votingSuccess",
+                "target": "votingSuccess"
+              }
+            ],
+            "producedOutputs": [
+              "completion",
+              "voters",
+              "votingResult",
+              "votingSuccess"
+            ],
+            "requiredInputs": [
+              "addComments",
+              "addCommentsToParent",
+              "comment",
+              "decisionInfo",
+              "defaults",
+              "earlyComplete",
+              "form_votingSubProcessVoteForm_outcome",
+              "names",
+              "reminderTemplate",
+              "resultTemplate",
+              "rich-text1",
+              "sendActionEmail",
+              "votePercentage",
+              "voteTaskName",
+              "voteTimeoutDuration",
+              "voteWarningTimeDuration",
+              "voter",
+              "voterUserExpression"
+            ],
+            "warnings": [
+              "Input `addComments` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `addCommentsToParent` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `comment` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `decisionInfo` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `defaults` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `earlyComplete` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `form_votingSubProcessVoteForm_outcome` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `names` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `reminderTemplate` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `resultTemplate` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `sendActionEmail` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `votePercentage` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `voteTaskName` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `voteTimeoutDuration` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `voteWarningTimeDuration` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `voter` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+              "Input `voterUserExpression` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution."
+            ]
+          },
+          "calledWorkflowSource": "VotingSubProcessApp.zip",
+          "documentation": "Stitched to workflow `votingSubProcess` from `VotingSubProcessApp.zip`. Mapped 17 input parameter(s) and 4 output parameter(s).",
+          "fallbackToDefaultTenant": "true",
+          "inheritVariables": "true",
+          "inputs": [
+            {
+              "sourceExpression": "${addComments}",
+              "target": "addComments"
+            },
+            {
+              "sourceExpression": "${addCommentsToParent}",
+              "target": "addCommentsToParent"
+            },
+            {
+              "sourceExpression": "${comment}",
+              "target": "comment"
+            },
+            {
+              "sourceExpression": "${decisionInfo}",
+              "target": "decisionInfo"
+            },
+            {
+              "sourceExpression": "${defaults}",
+              "target": "defaults"
+            },
+            {
+              "sourceExpression": "${earlyComplete}",
+              "target": "earlyComplete"
+            },
+            {
+              "sourceExpression": "${form_votingSubProcessVoteForm_outcome}",
+              "target": "form_votingSubProcessVoteForm_outcome"
+            },
+            {
+              "sourceExpression": "${names}",
+              "target": "names"
+            },
+            {
+              "sourceExpression": "${reminderTemplate}",
+              "target": "reminderTemplate"
+            },
+            {
+              "sourceExpression": "${resultTemplate}",
+              "target": "resultTemplate"
+            },
+            {
+              "sourceExpression": "${sendActionEmail}",
+              "target": "sendActionEmail"
+            },
+            {
+              "sourceExpression": "${votePercentage}",
+              "target": "votePercentage"
+            },
+            {
+              "sourceExpression": "${voteTaskName}",
+              "target": "voteTaskName"
+            },
+            {
+              "sourceExpression": "${voteTimeoutDuration}",
+              "target": "voteTimeoutDuration"
+            },
+            {
+              "sourceExpression": "${voteWarningTimeDuration}",
+              "target": "voteWarningTimeDuration"
+            },
+            {
+              "sourceExpression": "${voter}",
+              "target": "voter"
+            },
+            {
+              "sourceExpression": "${voterUserExpression}",
+              "target": "voterUserExpression"
+            }
+          ],
+          "outputs": [
+            {
+              "source": "completion",
+              "target": "completion"
+            },
+            {
+              "source": "voters",
+              "target": "voters"
+            },
+            {
+              "source": "votingResult",
+              "target": "votingResult"
+            },
+            {
+              "source": "votingSuccess",
+              "target": "votingSuccess"
+            }
+          ],
+          "sameDeployment": "true",
+          "updatedAt": "2026-05-22T15:14:25"
+        }
+      },
+      "metadata": {
+        "name": "Parent With OOTB Child",
+        "with_timestamp": "20260522_151425"
+      },
+      "scripts": {}
+    },
+    "status": "passed",
+    "summary": {
+      "blockingIssues": 0,
+      "calledWorkflows": 1,
+      "flows": 2,
+      "forms": 0,
+      "iterations": 1,
+      "nodes": 3,
+      "passPercent": 100.0,
+      "processId": "parentWithOotbChild",
+      "scripts": 0
+    },
+    "summaryText": "Autonomous package test passed. Pass rate 100.0% (32/32 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+  },
+  "relatedPackagePaths": [
+    "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_ootb_stitch_with_timestamp_20260522_151425__called__votingSubProcess.zip"
+  ],
+  "status": "passed",
+  "timestamp": "20260522_151425",
+  "trace": [
+    {
+      "processKey": "votingSubProcess",
+      "source": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\02_ootb_workflows\\VotingSubProcessApp.zip",
+      "status": "completed",
+      "step": "called_workflow_source_load"
+    },
+    {
+      "calledElement": "votingSubProcess",
+      "elementId": "voteSubprocess",
+      "generated": false,
+      "inputs": 17,
+      "outputs": 4,
+      "source": "VotingSubProcessApp.zip",
+      "status": "completed",
+      "step": "call_activity_stitch",
+      "warnings": [
+        "Input `addComments` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `addCommentsToParent` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `comment` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `decisionInfo` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `defaults` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `earlyComplete` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `form_votingSubProcessVoteForm_outcome` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `names` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `reminderTemplate` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `resultTemplate` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `sendActionEmail` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `votePercentage` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `voteTaskName` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `voteTimeoutDuration` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `voteWarningTimeDuration` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `voter` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution.",
+        "Input `voterUserExpression` is required by the called workflow but was not found in the parent forms/scripts; mapped by expression for runtime resolution."
+      ]
+    },
+    {
+      "condition": "",
+      "elementId": "flow1",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "",
+      "elementId": "flow2",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    }
+  ],
+  "zipPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_ootb_stitch_with_timestamp_20260522_151425.zip"
+}

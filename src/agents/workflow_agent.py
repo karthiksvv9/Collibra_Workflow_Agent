@@ -305,9 +305,10 @@ class CollibraWorkflowAgent:
     def _complex_prompt_design(self, master_prompt: str, context: str) -> WorkflowPackage:
         process_id = _safe_id(_summarise_name(master_prompt) + "AiDesignedComplexWorkflow")
         process_name = _title(master_prompt)
+        profile = _complex_prompt_profile(master_prompt)
         scripts = _complex_prompt_scripts()
-        forms = _complex_prompt_forms(process_id)
-        lanes = ["Requester", "Data Steward", "Business Owner", "Risk and Compliance", "Collibra Automation", "Provisioning Workflow"]
+        forms = _complex_prompt_forms(process_id, profile)
+        lanes = ["Requester", "Data Steward", "Business Owner", "Risk and Compliance", "Collibra Automation", profile["called_lane"]]
         nodes = [
             BpmnNode(
                 "start_request",
@@ -413,11 +414,11 @@ class CollibraWorkflowAgent:
             BpmnNode(
                 "call_provisioning_workflow",
                 "callActivity",
-                "Call downstream provisioning workflow",
-                "Provisioning Workflow",
-                "Calls a separate Collibra/Flowable workflow to provision access after governance approval.",
+                profile["call_activity_name"],
+                profile["called_lane"],
+                profile["call_activity_documentation"],
                 properties={
-                    "calledElement": "${provisioningWorkflowKey}",
+                    "calledElement": profile["called_element"],
                     "calledElementType": "key",
                     "inheritVariables": "true",
                     "businessKey": "${requestId}",
@@ -425,13 +426,13 @@ class CollibraWorkflowAgent:
                 x=2240,
                 y=875,
             ),
-            BpmnNode("gateway_provisioning_result", "exclusiveGateway", "Provisioning result", "Provisioning Workflow", x=2490, y=890),
+            BpmnNode("gateway_provisioning_result", "exclusiveGateway", profile["result_gateway_name"], profile["called_lane"], x=2490, y=890),
             BpmnNode(
                 "technical_remediation",
                 "userTask",
-                "Technical remediation",
-                "Provisioning Workflow",
-                "Technical owner fixes failed provisioning and retries the called workflow.",
+                profile["remediation_task_name"],
+                profile["called_lane"],
+                profile["remediation_documentation"],
                 form_key=forms[5].key,
                 candidate_groups="${technicalStewardRole}",
                 x=2240,
@@ -494,10 +495,10 @@ class CollibraWorkflowAgent:
             SequenceFlow("flow_exception_required", "gateway_policy_exception", "create_policy_exception", "Exception required", "${policyExceptionRequired == true}"),
             SequenceFlow("flow_no_exception", "gateway_policy_exception", "create_relations", "No exception", "${policyExceptionRequired != true}", is_default=True),
             SequenceFlow("flow_exception_relations", "create_policy_exception", "create_relations", "Exception logged"),
-            SequenceFlow("flow_relations_call", "create_relations", "call_provisioning_workflow", "Invoke provisioning"),
-            SequenceFlow("flow_call_result", "call_provisioning_workflow", "gateway_provisioning_result", "Provisioning returned"),
-            SequenceFlow("flow_provision_success", "gateway_provisioning_result", "update_access_status", "Provisioned", "${provisioningStatus == 'success'}"),
-            SequenceFlow("flow_provision_failure", "gateway_provisioning_result", "technical_remediation", "Provisioning failed", "${provisioningStatus != 'success'}", is_default=True),
+            SequenceFlow("flow_relations_call", "create_relations", "call_provisioning_workflow", profile["invoke_flow_name"]),
+            SequenceFlow("flow_call_result", "call_provisioning_workflow", "gateway_provisioning_result", profile["returned_flow_name"]),
+            SequenceFlow("flow_provision_success", "gateway_provisioning_result", "update_access_status", profile["success_flow_name"], "${provisioningStatus == 'success'}"),
+            SequenceFlow("flow_provision_failure", "gateway_provisioning_result", "technical_remediation", profile["failure_flow_name"], "${provisioningStatus != 'success'}", is_default=True),
             SequenceFlow("flow_remediation_retry", "technical_remediation", "call_provisioning_workflow", "Retry"),
             SequenceFlow("flow_status_notify", "update_access_status", "notify_success", "Status updated"),
             SequenceFlow("flow_notify_success_end", "notify_success", "end_approved", "Done"),
@@ -521,7 +522,7 @@ class CollibraWorkflowAgent:
             documentation=(
                 "Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context "
                 "for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, "
-                "script-task Groovy and a call activity to a downstream provisioning workflow.\n\n"
+                f"script-task Groovy and a call activity to {profile['called_element']}.\n\n"
                 f"Master prompt excerpt: {master_prompt[:1000]}\n\n"
                 f"Retrieved RAG context excerpt:\n{context[:1500]}"
             ),
@@ -900,6 +901,153 @@ def _requires_complex_prompt_design(prompt: str) -> bool:
     return sum(1 for signal in signals if signal in value) >= 2
 
 
+def _complex_prompt_profile(prompt: str) -> dict[str, str]:
+    value = prompt.lower()
+    focus = _prompt_focus_label(prompt)
+    seed = _lower_camel(_safe_id(f"{_summarise_name(prompt)}CalledWorkflow"))
+    themes = [
+        (
+            ("privacy", "pii", "personal data", "data protection", "gdpr"),
+            "Privacy Assessment",
+            "Privacy Assessment Workflow",
+            "Call privacy assessment workflow",
+            "Calls a separate workflow to assess privacy, PII, data protection controls and required remediation.",
+            "Privacy assessment result",
+            "Privacy remediation",
+            "Privacy owner fixes assessment failures and retries the called workflow.",
+            "Invoke privacy assessment",
+            "Privacy assessment returned",
+            "Privacy approved",
+            "Privacy remediation required",
+        ),
+        (
+            ("obsolete", "deletion", "delete", "retire", "archive"),
+            "Asset Obsolescence",
+            "Asset Obsolescence Workflow",
+            "Call asset obsolescence workflow",
+            "Calls a separate workflow to validate obsolete asset deletion, archive evidence and dependency cleanup.",
+            "Deletion workflow result",
+            "Deletion remediation",
+            "Technical owner fixes deletion blockers and retries the called workflow.",
+            "Invoke deletion workflow",
+            "Deletion workflow returned",
+            "Deletion complete",
+            "Deletion remediation required",
+        ),
+        (
+            ("quality", "data quality", "dq", "certification", "certify"),
+            "Data Quality Certification",
+            "Data Quality Workflow",
+            "Call data quality certification workflow",
+            "Calls a separate workflow to certify data quality controls, issue remediation and final governance evidence.",
+            "Certification result",
+            "Certification remediation",
+            "Quality owner fixes certification blockers and retries the called workflow.",
+            "Invoke certification workflow",
+            "Certification returned",
+            "Certification passed",
+            "Certification remediation required",
+        ),
+        (
+            ("relation", "responsibility", "ownership", "stewardship", "assignment"),
+            "Stewardship Assignment",
+            "Stewardship Workflow",
+            "Call stewardship assignment workflow",
+            "Calls a separate workflow to create relations, assign responsibilities and verify ownership standards.",
+            "Stewardship workflow result",
+            "Stewardship remediation",
+            "Stewardship owner fixes relation or responsibility blockers and retries the called workflow.",
+            "Invoke stewardship workflow",
+            "Stewardship workflow returned",
+            "Stewardship complete",
+            "Stewardship remediation required",
+        ),
+        (
+            ("risk", "security", "exception", "control", "compliance"),
+            "Risk Control",
+            "Risk Control Workflow",
+            "Call risk control workflow",
+            "Calls a separate workflow to validate risk controls, policy exceptions and compliance evidence.",
+            "Risk control result",
+            "Risk remediation",
+            "Risk owner fixes control blockers and retries the called workflow.",
+            "Invoke risk control workflow",
+            "Risk control returned",
+            "Risk control approved",
+            "Risk remediation required",
+        ),
+        (
+            ("provision", "access", "entitlement", "permission"),
+            "Access Provisioning",
+            "Provisioning Workflow",
+            "Call downstream provisioning workflow",
+            "Calls a separate Collibra/Flowable workflow to provision access after governance approval.",
+            "Provisioning result",
+            "Technical remediation",
+            "Technical owner fixes failed provisioning and retries the called workflow.",
+            "Invoke provisioning",
+            "Provisioning returned",
+            "Provisioned",
+            "Provisioning failed",
+        ),
+    ]
+    selected = themes[-1]
+    for theme in themes:
+        if any(token in value for token in theme[0]):
+            selected = theme
+            break
+    suffix = _safe_id(selected[1])
+    called_element = _lower_camel(_safe_id(f"{focus}{suffix}Workflow")) or seed
+    return {
+        "called_element": called_element,
+        "called_lane": selected[2],
+        "call_activity_name": selected[3],
+        "call_activity_documentation": selected[4],
+        "result_gateway_name": selected[5],
+        "remediation_task_name": selected[6],
+        "remediation_documentation": selected[7],
+        "invoke_flow_name": selected[8],
+        "returned_flow_name": selected[9],
+        "success_flow_name": selected[10],
+        "failure_flow_name": selected[11],
+        "form_workflow_label": f"{selected[1]} workflow key",
+        "form_status_label": f"{selected[1]} status",
+    }
+
+
+def _prompt_focus_label(prompt: str) -> str:
+    stop_words = {
+        "a",
+        "an",
+        "and",
+        "as",
+        "based",
+        "build",
+        "call",
+        "collibra",
+        "complex",
+        "create",
+        "for",
+        "from",
+        "governance",
+        "governed",
+        "in",
+        "of",
+        "process",
+        "the",
+        "to",
+        "workflow",
+        "with",
+    }
+    words = [word for word in re.findall(r"[A-Za-z0-9]+", prompt) if word.lower() not in stop_words]
+    return "".join(word.capitalize() for word in words[:4]) or "Generated"
+
+
+def _lower_camel(value: str) -> str:
+    safe = _safe_id(value)
+    return safe[:1].lower() + safe[1:] if safe else safe
+
+
 def _design_satisfies_prompt(prompt: str, design: dict[str, Any]) -> bool:
     if not _requires_complex_prompt_design(prompt):
         return True
@@ -929,7 +1077,8 @@ def _compile_failure_summaries(results: dict[str, CompileResult]) -> list[str]:
     return failures
 
 
-def _complex_prompt_forms(process_id: str) -> list[FormModel]:
+def _complex_prompt_forms(process_id: str, profile: dict[str, str] | None = None) -> list[FormModel]:
+    profile = profile or _complex_prompt_profile("")
     return [
         FormModel(
             key=f"{process_id}AccessRequestForm",
@@ -952,7 +1101,7 @@ def _complex_prompt_forms(process_id: str) -> list[FormModel]:
                     ],
                 ),
                 FormField("requestedAccessEndDate", "Requested access end date", "date", True),
-                FormField("provisioningWorkflowKey", "Downstream provisioning workflow key", "string", True),
+                FormField("provisioningWorkflowKey", profile["form_workflow_label"], "string", True, default=profile["called_element"]),
             ],
         ),
         FormModel(
@@ -1022,10 +1171,10 @@ def _complex_prompt_forms(process_id: str) -> list[FormModel]:
         ),
         FormModel(
             key=f"{process_id}TechnicalRemediationForm",
-            name="Technical Remediation",
+            name=profile["remediation_task_name"],
             fields=[
-                FormField("provisioningStatus", "Provisioning status", "string", True),
-                FormField("provisioningError", "Provisioning error", "string"),
+                FormField("provisioningStatus", profile["form_status_label"], "string", True),
+                FormField("provisioningError", f"{profile['form_status_label']} error", "string"),
                 FormField("remediationAction", "Remediation action", "string", True),
             ],
         ),

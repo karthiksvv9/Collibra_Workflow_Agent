@@ -59,6 +59,11 @@ export async function testWorkflowPackage(payload) {
   return checkedJson(res);
 }
 
+export async function autocorrectWorkflow(payload) {
+  const res = await fetch(apiPath('/api/workflow/autocorrect'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
+  return checkedJson(res);
+}
+
 export async function runWorkflowTestCases(payload) {
   const res = await fetch(apiPath('/api/workflow/test-cases'), { method: 'POST', headers: jsonHeaders, body: JSON.stringify(payload) });
   return checkedJson(res);

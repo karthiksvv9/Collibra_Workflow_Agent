@@ -10,7 +10,7 @@ models:
   # Paste the enterprise AI gateway key here once on your private/server copy.
   # The same key is reused for every enabled model profile below.
   # If blank, launch scripts prompt once for AI_GATEWAY_API_KEY.
-  api_key: ""
+  api_key: "sk-proj-0xX6oJ_abkQXBMIsCyDJCIUtkXWTmsl2X5bOT3BlbkFJS0i5Qkt_7uYr9FECApe1WHAr1m5PqHcLMTf6mCt_QBJlV4DTVWOQWiPYevcitbqfHCrnGUtYsA"
   # This gateway screenshot only showed chat/completions. Keep local hashing
   # embeddings unless a tenant-approved embeddings endpoint is added.
   embedding_provider: "hashing"

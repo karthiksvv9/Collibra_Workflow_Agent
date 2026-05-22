@@ -1,0 +1,951 @@
+{
+  "elementProperties": {
+    "business_approval": {
+      "candidateGroups": "${businessOwnerRole}",
+      "documentation": "Business owner approves, rejects or requests rework.",
+      "elementId": "business_approval",
+      "elementName": "Business owner approval",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowBusinessApprovalForm",
+      "lane": "Business Owner"
+    },
+    "call_provisioning_workflow": {
+      "businessKey": "${requestId}",
+      "calledElement": "assetDeletionObsolescenceMultipleAsset_ObsolescenceWorkflow",
+      "calledElementType": "key",
+      "documentation": "Calls a separate workflow to validate obsolete asset deletion, archive evidence and dependency cleanup.",
+      "elementId": "call_provisioning_workflow",
+      "elementName": "Call asset obsolescence workflow",
+      "elementType": "bpmn:CallActivity",
+      "inheritVariables": "true",
+      "lane": "Asset Obsolescence Workflow"
+    },
+    "create_policy_exception": {
+      "documentation": "Create Collibra policy exception attribute and audit variables using Java API v2 builders.",
+      "elementId": "create_policy_exception",
+      "elementName": "Create policy exception metadata",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "create_relations": {
+      "documentation": "Create relation/responsibility using organization UUID mappings retrieved from RAG.",
+      "elementId": "create_relations",
+      "elementName": "Create relation and responsibility",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "end_approved": {
+      "documentation": "",
+      "elementId": "end_approved",
+      "elementName": "Approved and provisioned",
+      "elementType": "bpmn:EndEvent",
+      "lane": "Requester"
+    },
+    "end_rejected": {
+      "documentation": "",
+      "elementId": "end_rejected",
+      "elementName": "Rejected or withdrawn",
+      "elementType": "bpmn:EndEvent",
+      "lane": "Requester"
+    },
+    "flow_business_approve": {
+      "condition": "${businessDecision == 'approve'}",
+      "elementId": "flow_business_approve",
+      "elementName": "Approve",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_business_decision",
+      "targetRef": "gateway_policy_exception"
+    },
+    "flow_business_gateway": {
+      "condition": "",
+      "elementId": "flow_business_gateway",
+      "elementName": "Decision",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "business_approval",
+      "targetRef": "gateway_business_decision"
+    },
+    "flow_business_reject": {
+      "condition": "${businessDecision == 'reject'}",
+      "elementId": "flow_business_reject",
+      "elementName": "Reject",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_business_decision",
+      "targetRef": "notify_rejection"
+    },
+    "flow_business_rework": {
+      "condition": "${businessDecision == 'rework'}",
+      "elementId": "flow_business_rework",
+      "elementName": "Rework",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_business_decision",
+      "targetRef": "requester_rework"
+    },
+    "flow_call_result": {
+      "condition": "",
+      "elementId": "flow_call_result",
+      "elementName": "Deletion workflow returned",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "call_provisioning_workflow",
+      "targetRef": "gateway_provisioning_result"
+    },
+    "flow_complete_to_steward": {
+      "condition": "${validationPassed == true}",
+      "elementId": "flow_complete_to_steward",
+      "elementName": "Complete",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_request_complete",
+      "targetRef": "steward_triage"
+    },
+    "flow_compliance_approve": {
+      "condition": "${complianceDecision == 'approve'}",
+      "elementId": "flow_compliance_approve",
+      "elementName": "Approve",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_compliance_decision",
+      "targetRef": "gateway_policy_exception"
+    },
+    "flow_compliance_gateway": {
+      "condition": "",
+      "elementId": "flow_compliance_gateway",
+      "elementName": "Decision",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "risk_compliance_review",
+      "targetRef": "gateway_compliance_decision"
+    },
+    "flow_compliance_reject": {
+      "condition": "${complianceDecision == 'reject'}",
+      "elementId": "flow_compliance_reject",
+      "elementName": "Reject",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_compliance_decision",
+      "targetRef": "notify_rejection"
+    },
+    "flow_compliance_rework": {
+      "condition": "${complianceDecision == 'rework'}",
+      "elementId": "flow_compliance_rework",
+      "elementName": "Rework",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_compliance_decision",
+      "targetRef": "requester_rework"
+    },
+    "flow_exception_relations": {
+      "condition": "",
+      "elementId": "flow_exception_relations",
+      "elementName": "Exception logged",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "create_policy_exception",
+      "targetRef": "create_relations"
+    },
+    "flow_exception_required": {
+      "condition": "${policyExceptionRequired == true}",
+      "elementId": "flow_exception_required",
+      "elementName": "Exception required",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_policy_exception",
+      "targetRef": "create_policy_exception"
+    },
+    "flow_incomplete_to_rework": {
+      "condition": "${validationPassed != true}",
+      "elementId": "flow_incomplete_to_rework",
+      "elementName": "Incomplete",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_request_complete",
+      "targetRef": "requester_rework"
+    },
+    "flow_no_exception": {
+      "condition": "${policyExceptionRequired != true}",
+      "elementId": "flow_no_exception",
+      "elementName": "No exception",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_policy_exception",
+      "targetRef": "create_relations"
+    },
+    "flow_notify_reject_end": {
+      "condition": "",
+      "elementId": "flow_notify_reject_end",
+      "elementName": "Done",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "notify_rejection",
+      "targetRef": "end_rejected"
+    },
+    "flow_notify_success_end": {
+      "condition": "",
+      "elementId": "flow_notify_success_end",
+      "elementName": "Done",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "notify_success",
+      "targetRef": "end_approved"
+    },
+    "flow_provision_failure": {
+      "condition": "${provisioningStatus != 'success'}",
+      "elementId": "flow_provision_failure",
+      "elementName": "Deletion remediation required",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_provisioning_result",
+      "targetRef": "technical_remediation"
+    },
+    "flow_provision_success": {
+      "condition": "${provisioningStatus == 'success'}",
+      "elementId": "flow_provision_success",
+      "elementName": "Deletion complete",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_provisioning_result",
+      "targetRef": "update_access_status"
+    },
+    "flow_relations_call": {
+      "condition": "",
+      "elementId": "flow_relations_call",
+      "elementName": "Invoke deletion workflow",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "create_relations",
+      "targetRef": "call_provisioning_workflow"
+    },
+    "flow_remediation_retry": {
+      "condition": "",
+      "elementId": "flow_remediation_retry",
+      "elementName": "Retry",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "technical_remediation",
+      "targetRef": "call_provisioning_workflow"
+    },
+    "flow_rework_validate": {
+      "condition": "",
+      "elementId": "flow_rework_validate",
+      "elementName": "Resubmit",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "requester_rework",
+      "targetRef": "validate_context"
+    },
+    "flow_risk_compliance": {
+      "condition": "${riskRating == 'high' || riskRating == 'restricted'}",
+      "elementId": "flow_risk_compliance",
+      "elementName": "High risk",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_risk_route",
+      "targetRef": "risk_compliance_review"
+    },
+    "flow_risk_standard": {
+      "condition": "${riskRating == 'standard'}",
+      "elementId": "flow_risk_standard",
+      "elementName": "Standard risk",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_risk_route",
+      "targetRef": "business_approval"
+    },
+    "flow_start_submit": {
+      "condition": "",
+      "elementId": "flow_start_submit",
+      "elementName": "Start",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "start_request",
+      "targetRef": "submit_request"
+    },
+    "flow_status_notify": {
+      "condition": "",
+      "elementId": "flow_status_notify",
+      "elementName": "Status updated",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "update_access_status",
+      "targetRef": "notify_success"
+    },
+    "flow_steward_approve": {
+      "condition": "${stewardDecision == 'approve'}",
+      "elementId": "flow_steward_approve",
+      "elementName": "Approve",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_steward_decision",
+      "targetRef": "gateway_risk_route"
+    },
+    "flow_steward_gateway": {
+      "condition": "",
+      "elementId": "flow_steward_gateway",
+      "elementName": "Route",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "steward_triage",
+      "targetRef": "gateway_steward_decision"
+    },
+    "flow_steward_reject": {
+      "condition": "${stewardDecision == 'reject'}",
+      "elementId": "flow_steward_reject",
+      "elementName": "Reject",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_steward_decision",
+      "targetRef": "notify_rejection"
+    },
+    "flow_steward_rework": {
+      "condition": "${stewardDecision == 'rework'}",
+      "elementId": "flow_steward_rework",
+      "elementName": "Rework",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": true,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "gateway_steward_decision",
+      "targetRef": "requester_rework"
+    },
+    "flow_submit_validate": {
+      "condition": "",
+      "elementId": "flow_submit_validate",
+      "elementName": "Submit",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "submit_request",
+      "targetRef": "validate_context"
+    },
+    "flow_validate_complete_gateway": {
+      "condition": "",
+      "elementId": "flow_validate_complete_gateway",
+      "elementName": "Validated",
+      "elementType": "bpmn:SequenceFlow",
+      "flowType": "normal",
+      "isDefault": false,
+      "listenerCode": "",
+      "skipExpression": "",
+      "sourceRef": "validate_context",
+      "targetRef": "gateway_request_complete"
+    },
+    "gateway_business_decision": {
+      "documentation": "",
+      "elementId": "gateway_business_decision",
+      "elementName": "Business decision",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Business Owner"
+    },
+    "gateway_compliance_decision": {
+      "documentation": "",
+      "elementId": "gateway_compliance_decision",
+      "elementName": "Compliance decision",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Risk and Compliance"
+    },
+    "gateway_policy_exception": {
+      "documentation": "",
+      "elementId": "gateway_policy_exception",
+      "elementName": "Policy exception?",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Collibra Automation"
+    },
+    "gateway_provisioning_result": {
+      "documentation": "",
+      "elementId": "gateway_provisioning_result",
+      "elementName": "Deletion workflow result",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Asset Obsolescence Workflow"
+    },
+    "gateway_request_complete": {
+      "documentation": "",
+      "elementId": "gateway_request_complete",
+      "elementName": "Request complete?",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Collibra Automation"
+    },
+    "gateway_risk_route": {
+      "documentation": "",
+      "elementId": "gateway_risk_route",
+      "elementName": "Risk route",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Collibra Automation"
+    },
+    "gateway_steward_decision": {
+      "documentation": "",
+      "elementId": "gateway_steward_decision",
+      "elementName": "Steward decision",
+      "elementType": "bpmn:ExclusiveGateway",
+      "lane": "Data Steward"
+    },
+    "notify_rejection": {
+      "documentation": "Queue rejection notification variables for rejected and withdrawn paths.",
+      "elementId": "notify_rejection",
+      "elementName": "Notify rejection or withdrawal",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "notify_success": {
+      "documentation": "Queue final notification variables for completion mail task or integration.",
+      "elementId": "notify_success",
+      "elementName": "Notify approval completion",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "requester_rework": {
+      "candidateGroups": "${requesterGroup}",
+      "documentation": "Requester corrects missing purpose, UUIDs, relation details or access constraints.",
+      "elementId": "requester_rework",
+      "elementName": "Requester rework",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowRequesterReworkForm",
+      "lane": "Requester"
+    },
+    "risk_compliance_review": {
+      "candidateGroups": "${riskComplianceRole}",
+      "documentation": "Compliance owner reviews high-risk access and approves policy exception where required.",
+      "elementId": "risk_compliance_review",
+      "elementName": "Risk and compliance review",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowComplianceReviewForm",
+      "lane": "Risk and Compliance"
+    },
+    "start_request": {
+      "documentation": "Start event with request form for governed asset access.",
+      "elementId": "start_request",
+      "elementName": "Start governed access request",
+      "elementType": "bpmn:StartEvent",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowAccessRequestForm",
+      "lane": "Requester"
+    },
+    "steward_triage": {
+      "candidateGroups": "${dataStewardRole}",
+      "documentation": "Steward confirms ownership, domain, asset status, relation intent and routing decision.",
+      "elementId": "steward_triage",
+      "elementName": "Data steward triage",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowStewardTriageForm",
+      "lane": "Data Steward"
+    },
+    "submit_request": {
+      "candidateGroups": "${requesterGroup}",
+      "documentation": "Requester supplies asset, purpose, access window, relation and provisioning intent.",
+      "elementId": "submit_request",
+      "elementName": "Submit governed access request",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowAccessRequestForm",
+      "lane": "Requester"
+    },
+    "technical_remediation": {
+      "candidateGroups": "${technicalStewardRole}",
+      "documentation": "Technical owner fixes deletion blockers and retries the called workflow.",
+      "elementId": "technical_remediation",
+      "elementName": "Deletion remediation",
+      "elementType": "bpmn:UserTask",
+      "formKey": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowTechnicalRemediationForm",
+      "lane": "Asset Obsolescence Workflow"
+    },
+    "update_access_status": {
+      "documentation": "Apply final Collibra status and audit attributes after downstream workflow success.",
+      "elementId": "update_access_status",
+      "elementName": "Update asset status and audit",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    },
+    "validate_context": {
+      "documentation": "Normalize UUIDs and validate required organization mapping variables from RAG/config.",
+      "elementId": "validate_context",
+      "elementName": "Validate request and RAG mappings",
+      "elementType": "bpmn:ScriptTask",
+      "lane": "Collibra Automation",
+      "scriptFormat": "groovy"
+    }
+  },
+  "forms": {
+    "CreateAComplexAssetDeletionAiDesignedComplexWorkflowAccessRequestForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "requesterId",
+          "label": "",
+          "name": "Requester UUID",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "requesterEmail",
+          "label": "",
+          "name": "Requester email",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "assetId",
+          "label": "",
+          "name": "Asset UUID",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "consumerAssetId",
+          "label": "",
+          "name": "Consumer asset UUID",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "businessPurpose",
+          "label": "",
+          "name": "Business purpose",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "riskRating",
+          "label": "",
+          "name": "Risk rating",
+          "readable": true,
+          "required": true,
+          "type": "enum",
+          "values": [
+            {
+              "id": "standard",
+              "name": "Standard"
+            },
+            {
+              "id": "high",
+              "name": "High"
+            },
+            {
+              "id": "restricted",
+              "name": "Restricted"
+            }
+          ],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "requestedAccessEndDate",
+          "label": "",
+          "name": "Requested access end date",
+          "readable": true,
+          "required": true,
+          "type": "date",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "assetDeletionObsolescenceMultipleAsset_ObsolescenceWorkflow",
+          "id": "provisioningWorkflowKey",
+          "label": "",
+          "name": "Asset Obsolescence workflow key",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowAccessRequestForm",
+      "name": "Governed Access Request"
+    },
+    "CreateAComplexAssetDeletionAiDesignedComplexWorkflowBusinessApprovalForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "businessDecision",
+          "label": "",
+          "name": "Business decision",
+          "readable": true,
+          "required": true,
+          "type": "enum",
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "rework",
+              "name": "Request rework"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "businessNotes",
+          "label": "",
+          "name": "Business approval notes",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowBusinessApprovalForm",
+      "name": "Business Owner Approval"
+    },
+    "CreateAComplexAssetDeletionAiDesignedComplexWorkflowComplianceReviewForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "complianceDecision",
+          "label": "",
+          "name": "Compliance decision",
+          "readable": true,
+          "required": true,
+          "type": "enum",
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "rework",
+              "name": "Request rework"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "policyExceptionRequired",
+          "label": "",
+          "name": "Policy exception required",
+          "readable": true,
+          "required": false,
+          "type": "boolean",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "securityControls",
+          "label": "",
+          "name": "Security controls",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowComplianceReviewForm",
+      "name": "Risk and Compliance Review"
+    },
+    "CreateAComplexAssetDeletionAiDesignedComplexWorkflowRequesterReworkForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "reworkSummary",
+          "label": "",
+          "name": "Rework summary",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "businessPurpose",
+          "label": "",
+          "name": "Updated business purpose",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "consumerAssetId",
+          "label": "",
+          "name": "Updated consumer asset UUID",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowRequesterReworkForm",
+      "name": "Requester Rework"
+    },
+    "CreateAComplexAssetDeletionAiDesignedComplexWorkflowStewardTriageForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "stewardDecision",
+          "label": "",
+          "name": "Steward decision",
+          "readable": true,
+          "required": true,
+          "type": "enum",
+          "values": [
+            {
+              "id": "approve",
+              "name": "Approve"
+            },
+            {
+              "id": "rework",
+              "name": "Request rework"
+            },
+            {
+              "id": "reject",
+              "name": "Reject"
+            }
+          ],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "stewardNotes",
+          "label": "",
+          "name": "Steward notes",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "riskRating",
+          "label": "",
+          "name": "Confirmed risk rating",
+          "readable": true,
+          "required": true,
+          "type": "enum",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowStewardTriageForm",
+      "name": "Steward Triage"
+    },
+    "CreateAComplexAssetDeletionAiDesignedComplexWorkflowTechnicalRemediationForm": {
+      "fields": [
+        {
+          "default": "",
+          "id": "provisioningStatus",
+          "label": "",
+          "name": "Asset Obsolescence status",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "provisioningError",
+          "label": "",
+          "name": "Asset Obsolescence status error",
+          "readable": true,
+          "required": false,
+          "type": "string",
+          "values": [],
+          "writable": true
+        },
+        {
+          "default": "",
+          "id": "remediationAction",
+          "label": "",
+          "name": "Remediation action",
+          "readable": true,
+          "required": true,
+          "type": "string",
+          "values": [],
+          "writable": true
+        }
+      ],
+      "key": "CreateAComplexAssetDeletionAiDesignedComplexWorkflowTechnicalRemediationForm",
+      "name": "Deletion remediation"
+    }
+  },
+  "metadata": {
+    "format": "DSC_AUTONOMOUS_AGENT_APP_V1",
+    "generator": "DSC Collibra Workflow Automation Agent",
+    "name": "Create A Complex Asset Deletion And Obsolescence Workflow",
+    "processId": "CreateAComplexAssetDeletionAiDesignedComplexWorkflow"
+  },
+  "ragContextPreview": "Question: Create a complex asset deletion and obsolescence workflow with multiple forms, reroutes, call activity, dependency validation and technical remediation. Collibra workflow BPMN forms Groovy Java API v2 relation UUID roles organization standards OOTB workflow\n\nRetrieved context:\n\n- score=0.513 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-ai-complex-workflow-final.zip kind=zip\n# Workflow ZIP: prompt-driven-ai-complex-workflow-final.zip\n\n## BPMN/XML: workflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.496 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt_driven_ai_complex_workflow.zip kind=zip\n# Workflow ZIP: prompt_driven_ai_complex_workflow.zip\n\n## BPMN/XML: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.478 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt_driven_ai_complex_workflow.zip kind=zip\nned Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\nprocess: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow isExecutable=true name=Create A Production Collibra Governed Access And Policy Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a ",
+  "scripts": {
+    "create_policy_exception": {
+      "elementId": "create_policy_exception",
+      "elementName": "Create policy exception metadata",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\nimport com.collibra.dgc.core.api.dto.instance.attribute.AddAttributeRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nString requestId = execution.getVariable(\"requestId\") as String\nString controls = (execution.getVariable(\"securityControls\") ?: \"Controls must be confirmed before provisioning.\") as String\ndef attributeTypeId = string2Uuid(execution.getVariable(\"policyExceptionAttributeTypeId\") as String)\nAddAttributeRequest request = AddAttributeRequest.builder()\n    .assetId(string2Uuid(assetId))\n    .typeId(attributeTypeId)\n    .value(\"Policy exception for request \" + requestId + \": \" + controls)\n    .build()\nattributeApi.addAttribute(request)\nexecution.setVariable(\"policyExceptionCreated\", true)\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    },
+    "create_relations": {
+      "elementId": "create_relations",
+      "elementName": "Create relation and responsibility",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\nimport com.collibra.dgc.core.api.dto.instance.relation.AddRelationRequest\nimport com.collibra.dgc.core.api.dto.instance.responsibility.AddResponsibilityRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\nString consumerAssetId = (execution.getVariable(\"consumerAssetId\") ?: \"\") as String\nString requesterId = execution.getVariable(\"requesterIdNormalized\") as String\ndef relationTypeId = string2Uuid(execution.getVariable(\"consumerRelationTypeId\") as String)\ndef consumerRoleId = string2Uuid(execution.getVariable(\"consumerRoleId\") as String)\nif (consumerAssetId.trim()) {\n    relationApi.addRelation(AddRelationRequest.builder()\n        .sourceId(string2Uuid(assetId))\n        .targetId(string2Uuid(consumerAssetId.trim()))\n        .typeId(relationTypeId)\n        .build())\n}\nresponsibilityApi.addResponsibility(AddResponsibilityRequest.builder()\n    .resourceId(string2Uuid(assetId))\n    .roleId(consumerRoleId)\n    .ownerId(string2Uuid(requesterId))\n    .build())\nexecution.setVariable(\"relationAndResponsibilityCreated\", true)\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    },
+    "notify_rejection": {
+      "elementId": "notify_rejection",
+      "elementName": "Notify rejection or withdrawal",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\n\nString requestId = execution.getVariable(\"requestId\") as String\nString reason = (execution.getVariable(\"stewardNotes\") ?: execution.getVariable(\"businessNotes\") ?: \"Request rejected or withdrawn.\") as String\nexecution.setVariable(\"finalDecision\", \"rejected\")\nexecution.setVariable(\"notificationSubject\", \"Collibra governed access request \" + requestId + \" rejected\")\nexecution.setVariable(\"notificationBody\", reason)\nexecution.setVariable(\"notificationQueued\", true)\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    },
+    "notify_success": {
+      "elementId": "notify_success",
+      "elementName": "Notify approval completion",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\n\nString requestId = execution.getVariable(\"requestId\") as String\nString recipient = (execution.getVariable(\"requesterEmail\") ?: execution.getVariable(\"requesterIdNormalized\") ?: \"requester\") as String\nexecution.setVariable(\"notificationRecipient\", recipient)\nexecution.setVariable(\"notificationSubject\", \"Collibra governed access request \" + requestId + \" approved and provisioned\")\nexecution.setVariable(\"notificationQueued\", true)\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    },
+    "update_access_status": {
+      "elementId": "update_access_status",
+      "elementName": "Update asset status and audit",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\nimport com.collibra.dgc.core.api.dto.instance.asset.ChangeAssetRequest\n\nString assetId = execution.getVariable(\"assetIdNormalized\") as String\ndef approvedStatusId = string2Uuid(execution.getVariable(\"approvedStatusId\") as String)\nassetApi.changeAsset(ChangeAssetRequest.builder()\n    .id(string2Uuid(assetId))\n    .statusId(approvedStatusId)\n    .build())\nexecution.setVariable(\"assetStatusUpdated\", true)\nexecution.setVariable(\"finalDecision\", \"approved\")\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    },
+    "validate_context": {
+      "elementId": "validate_context",
+      "elementName": "Validate request and RAG mappings",
+      "elementType": "bpmn:ScriptTask",
+      "groovy": "// #importFile NONE\n\nString requestId = (execution.getVariable(\"requestId\") ?: java.util.UUID.randomUUID().toString()) as String\nString requesterId = (execution.getVariable(\"requesterId\") ?: \"\") as String\nString assetId = (execution.getVariable(\"assetId\") ?: \"\") as String\nString purpose = (execution.getVariable(\"businessPurpose\") ?: \"\") as String\nString workflowKey = (execution.getVariable(\"provisioningWorkflowKey\") ?: \"\") as String\nBoolean complete = requesterId.trim() && assetId.trim() && purpose.trim().length() > 15 && workflowKey.trim()\nexecution.setVariable(\"requestId\", requestId)\nexecution.setVariable(\"requesterIdNormalized\", requesterId.trim())\nexecution.setVariable(\"assetIdNormalized\", assetId.trim())\nexecution.setVariable(\"businessPurposeNormalized\", purpose.trim())\nexecution.setVariable(\"validationPassed\", complete)\nexecution.setVariable(\"validationMessage\", complete ? \"Request is complete.\" : \"Requester, asset, purpose and provisioning workflow key are required.\")\n",
+      "scriptFormat": "groovy",
+      "source": "autonomous-agent"
+    }
+  },
+  "uuidMappings": {},
+  "validationRules": []
+}

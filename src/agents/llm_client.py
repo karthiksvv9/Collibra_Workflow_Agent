@@ -5,7 +5,6 @@ import os
 import re
 from dataclasses import asdict
 from typing import Any
-from urllib.parse import urljoin
 
 import requests
 from requests import RequestException
@@ -109,6 +108,9 @@ def resolve_model_profile(config: Settings, model_id: str | None = None) -> Chat
     for option in options:
         if requested and requested in {option.id, option.model}:
             return option
+    if requested and options:
+        known = ", ".join(option.id for option in options)
+        raise ValueError(f"Unknown model profile '{requested}'. Configure it in config.yaml or choose one of: {known}.")
     for option in options:
         if config.models.chat_model in {option.id, option.model}:
             return option
@@ -300,7 +302,9 @@ def model_api_key_configured(config: Settings, model_id: str | None = None) -> b
 def _profile_url(config: Settings, profile: ChatModelOption) -> str:
     base_url = (profile.base_url or config.openai.base_url or "").rstrip("/")
     path = (profile.chat_completions_path or config.openai.chat_completions_path or "").lstrip("/")
-    return urljoin(base_url + "/", path)
+    if path.startswith(("http://", "https://")):
+        return path
+    return f"{base_url}/{path}" if base_url else path
 
 
 def _post_json(url: str, headers: dict[str, str], payload: dict[str, Any], timeout: int, verify: bool):

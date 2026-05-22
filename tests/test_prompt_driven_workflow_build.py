@@ -3,6 +3,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from src.api.server import app
+from src.agents.workflow_agent import CollibraWorkflowAgent
 
 
 PROMPT = """
@@ -78,3 +79,24 @@ Expected: The workflow routes to technical remediation and retries the called wo
     cases = case_response.json()
     assert cases["ok"] is True
     assert cases["summary"]["failedCases"] == 0
+
+
+def test_complex_prompt_call_activity_is_prompt_specific() -> None:
+    agent = CollibraWorkflowAgent()
+
+    provisioning = agent._complex_prompt_design(
+        "Create a complex SAP access provisioning workflow with multiple forms, reroutes, call activity and remediation.",
+        "",
+    )
+    privacy = agent._complex_prompt_design(
+        "Create a complex privacy assessment workflow with multiple forms, reroutes, call activity and remediation.",
+        "",
+    )
+
+    provisioning_call = next(node for node in provisioning.process.nodes if node.type == "callActivity")
+    privacy_call = next(node for node in privacy.process.nodes if node.type == "callActivity")
+
+    assert provisioning_call.properties["calledElement"] != privacy_call.properties["calledElement"]
+    assert "Provisioning" in provisioning_call.lane
+    assert "Privacy" in privacy_call.lane
+    assert privacy.forms[0].fields[-1].default == privacy_call.properties["calledElement"]

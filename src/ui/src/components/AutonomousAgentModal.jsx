@@ -32,6 +32,8 @@ export default function AutonomousAgentModal({
         userTestCases,
         modelId,
         forceAi: true,
+        preferAi: true,
+        strictAi: false,
         packageName: mode === 'prompt' ? 'autonomous_prompt_workflow' : 'autonomous_canvas_workflow',
         maxIterations: 5
       };
@@ -95,6 +97,9 @@ export default function AutonomousAgentModal({
         {lastSummary && (
           <div className={`autonomous-result ${lastSummary.ok ? 'success' : 'error'}`}>
             <b>Status: {lastSummary.status || 'unknown'}</b>
+            {(lastSummary.cases?.summaryText || lastSummary.quality?.summaryText || lastSummary.error) && (
+              <span>{lastSummary.cases?.summaryText || lastSummary.quality?.summaryText || lastSummary.error}</span>
+            )}
             {lastSummary.zipPath && <span>ZIP: {lastSummary.zipPath}</span>}
             {lastSummary.reportPath && <span>Report: {lastSummary.reportPath}</span>}
           </div>

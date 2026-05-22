@@ -4,10 +4,12 @@ import pytest
 
 from src.agents.llm_client import (
     LLMRequestError,
+    _profile_url,
     model_api_key_configured,
     model_options_payload,
     request_json_design,
     request_text_completion,
+    resolve_model_profile,
 )
 from src.core.config import load_settings
 
@@ -234,6 +236,72 @@ paths:
     assert request_text_completion(settings, "Say OK", model_id="claude-opus-4-6") == "ok"
     assert captured["calls"][0]["headers"]["Authorization"] == "Bearer enterprise-shared-key"
     assert captured["calls"][1]["headers"]["X-API-Key"] == "enterprise-shared-key"
+
+
+def test_configured_chat_model_selects_matching_profile_not_first_option(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""
+models:
+  chat_model: "gpt-5-4-2026-03-05"
+  available_chat_models:
+    - id: "openai-gpt-4-1-nano-direct"
+      label: "Direct OpenAI"
+      provider: "openai_chat_completions"
+      model: "gpt-4.1-nano"
+      base_url: "https://api.openai.com"
+      chat_completions_path: "/v1/chat/completions"
+      api_key_env: "OPENAI_API_KEY"
+    - id: "openai-gpt-5-4"
+      label: "OpenAI GPT-5.4"
+      provider: "custom_chat_completions"
+      model: "gpt-5-4-2026-03-05"
+      base_url: "https://iapi-test.proj.com/gpt/v2"
+      chat_completions_path: "/gpt-5-4-2026-03-05/chat/completions"
+      api_key_env: "AI_GATEWAY_API_KEY"
+openai:
+  api_key_env: "AI_GATEWAY_API_KEY"
+paths:
+  docs_dir: "{(tmp_path / "docs").as_posix()}"
+  jars_dir: "{(tmp_path / "jars").as_posix()}"
+  output_dir: "{(tmp_path / "output").as_posix()}"
+  vector_store: "{(tmp_path / "output" / "vectors.sqlite3").as_posix()}"
+""",
+        encoding="utf-8",
+    )
+    settings = load_settings(config_path)
+
+    assert resolve_model_profile(settings).id == "openai-gpt-5-4"
+
+
+def test_profile_url_preserves_gemini_generate_content_colon(tmp_path: Path) -> None:
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"""
+models:
+  chat_model: "gemini-3-1-pro"
+  available_chat_models:
+    - id: "gemini-3-1-pro"
+      label: "Gemini 3.1 Pro Preview"
+      provider: "gemini_generate_content"
+      model: "gemini-3.1-pro-preview"
+      base_url: "https://generativelanguage.googleapis.com/v1beta/models"
+      chat_completions_path: "/gemini-3.1-pro-preview:generateContent"
+      api_key_env: "GEMINI_API_KEY"
+openai:
+  api_key_env: "AI_GATEWAY_API_KEY"
+paths:
+  docs_dir: "{(tmp_path / "docs").as_posix()}"
+  jars_dir: "{(tmp_path / "jars").as_posix()}"
+  output_dir: "{(tmp_path / "output").as_posix()}"
+  vector_store: "{(tmp_path / "output" / "vectors.sqlite3").as_posix()}"
+""",
+        encoding="utf-8",
+    )
+    settings = load_settings(config_path)
+    profile = resolve_model_profile(settings, "gemini-3-1-pro")
+
+    assert _profile_url(settings, profile) == "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:generateContent"
 
 
 def test_model_profile_can_use_yaml_api_key_without_exposing_it(monkeypatch, tmp_path: Path) -> None:

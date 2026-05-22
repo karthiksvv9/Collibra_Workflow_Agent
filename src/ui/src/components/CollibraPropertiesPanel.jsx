@@ -218,7 +218,7 @@ export default function CollibraPropertiesPanel({ selectedElement, appModel, set
           )}
         </div>
         {selectedElement.type === 'bpmn:CallActivity' && (
-          <button className="primary-button" onClick={() => openCalledWorkflowCanvas(props.calledElement || elementId, elementId)}>
+          <button className="primary-button" onClick={() => openCalledWorkflowCanvas(props.calledElement || elementId, elementId, bo.name || elementId, `${props.documentation || ''}\n${prompt || ''}`)}>
             <ExternalLink size={15}/> Open called workflow in new tab
           </button>
         )}
@@ -408,48 +408,160 @@ function toElementPayload(element) {
   };
 }
 
-function openCalledWorkflowCanvas(calledElement, sourceElementId) {
+function openCalledWorkflowCanvas(calledElement, sourceElementId, sourceName = '', context = '') {
   const key = `called-workflow-${sourceElementId}-${Date.now()}`;
-  const safeName = String(calledElement || 'calledWorkflow').replace(/[^\w.-]+/g, '_');
+  const profile = calledWorkflowProfile(calledElement, sourceElementId, sourceName, context);
   window.sessionStorage.setItem(key, JSON.stringify({
-    bpmnXml: calledWorkflowTemplate(safeName),
+    bpmnXml: calledWorkflowTemplate(profile),
     sourceElementId,
-    calledElement: safeName
+    calledElement: profile.key,
+    calledWorkflowProfile: profile
   }));
   const url = new URL(window.location.href);
   url.searchParams.set('calledWorkflowSession', key);
   window.open(url.toString(), '_blank', 'noopener,noreferrer');
 }
 
-function calledWorkflowTemplate(name) {
-  const processId = `${name || 'calledWorkflow'}Process`.replace(/[^\w]+/g, '_');
+function calledWorkflowProfile(calledElement, sourceElementId, sourceName = '', context = '') {
+  const text = `${calledElement || ''} ${sourceElementId || ''} ${sourceName || ''} ${context || ''}`.toLowerCase();
+  const key = safeBpmnId(String(calledElement || sourceElementId || 'calledWorkflow').replace(/\$\{|\}/g, ''));
+  const profiles = [
+    {
+      tokens: ['privacy', 'pii', 'personal data', 'gdpr', 'data protection'],
+      label: 'Privacy Assessment',
+      lane: 'Privacy Automation',
+      receive: 'Receive privacy assessment request',
+      execute: 'Assess privacy controls',
+      returnTask: 'Return privacy assessment result',
+      statusValue: 'privacy_assessed'
+    },
+    {
+      tokens: ['obsolete', 'deletion', 'delete', 'retire', 'archive'],
+      label: 'Asset Obsolescence',
+      lane: 'Deletion Automation',
+      receive: 'Receive obsolescence request',
+      execute: 'Validate deletion dependencies',
+      returnTask: 'Return deletion readiness result',
+      statusValue: 'deletion_ready'
+    },
+    {
+      tokens: ['quality', 'data quality', 'dq', 'certification', 'certify'],
+      label: 'Data Quality Certification',
+      lane: 'Quality Automation',
+      receive: 'Receive certification request',
+      execute: 'Run quality certification checks',
+      returnTask: 'Return certification result',
+      statusValue: 'quality_certified'
+    },
+    {
+      tokens: ['relation', 'responsibility', 'ownership', 'stewardship', 'assignment'],
+      label: 'Stewardship Assignment',
+      lane: 'Stewardship Automation',
+      receive: 'Receive stewardship request',
+      execute: 'Create relation and responsibility',
+      returnTask: 'Return stewardship assignment result',
+      statusValue: 'stewardship_assigned'
+    },
+    {
+      tokens: ['risk', 'security', 'exception', 'control', 'compliance'],
+      label: 'Risk Control',
+      lane: 'Risk Automation',
+      receive: 'Receive risk control request',
+      execute: 'Validate risk controls',
+      returnTask: 'Return risk decision result',
+      statusValue: 'risk_control_approved'
+    },
+    {
+      tokens: ['provision', 'access', 'entitlement', 'permission'],
+      label: 'Access Provisioning',
+      lane: 'Provisioning Automation',
+      receive: 'Receive provisioning request',
+      execute: 'Execute governed provisioning',
+      returnTask: 'Return provisioning result',
+      statusValue: 'provisioned'
+    }
+  ];
+  const selected = profiles.find(profile => profile.tokens.some(token => text.includes(token))) || profiles[profiles.length - 1];
+  return {
+    ...selected,
+    key,
+    name: `${selected.label} - ${key}`,
+    sourceElementId: sourceElementId || '',
+    sourceName: sourceName || ''
+  };
+}
+
+function calledWorkflowTemplate(profile) {
+  const processId = safeBpmnId(`${profile.key || 'calledWorkflow'}Process`);
+  const script = calledWorkflowGroovy(profile);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="${processId}_definitions" targetNamespace="http://collibra.com/workflow-agent/called">
   <bpmn:collaboration id="${processId}_collaboration">
-    <bpmn:participant id="${processId}_pool" name="${name}" processRef="${processId}" />
+    <bpmn:participant id="${processId}_pool" name="${xmlAttr(profile.name)}" processRef="${processId}" />
   </bpmn:collaboration>
-  <bpmn:process id="${processId}" name="${name}" isExecutable="true">
+  <bpmn:process id="${processId}" name="${xmlAttr(profile.name)}" isExecutable="true">
     <bpmn:laneSet id="${processId}_lanes">
-      <bpmn:lane id="${processId}_lane_requester" name="Requester"><bpmn:flowNodeRef>${processId}_start</bpmn:flowNodeRef></bpmn:lane>
-      <bpmn:lane id="${processId}_lane_automation" name="Collibra Automation"><bpmn:flowNodeRef>${processId}_task</bpmn:flowNodeRef><bpmn:flowNodeRef>${processId}_end</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="${processId}_lane_parent" name="Calling Workflow"><bpmn:flowNodeRef>${processId}_start</bpmn:flowNodeRef><bpmn:flowNodeRef>${processId}_receive</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="${processId}_lane_automation" name="${xmlAttr(profile.lane)}"><bpmn:flowNodeRef>${processId}_execute</bpmn:flowNodeRef><bpmn:flowNodeRef>${processId}_return</bpmn:flowNodeRef><bpmn:flowNodeRef>${processId}_end</bpmn:flowNodeRef></bpmn:lane>
     </bpmn:laneSet>
-    <bpmn:startEvent id="${processId}_start" name="Start called workflow" />
-    <bpmn:scriptTask id="${processId}_task" name="Called workflow Groovy task" scriptFormat="groovy"><bpmn:script><![CDATA[execution.setVariable("calledWorkflowReached", true)]]></bpmn:script></bpmn:scriptTask>
-    <bpmn:endEvent id="${processId}_end" name="Called workflow done" />
-    <bpmn:sequenceFlow id="${processId}_flow_1" sourceRef="${processId}_start" targetRef="${processId}_task" />
-    <bpmn:sequenceFlow id="${processId}_flow_2" sourceRef="${processId}_task" targetRef="${processId}_end" />
+    <bpmn:startEvent id="${processId}_start" name="Start ${xmlAttr(profile.label)}" />
+    <bpmn:userTask id="${processId}_receive" name="${xmlAttr(profile.receive)}" />
+    <bpmn:scriptTask id="${processId}_execute" name="${xmlAttr(profile.execute)}" scriptFormat="groovy"><bpmn:script><![CDATA[${cdata(script)}]]></bpmn:script></bpmn:scriptTask>
+    <bpmn:scriptTask id="${processId}_return" name="${xmlAttr(profile.returnTask)}" scriptFormat="groovy"><bpmn:script><![CDATA[execution.setVariable("provisioningStatus", "success")
+execution.setVariable("calledWorkflowStatus", "${cdata(profile.statusValue)}")
+execution.setVariable("calledWorkflowKey", "${cdata(profile.key)}")]]></bpmn:script></bpmn:scriptTask>
+    <bpmn:endEvent id="${processId}_end" name="${xmlAttr(profile.label)} complete" />
+    <bpmn:sequenceFlow id="${processId}_flow_1" sourceRef="${processId}_start" targetRef="${processId}_receive" />
+    <bpmn:sequenceFlow id="${processId}_flow_2" sourceRef="${processId}_receive" targetRef="${processId}_execute" />
+    <bpmn:sequenceFlow id="${processId}_flow_3" sourceRef="${processId}_execute" targetRef="${processId}_return" />
+    <bpmn:sequenceFlow id="${processId}_flow_4" sourceRef="${processId}_return" targetRef="${processId}_end" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="${processId}_diagram">
     <bpmndi:BPMNPlane id="${processId}_plane" bpmnElement="${processId}_collaboration">
-      <bpmndi:BPMNShape id="${processId}_pool_di" bpmnElement="${processId}_pool" isHorizontal="true"><dc:Bounds x="80" y="60" width="900" height="360" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="${processId}_lane_requester_di" bpmnElement="${processId}_lane_requester" isHorizontal="true"><dc:Bounds x="110" y="60" width="870" height="160" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="${processId}_lane_automation_di" bpmnElement="${processId}_lane_automation" isHorizontal="true"><dc:Bounds x="110" y="220" width="870" height="200" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="${processId}_start_di" bpmnElement="${processId}_start"><dc:Bounds x="190" y="122" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="${processId}_task_di" bpmnElement="${processId}_task"><dc:Bounds x="340" y="280" width="180" height="82" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="${processId}_end_di" bpmnElement="${processId}_end"><dc:Bounds x="650" y="303" width="36" height="36" /></bpmndi:BPMNShape>
-      <bpmndi:BPMNEdge id="${processId}_flow_1_di" bpmnElement="${processId}_flow_1"><di:waypoint x="226" y="140" /><di:waypoint x="340" y="321" /></bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="${processId}_flow_2_di" bpmnElement="${processId}_flow_2"><di:waypoint x="520" y="321" /><di:waypoint x="650" y="321" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNShape id="${processId}_pool_di" bpmnElement="${processId}_pool" isHorizontal="true"><dc:Bounds x="80" y="60" width="1120" height="420" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_lane_parent_di" bpmnElement="${processId}_lane_parent" isHorizontal="true"><dc:Bounds x="110" y="60" width="1090" height="180" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_lane_automation_di" bpmnElement="${processId}_lane_automation" isHorizontal="true"><dc:Bounds x="110" y="240" width="1090" height="240" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_start_di" bpmnElement="${processId}_start"><dc:Bounds x="190" y="132" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_receive_di" bpmnElement="${processId}_receive"><dc:Bounds x="300" y="110" width="180" height="80" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_execute_di" bpmnElement="${processId}_execute"><dc:Bounds x="560" y="312" width="210" height="86" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_return_di" bpmnElement="${processId}_return"><dc:Bounds x="840" y="312" width="210" height="86" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="${processId}_end_di" bpmnElement="${processId}_end"><dc:Bounds x="1110" y="337" width="36" height="36" /></bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="${processId}_flow_1_di" bpmnElement="${processId}_flow_1"><di:waypoint x="226" y="150" /><di:waypoint x="300" y="150" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="${processId}_flow_2_di" bpmnElement="${processId}_flow_2"><di:waypoint x="480" y="150" /><di:waypoint x="560" y="355" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="${processId}_flow_3_di" bpmnElement="${processId}_flow_3"><di:waypoint x="770" y="355" /><di:waypoint x="840" y="355" /></bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="${processId}_flow_4_di" bpmnElement="${processId}_flow_4"><di:waypoint x="1050" y="355" /><di:waypoint x="1110" y="355" /></bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
 </bpmn:definitions>`;
+}
+
+function calledWorkflowGroovy(profile) {
+  return `String requestId = (execution.getVariable("requestId") ?: java.util.UUID.randomUUID().toString()) as String
+execution.setVariable("requestId", requestId)
+execution.setVariable("calledWorkflowKey", "${cdata(profile.key)}")
+execution.setVariable("calledWorkflowName", "${cdata(profile.name)}")
+execution.setVariable("calledWorkflowSourceElementId", "${cdata(profile.sourceElementId)}")
+execution.setVariable("calledWorkflowSourceName", "${cdata(profile.sourceName)}")
+execution.setVariable("calledWorkflowStatus", "${cdata(profile.statusValue)}")
+execution.setVariable("provisioningStatus", "success")`;
+}
+
+function safeBpmnId(value) {
+  let cleaned = String(value || 'calledWorkflow').replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
+  if (!cleaned) cleaned = 'calledWorkflow';
+  if (/^[0-9]/.test(cleaned)) cleaned = `id_${cleaned}`;
+  return cleaned;
+}
+
+function xmlAttr(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+function cdata(value) {
+  return String(value || '').replaceAll(']]>', ']]]]><![CDATA[>');
 }

@@ -1,0 +1,1077 @@
+{
+  "cases": {
+    "businessUseCase": "Production-check this imported Collibra workflow and preserve its form and script task.",
+    "caseResults": [
+      {
+        "executedChecks": [
+          "bpmn",
+          "forms",
+          "scripts"
+        ],
+        "failures": [],
+        "id": "ai_happy_path",
+        "name": "Happy path - Sample Workflow",
+        "source": "ai-business",
+        "status": "passed",
+        "warnings": []
+      },
+      {
+        "executedChecks": [
+          "bpmn"
+        ],
+        "failures": [],
+        "id": "ai_gateway_paths",
+        "name": "Gateway and alternate-path coverage",
+        "source": "ai-business",
+        "status": "passed",
+        "warnings": []
+      },
+      {
+        "executedChecks": [
+          "forms"
+        ],
+        "failures": [],
+        "id": "ai_required_forms",
+        "name": "Required form field validation",
+        "source": "ai-business",
+        "status": "passed",
+        "warnings": []
+      },
+      {
+        "executedChecks": [
+          "scripts"
+        ],
+        "failures": [],
+        "id": "ai_script_compile",
+        "name": "Groovy script compile and standards validation",
+        "source": "ai-business",
+        "status": "passed",
+        "warnings": []
+      },
+      {
+        "executedChecks": [
+          "bpmn",
+          "forms",
+          "scripts"
+        ],
+        "failures": [],
+        "id": "ai_import_roundtrip",
+        "name": "Import/export package fidelity",
+        "source": "ai-business",
+        "status": "passed",
+        "warnings": []
+      },
+      {
+        "executedChecks": [
+          "bpmn"
+        ],
+        "failures": [],
+        "id": "user_case_1",
+        "name": "imported sample workflow",
+        "source": "user",
+        "status": "passed",
+        "warnings": []
+      }
+    ],
+    "generatedCases": [
+      {
+        "expected": [
+          "BPMN structure is valid.",
+          "All referenced forms are available.",
+          "All extracted Groovy scripts pass the autonomous compile/lint loop."
+        ],
+        "id": "ai_happy_path",
+        "name": "Happy path - Sample Workflow",
+        "objective": "Production-check this imported Collibra workflow and preserve its form and script task.",
+        "requires": [
+          "bpmn",
+          "forms",
+          "scripts"
+        ],
+        "source": "ai-business",
+        "steps": [
+          "Start the workflow.",
+          "Complete every required start/user form field with valid values.",
+          "Take the approval or completion path through all required service/script tasks.",
+          "Verify the workflow reaches an expected end event."
+        ]
+      },
+      {
+        "expected": [
+          "No missing source/target references.",
+          "Conditional expressions are preserved in BPMN metadata."
+        ],
+        "id": "ai_gateway_paths",
+        "name": "Gateway and alternate-path coverage",
+        "objective": "Validate approval, rejection, fallback and conditional sequence-flow behavior.",
+        "requires": [
+          "bpmn"
+        ],
+        "source": "ai-business",
+        "steps": [
+          "Exercise each named conditional sequence flow.",
+          "Exercise default or otherwise paths where available.",
+          "Confirm every path has a target and reaches a terminal or follow-up task."
+        ]
+      },
+      {
+        "expected": [
+          "Every form task references an imported or inline form.",
+          "Required fields are visible in the rendered form preview."
+        ],
+        "id": "ai_required_forms",
+        "name": "Required form field validation",
+        "objective": "Validate that imported Collibra forms expose required fields, labels, field IDs and outcomes.",
+        "requires": [
+          "forms"
+        ],
+        "source": "ai-business",
+        "steps": [
+          "Open each form task from the BPMN canvas.",
+          "Render linked form fields.",
+          "Submit with valid values and verify task completion metadata.",
+          "Submit with missing required values and verify validation prevents completion."
+        ]
+      },
+      {
+        "expected": [
+          "Every script task has extracted Groovy.",
+          "No blocking compile or standards issues remain."
+        ],
+        "id": "ai_script_compile",
+        "name": "Groovy script compile and standards validation",
+        "objective": "Validate all imported and generated Groovy scripts before export.",
+        "requires": [
+          "scripts"
+        ],
+        "source": "ai-business",
+        "steps": [
+          "Extract scripts from BPMN script tasks and sidecar Groovy files.",
+          "Run static Collibra workflow standards checks.",
+          "Run Groovy shell compilation when Groovy is configured.",
+          "Apply deterministic repair and rerun until no blocking issues remain."
+        ]
+      },
+      {
+        "expected": [
+          "The package can be exported without losing scripts, forms or element properties."
+        ],
+        "id": "ai_import_roundtrip",
+        "name": "Import/export package fidelity",
+        "objective": "Validate imported Collibra metadata survives export and re-import.",
+        "requires": [
+          "bpmn",
+          "forms",
+          "scripts"
+        ],
+        "source": "ai-business",
+        "steps": [
+          "Import the Collibra ZIP.",
+          "Verify BPMN, forms, app metadata and scripts appear in the workbench.",
+          "Export the package.",
+          "Re-import exported package and compare BPMN/forms/scripts counts."
+        ]
+      }
+    ],
+    "metrics": {
+      "casePassPercent": 100.0,
+      "packagePassPercent": 100.0
+    },
+    "ok": true,
+    "packageResult": {
+      "blockingIssues": [],
+      "iterations": [
+        {
+          "calledWorkflowResults": [],
+          "changed": false,
+          "compileResults": {
+            "approveScript": {
+              "errorText": "",
+              "ok": true,
+              "skipped": false,
+              "standards": [],
+              "status": "passed",
+              "stderr": "",
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+            }
+          },
+          "formIssues": [],
+          "iteration": 1,
+          "listenerCompileResults": {
+            "flow1": {
+              "errorText": "",
+              "ok": true,
+              "skipped": false,
+              "standards": [],
+              "status": "passed",
+              "stderr": "",
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+            },
+            "flow2": {
+              "errorText": "",
+              "ok": true,
+              "skipped": false,
+              "standards": [],
+              "status": "passed",
+              "stderr": "",
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+            },
+            "flow3": {
+              "errorText": "",
+              "ok": true,
+              "skipped": false,
+              "standards": [],
+              "status": "passed",
+              "stderr": "",
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+            }
+          },
+          "missingScriptIssues": [],
+          "structuralErrors": []
+        }
+      ],
+      "message": "Autonomous package test passed. Pass rate 100.0% (12/12 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+      "metrics": {
+        "failedChecks": 0,
+        "passPercent": 100.0,
+        "passedChecks": 12,
+        "totalChecks": 12
+      },
+      "ok": true,
+      "repairedAppModel": {
+        "elementProperties": {
+          "approveScript": {
+            "autoStoreVariables": "false",
+            "documentation": "",
+            "elementId": "approveScript",
+            "elementName": "Approve Script",
+            "elementType": "bpmn:ScriptTask",
+            "execution": "script-groovy",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "rawAttributes": {
+              "flowable:autoStoreVariables": "false",
+              "id": "approveScript",
+              "name": "Approve Script",
+              "scriptFormat": "groovy"
+            },
+            "scope": "asset",
+            "scriptFormat": "groovy"
+          },
+          "end": {
+            "documentation": "",
+            "elementId": "end",
+            "elementName": "End",
+            "elementType": "bpmn:EndEvent",
+            "execution": "service-groovy",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "rawAttributes": {
+              "id": "end",
+              "name": "End"
+            },
+            "scope": "asset"
+          },
+          "flow1": {
+            "condition": "",
+            "documentation": "Autocorrected sequence flow from start to reviewTask.",
+            "elementId": "flow1",
+            "elementName": "",
+            "elementType": "bpmn:SequenceFlow",
+            "execution": "gateway-condition",
+            "flowType": "normal",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "isDefault": false,
+            "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow1.\n// Source: Start\n// Target: Review\nexecution.setVariable(\"lastSequenceFlowId\", \"flow1\")\nexecution.setVariable(\"flow1Taken\", true)\nexecution.setVariable(\"flow1SourceRef\", \"start\")\nexecution.setVariable(\"flow1TargetRef\", \"reviewTask\")\n",
+            "rawAttributes": {
+              "id": "flow1",
+              "sourceRef": "start",
+              "targetRef": "reviewTask"
+            },
+            "scope": "global",
+            "skipExpression": "",
+            "updatedAt": "2026-05-22T15:56:47"
+          },
+          "flow2": {
+            "condition": "${approvalDecision == 'approve'}",
+            "documentation": "Autocorrected sequence flow from reviewTask to approveScript.",
+            "elementId": "flow2",
+            "elementName": "",
+            "elementType": "bpmn:SequenceFlow",
+            "execution": "gateway-condition",
+            "flowType": "conditional",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "isDefault": false,
+            "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow2.\n// Source: Review\n// Target: Approve Script\nexecution.setVariable(\"lastSequenceFlowId\", \"flow2\")\nexecution.setVariable(\"flow2Taken\", true)\nexecution.setVariable(\"flow2SourceRef\", \"reviewTask\")\nexecution.setVariable(\"flow2TargetRef\", \"approveScript\")\n",
+            "rawAttributes": {
+              "id": "flow2",
+              "sourceRef": "reviewTask",
+              "targetRef": "approveScript"
+            },
+            "scope": "global",
+            "skipExpression": "",
+            "updatedAt": "2026-05-22T15:56:47"
+          },
+          "flow3": {
+            "condition": "",
+            "documentation": "Autocorrected sequence flow from approveScript to end.",
+            "elementId": "flow3",
+            "elementName": "",
+            "elementType": "bpmn:SequenceFlow",
+            "execution": "gateway-condition",
+            "flowType": "normal",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "isDefault": false,
+            "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow3.\n// Source: Approve Script\n// Target: End\nexecution.setVariable(\"lastSequenceFlowId\", \"flow3\")\nexecution.setVariable(\"flow3Taken\", true)\nexecution.setVariable(\"flow3SourceRef\", \"approveScript\")\nexecution.setVariable(\"flow3TargetRef\", \"end\")\n",
+            "rawAttributes": {
+              "id": "flow3",
+              "sourceRef": "approveScript",
+              "targetRef": "end"
+            },
+            "scope": "global",
+            "skipExpression": "",
+            "updatedAt": "2026-05-22T15:56:47"
+          },
+          "reviewTask": {
+            "candidateGroups": "role(steward)",
+            "documentation": "",
+            "elementId": "reviewTask",
+            "elementName": "Review",
+            "elementType": "bpmn:UserTask",
+            "execution": "user-form",
+            "formKey": "approvalForm",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "rawAttributes": {
+              "flowable:candidateGroups": "role(steward)",
+              "flowable:formKey": "approvalForm",
+              "id": "reviewTask",
+              "name": "Review"
+            },
+            "scope": "asset"
+          },
+          "start": {
+            "documentation": "",
+            "elementId": "start",
+            "elementName": "Start",
+            "elementType": "bpmn:StartEvent",
+            "execution": "service-groovy",
+            "importedFrom": "sampleWorkflow.bpmn",
+            "rawAttributes": {
+              "id": "start",
+              "name": "Start"
+            },
+            "scope": "asset"
+          }
+        },
+        "extension": {
+          "design": {
+            "childModels": [
+              {
+                "key": "approvalForm",
+                "type": "form"
+              },
+              {
+                "key": "sampleWorkflow",
+                "type": "bpmn"
+              }
+            ]
+          }
+        },
+        "forms": {
+          "approvalForm": {
+            "description": "",
+            "fields": [
+              {
+                "column": 0,
+                "enabled": true,
+                "extraSettings": {},
+                "id": "approvalDecision",
+                "label": "Approval decision",
+                "name": "Approval decision",
+                "readable": true,
+                "required": true,
+                "row": 0,
+                "size": null,
+                "stencilId": null,
+                "stencilSuperIds": [],
+                "type": "dropdown",
+                "value": null,
+                "visible": true,
+                "writable": true
+              }
+            ],
+            "key": "approvalForm",
+            "metadata": {
+              "key": "approvalForm",
+              "modelType": "form",
+              "name": "Approval Form",
+              "version": "1"
+            },
+            "modelType": "form",
+            "name": "Approval Form",
+            "outcomes": [],
+            "palette": "",
+            "raw": {
+              "metadata": {
+                "key": "approvalForm",
+                "modelType": "form",
+                "name": "Approval Form",
+                "version": "1"
+              },
+              "rows": [
+                {
+                  "cols": [
+                    {
+                      "enabled": true,
+                      "id": "approvalDecision",
+                      "isRequired": true,
+                      "label": "Approval decision",
+                      "type": "dropdown",
+                      "visible": true
+                    }
+                  ]
+                }
+              ]
+            },
+            "rows": [
+              {
+                "cols": [
+                  {
+                    "enabled": true,
+                    "id": "approvalDecision",
+                    "isRequired": true,
+                    "label": "Approval decision",
+                    "type": "dropdown",
+                    "visible": true
+                  }
+                ]
+              }
+            ],
+            "source": "form-approvalForm.form",
+            "version": "1"
+          }
+        },
+        "importDiagnostics": {
+          "embeddedScripts": 1,
+          "formReferences": 1,
+          "inlineForms": 0,
+          "missingForms": [],
+          "scriptTasks": 1,
+          "sequenceFlows": 3,
+          "sourceBpmn": "sampleWorkflow.bpmn",
+          "userTasks": 1
+        },
+        "key": "sampleApp",
+        "metadata": {
+          "format": "DSC_SIDE_CAR_APP_V1",
+          "name": "sampleCollibraApp.zip",
+          "timestamp": "20260522_155646"
+        },
+        "name": "Sample App",
+        "scripts": {
+          "approveScript": {
+            "autocorrected": true,
+            "compileResults": [
+              {
+                "errorText": "",
+                "ok": true,
+                "skipped": false,
+                "standards": [],
+                "status": "passed",
+                "stderr": "",
+                "stdout": "",
+                "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+              }
+            ],
+            "elementId": "approveScript",
+            "elementName": "Approve Script",
+            "elementType": "scriptTask",
+            "generatedByAutocorrect": false,
+            "groovy": "execution.setVariable('approved', true)",
+            "importedFrom": "bpmn:scriptTask",
+            "repairAttempts": [
+              {
+                "iteration": 0,
+                "result": {
+                  "errorText": "",
+                  "ok": true,
+                  "skipped": false,
+                  "standards": [],
+                  "status": "passed",
+                  "stderr": "",
+                  "stdout": "",
+                  "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+                },
+                "strategy": "initial_compile"
+              }
+            ],
+            "scriptFormat": "groovy",
+            "source": "sampleWorkflow.bpmn",
+            "updatedAt": "2026-05-22T15:56:49"
+          }
+        },
+        "uuidMappings": {},
+        "validationRules": []
+      },
+      "status": "passed",
+      "summary": {
+        "blockingIssues": 0,
+        "calledWorkflows": 0,
+        "flows": 3,
+        "forms": 1,
+        "iterations": 1,
+        "nodes": 4,
+        "passPercent": 100.0,
+        "processId": "sampleWorkflow",
+        "scripts": 1
+      },
+      "summaryText": "Autonomous package test passed. Pass rate 100.0% (12/12 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+    },
+    "status": "passed",
+    "summary": {
+      "failedCases": 0,
+      "generatedCases": 5,
+      "packageOk": true,
+      "passedCases": 6,
+      "userCases": 1
+    },
+    "summaryText": "Autonomous Agent Mode passed. Case pass rate 100.0% (6/6 cases). Package pass rate 100.0%.",
+    "userCases": [
+      {
+        "expected": [
+          "Expected: package quality and generated business tests pass."
+        ],
+        "id": "user_case_1",
+        "name": "imported sample workflow",
+        "objective": "imported sample workflow",
+        "requires": [
+          "bpmn"
+        ],
+        "source": "user",
+        "steps": []
+      }
+    ]
+  },
+  "documentationPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_autonomous_imported_sample_20260522_155646_doc.md",
+  "mode": "canvas",
+  "ok": true,
+  "quality": {
+    "blockingIssues": [],
+    "iterations": [
+      {
+        "calledWorkflowResults": [],
+        "changed": false,
+        "compileResults": {
+          "approveScript": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          }
+        },
+        "formIssues": [],
+        "iteration": 1,
+        "listenerCompileResults": {
+          "flow1": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow2": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          },
+          "flow3": {
+            "errorText": "",
+            "ok": true,
+            "skipped": false,
+            "standards": [],
+            "status": "passed",
+            "stderr": "",
+            "stdout": "",
+            "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+          }
+        },
+        "missingScriptIssues": [],
+        "structuralErrors": []
+      }
+    ],
+    "message": "Autonomous package test passed. Pass rate 100.0% (12/12 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain.",
+    "metrics": {
+      "failedChecks": 0,
+      "passPercent": 100.0,
+      "passedChecks": 12,
+      "totalChecks": 12
+    },
+    "ok": true,
+    "repairedAppModel": {
+      "elementProperties": {
+        "approveScript": {
+          "autoStoreVariables": "false",
+          "documentation": "",
+          "elementId": "approveScript",
+          "elementName": "Approve Script",
+          "elementType": "bpmn:ScriptTask",
+          "execution": "script-groovy",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "rawAttributes": {
+            "flowable:autoStoreVariables": "false",
+            "id": "approveScript",
+            "name": "Approve Script",
+            "scriptFormat": "groovy"
+          },
+          "scope": "asset",
+          "scriptFormat": "groovy"
+        },
+        "end": {
+          "documentation": "",
+          "elementId": "end",
+          "elementName": "End",
+          "elementType": "bpmn:EndEvent",
+          "execution": "service-groovy",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "rawAttributes": {
+            "id": "end",
+            "name": "End"
+          },
+          "scope": "asset"
+        },
+        "flow1": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from start to reviewTask.",
+          "elementId": "flow1",
+          "elementName": "",
+          "elementType": "bpmn:SequenceFlow",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow1.\n// Source: Start\n// Target: Review\nexecution.setVariable(\"lastSequenceFlowId\", \"flow1\")\nexecution.setVariable(\"flow1Taken\", true)\nexecution.setVariable(\"flow1SourceRef\", \"start\")\nexecution.setVariable(\"flow1TargetRef\", \"reviewTask\")\n",
+          "rawAttributes": {
+            "id": "flow1",
+            "sourceRef": "start",
+            "targetRef": "reviewTask"
+          },
+          "scope": "global",
+          "skipExpression": "",
+          "updatedAt": "2026-05-22T15:56:47"
+        },
+        "flow2": {
+          "condition": "${approvalDecision == 'approve'}",
+          "documentation": "Autocorrected sequence flow from reviewTask to approveScript.",
+          "elementId": "flow2",
+          "elementName": "",
+          "elementType": "bpmn:SequenceFlow",
+          "execution": "gateway-condition",
+          "flowType": "conditional",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow2.\n// Source: Review\n// Target: Approve Script\nexecution.setVariable(\"lastSequenceFlowId\", \"flow2\")\nexecution.setVariable(\"flow2Taken\", true)\nexecution.setVariable(\"flow2SourceRef\", \"reviewTask\")\nexecution.setVariable(\"flow2TargetRef\", \"approveScript\")\n",
+          "rawAttributes": {
+            "id": "flow2",
+            "sourceRef": "reviewTask",
+            "targetRef": "approveScript"
+          },
+          "scope": "global",
+          "skipExpression": "",
+          "updatedAt": "2026-05-22T15:56:47"
+        },
+        "flow3": {
+          "condition": "",
+          "documentation": "Autocorrected sequence flow from approveScript to end.",
+          "elementId": "flow3",
+          "elementName": "",
+          "elementType": "bpmn:SequenceFlow",
+          "execution": "gateway-condition",
+          "flowType": "normal",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "isDefault": false,
+          "listenerCode": "// #importFile NONE\n\n// Autogenerated transition listener for sequence flow flow3.\n// Source: Approve Script\n// Target: End\nexecution.setVariable(\"lastSequenceFlowId\", \"flow3\")\nexecution.setVariable(\"flow3Taken\", true)\nexecution.setVariable(\"flow3SourceRef\", \"approveScript\")\nexecution.setVariable(\"flow3TargetRef\", \"end\")\n",
+          "rawAttributes": {
+            "id": "flow3",
+            "sourceRef": "approveScript",
+            "targetRef": "end"
+          },
+          "scope": "global",
+          "skipExpression": "",
+          "updatedAt": "2026-05-22T15:56:47"
+        },
+        "reviewTask": {
+          "candidateGroups": "role(steward)",
+          "documentation": "",
+          "elementId": "reviewTask",
+          "elementName": "Review",
+          "elementType": "bpmn:UserTask",
+          "execution": "user-form",
+          "formKey": "approvalForm",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "rawAttributes": {
+            "flowable:candidateGroups": "role(steward)",
+            "flowable:formKey": "approvalForm",
+            "id": "reviewTask",
+            "name": "Review"
+          },
+          "scope": "asset"
+        },
+        "start": {
+          "documentation": "",
+          "elementId": "start",
+          "elementName": "Start",
+          "elementType": "bpmn:StartEvent",
+          "execution": "service-groovy",
+          "importedFrom": "sampleWorkflow.bpmn",
+          "rawAttributes": {
+            "id": "start",
+            "name": "Start"
+          },
+          "scope": "asset"
+        }
+      },
+      "extension": {
+        "design": {
+          "childModels": [
+            {
+              "key": "approvalForm",
+              "type": "form"
+            },
+            {
+              "key": "sampleWorkflow",
+              "type": "bpmn"
+            }
+          ]
+        }
+      },
+      "forms": {
+        "approvalForm": {
+          "description": "",
+          "fields": [
+            {
+              "column": 0,
+              "enabled": true,
+              "extraSettings": {},
+              "id": "approvalDecision",
+              "label": "Approval decision",
+              "name": "Approval decision",
+              "readable": true,
+              "required": true,
+              "row": 0,
+              "size": null,
+              "stencilId": null,
+              "stencilSuperIds": [],
+              "type": "dropdown",
+              "value": null,
+              "visible": true,
+              "writable": true
+            }
+          ],
+          "key": "approvalForm",
+          "metadata": {
+            "key": "approvalForm",
+            "modelType": "form",
+            "name": "Approval Form",
+            "version": "1"
+          },
+          "modelType": "form",
+          "name": "Approval Form",
+          "outcomes": [],
+          "palette": "",
+          "raw": {
+            "metadata": {
+              "key": "approvalForm",
+              "modelType": "form",
+              "name": "Approval Form",
+              "version": "1"
+            },
+            "rows": [
+              {
+                "cols": [
+                  {
+                    "enabled": true,
+                    "id": "approvalDecision",
+                    "isRequired": true,
+                    "label": "Approval decision",
+                    "type": "dropdown",
+                    "visible": true
+                  }
+                ]
+              }
+            ]
+          },
+          "rows": [
+            {
+              "cols": [
+                {
+                  "enabled": true,
+                  "id": "approvalDecision",
+                  "isRequired": true,
+                  "label": "Approval decision",
+                  "type": "dropdown",
+                  "visible": true
+                }
+              ]
+            }
+          ],
+          "source": "form-approvalForm.form",
+          "version": "1"
+        }
+      },
+      "importDiagnostics": {
+        "embeddedScripts": 1,
+        "formReferences": 1,
+        "inlineForms": 0,
+        "missingForms": [],
+        "scriptTasks": 1,
+        "sequenceFlows": 3,
+        "sourceBpmn": "sampleWorkflow.bpmn",
+        "userTasks": 1
+      },
+      "key": "sampleApp",
+      "metadata": {
+        "format": "DSC_SIDE_CAR_APP_V1",
+        "name": "sampleCollibraApp.zip",
+        "timestamp": "20260522_155646"
+      },
+      "name": "Sample App",
+      "scripts": {
+        "approveScript": {
+          "autocorrected": true,
+          "compileResults": [
+            {
+              "errorText": "",
+              "ok": true,
+              "skipped": false,
+              "standards": [],
+              "status": "passed",
+              "stderr": "",
+              "stdout": "",
+              "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+            }
+          ],
+          "elementId": "approveScript",
+          "elementName": "Approve Script",
+          "elementType": "scriptTask",
+          "generatedByAutocorrect": false,
+          "groovy": "execution.setVariable('approved', true)",
+          "importedFrom": "bpmn:scriptTask",
+          "repairAttempts": [
+            {
+              "iteration": 0,
+              "result": {
+                "errorText": "",
+                "ok": true,
+                "skipped": false,
+                "standards": [],
+                "status": "passed",
+                "stderr": "",
+                "stdout": "",
+                "summaryText": "Compile passed. The script passed Collibra standards lint and local Groovy syntax validation."
+              },
+              "strategy": "initial_compile"
+            }
+          ],
+          "scriptFormat": "groovy",
+          "source": "sampleWorkflow.bpmn",
+          "updatedAt": "2026-05-22T15:56:49"
+        }
+      },
+      "uuidMappings": {},
+      "validationRules": []
+    },
+    "status": "passed",
+    "summary": {
+      "blockingIssues": 0,
+      "calledWorkflows": 0,
+      "flows": 3,
+      "forms": 1,
+      "iterations": 1,
+      "nodes": 4,
+      "passPercent": 100.0,
+      "processId": "sampleWorkflow",
+      "scripts": 1
+    },
+    "summaryText": "Autonomous package test passed. Pass rate 100.0% (12/12 checks). Iterations: 1. No blocking BPMN, form, sequence-flow or Groovy issues remain."
+  },
+  "ragContextPreview": "Question: Production-check this imported Collibra workflow and preserve its form and script task. Collibra workflow BPMN forms Groovy Java API v2 relation UUID roles organization standards OOTB workflow\n\nRetrieved context:\n\n- score=0.505 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-ai-complex-workflow-final.zip kind=zip\n# Workflow ZIP: prompt-driven-ai-complex-workflow-final.zip\n\n## BPMN/XML: workflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow\n\n- score=0.501 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Creating_workflows.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.501 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Creating_workflows.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.501 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Creating_workflows_1.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.499 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md kind=md\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                        ",
+  "relatedPackagePaths": [],
+  "status": "passed",
+  "trace": [
+    {
+      "relations": 0,
+      "sources": [
+        {
+          "fileName": "prompt-driven-ai-complex-workflow-final.zip",
+          "kind": "zip",
+          "metadata": {
+            "apps": 1,
+            "bpmn": 1,
+            "chunk_index": 0,
+            "forms": 6,
+            "groovy": 6,
+            "members": 14
+          },
+          "score": 0.5046166001773015,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-ai-complex-workflow-final.zip",
+          "text": "# Workflow ZIP: prompt-driven-ai-complex-workflow-final.zip\n\n## BPMN/XML: workflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow"
+        },
+        {
+          "fileName": "Creating_workflows.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 5
+          },
+          "score": 0.5011558984813498,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Creating_workflows.md",
+          "text": "ccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal"
+        },
+        {
+          "fileName": "Creating_workflows.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 5
+          },
+          "score": 0.5011558984813498,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Creating_workflows.md",
+          "text": "ccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal"
+        },
+        {
+          "fileName": "Creating_workflows_1.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 5
+          },
+          "score": 0.5011558984813498,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Creating_workflows_1.md",
+          "text": "ccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal"
+        },
+        {
+          "fileName": "prompt-driven-workflow-documentation.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 12
+          },
+          "score": 0.4988856963093506,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md",
+          "text": "Model keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.296 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Model_keys.md kind=md\nApproval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n\n \nCreating workflows\n \n\n \nWorkflow basic configuration elements\n \n \n\n                Workflow basic configuration elements\n                            \n\n                                Workflow description\n                \n\n \n\n \n\nModel keys\n\nModel keys are unique identifiers for processes and forms in Workflow Designer workspaces. The process key also identifies workflows in Collibra and must be unique in your environment. \n\nIf you change the process key of a workflow and deploy it again, it is considered as a completely new workflow and Collibra creates a different workflow definition for it."
+        },
+        {
+          "fileName": "prompt-driven-workflow-documentation.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 11
+          },
+          "score": 0.4932785022922455,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt-driven-workflow-documentation.md",
+          "text": "Upgrading your scripts for Groovy 3 compatibility\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal\n\n- score=0.314 source=C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\collibra_official\\Creating_workflows.md kind=md\nccess configuration\n\n \n\nSimple Approval\n \n\n \nSimple Approval configuration\n\n \n\nVoting Sub-Process\n \n\n \nVoting Sub-Process configuration\n\n \nVoting Sub-Process instructions\n\nStart\n \n \n\n                Workflow permissions\n                            \n\n                                Workflow basic configuration elements\n                \n\n \n\n \n\nCreating workflows\n\nUse the Collibra Workflow Designer web application to create store and manage your workflows.\n\nIn the Workflow Designer, a workflow is represented by an app that groups a process and forms. The process is the BPMN diagram while the forms are user tasks.\n\nWorkflow basic configuration elements\n\nModel keys\n\nWorkflow description\n\nProcess variables\n\nWorkflow dialog boxes\n\nCreate a pool and lanes\n\nCreate start and end events\n\nAdd workflow elements\n\n                Workflow permissions"
+        },
+        {
+          "fileName": "prompt_driven_ai_complex_workflow.zip",
+          "kind": "zip",
+          "metadata": {
+            "apps": 1,
+            "bpmn": 1,
+            "chunk_index": 0,
+            "forms": 6,
+            "groovy": 0,
+            "members": 8
+          },
+          "score": 0.48401111323239443,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\05_generated_training\\prompt_driven_ai_complex_workflow.zip",
+          "text": "# Workflow ZIP: prompt_driven_ai_complex_workflow.zip\n\n## BPMN/XML: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow.bpmn\ndefinitions: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_definitions targetNamespace=https://dsc.local/collibra/workflows Prompt-designed Collibra workflow. The agent analyzed the master prompt, retrieved local RAG context for Collibra workflow and Java API patterns, created forms, reroutes, sequence-flow conditions, script-task Groovy and a call activity to a downstream provisioning workflow. Master prompt excerpt: Create a production Collibra governed access and policy exception workflow from this prompt alone. The workflow must contain multiple forms, multiple approval and rejection flows, requester rework rerou\ncollaboration: CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_collaboration\nparticipant: Create A Production Collibra Governed Access And Policy id=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow_pool name=Create A Production Collibra Governed Access And Policy processRef=CreateAProductionCollibraGovernedAiDesignedComplexWorkflow"
+        },
+        {
+          "fileName": "README.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 0
+          },
+          "score": 0.4832591338549993,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\README.md",
+          "text": "\ufeff# RAG Training Folder Layout\n\nPlace organization-specific knowledge in this folder and click **Generate Index / Train RAG** or **Incremental Reindex** in the UI.\n\n## Folders\n\n- `00_templates`: Excel templates for UUIDs, relation mappings, workflow variables, roles, statuses and called workflow keys.\n- `01_user_dropzone`: user-managed files: `.xlsx`, `.docx`, `.pdf`, `.xml`, `.bpmn`, `.form`, `.app`, `.zip`, `.md`, `.json`.\n- `02_ootb_workflows`: Collibra out-of-the-box workflow ZIP/BPMN/form/app examples copied from `C:\\Users\\Mohith\\Downloads\\OOTB-workflows-dgc`.\n- `03_collibra_official_docs`: scraped/curated Collibra workflow and Java API documentation notes.\n- `04_organization_standards`: local naming standards, Groovy standards, approval matrices, role rules and deployment procedures.\n- `05_generated_training`: generated scenario packages, known-good workflow outputs and reusable test evidence.\n\nUse `00_templates/Collibra_Relation_UUID_Template.xlsx` as the organization metadata template. The RAG relation mapper reads UUID mappings, source-target asset relations, relation type IDs, role mappings and workflow keys from that workbook shape.\n\n## Incremental Training\n\nAdd files to any folder, then use **Incremental Reindex** in the UI. The vector store upserts chunks by source file and keeps the latest content available for autonomous workflow generation."
+        },
+        {
+          "fileName": "Workflows_at_Collibra.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 9
+          },
+          "score": 0.45356397937907983,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Workflows_at_Collibra.md",
+          "text": "ices.\nScript tasks\n: Run custom Groovy code for complex logic, data manipulation, or specific Collibra interactions.\nGateways\n: Control the process flow based on conditions, such as exclusive or parallel gateways.\nForms\n: Design user forms, allowing you to link form fields to workflow variables and Collibra attributes.\n\nVariables\n: Store information used throughout the workflow.\n\nJava APIs\n: Workflows connect with Collibra  through APIs, enabling actions such as:\nReading and writing asset information, including attributes and relations.\nCreating, updating, or deleting assets.\nListening for and responding to Collibra events.\nManaging user permissions and roles.\n\nListeners\n: Components that respond to specific workflow events, such as task creation or workflow completion, to perform additional actions.\n\nOnce designed, you deploy workflows to your Collibra environment, where they are available for configuration and execution.\n\n                                About the Workflow Designer\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal"
+        },
+        {
+          "fileName": "Workflows_at_Collibra_2.md",
+          "kind": "md",
+          "metadata": {
+            "chunk_index": 9
+          },
+          "score": 0.45356397937907983,
+          "sourcePath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\docs\\rag_training\\03_collibra_official_docs\\Workflows_at_Collibra_2.md",
+          "text": "ices.\nScript tasks\n: Run custom Groovy code for complex logic, data manipulation, or specific Collibra interactions.\nGateways\n: Control the process flow based on conditions, such as exclusive or parallel gateways.\nForms\n: Design user forms, allowing you to link form fields to workflow variables and Collibra attributes.\n\nVariables\n: Store information used throughout the workflow.\n\nJava APIs\n: Workflows connect with Collibra  through APIs, enabling actions such as:\nReading and writing asset information, including attributes and relations.\nCreating, updating, or deleting assets.\nListening for and responding to Collibra events.\nManaging user permissions and roles.\n\nListeners\n: Components that respond to specific workflow events, such as task creation or workflow completion, to perform additional actions.\n\nOnce designed, you deploy workflows to your Collibra environment, where they are available for configuration and execution.\n\n                                About the Workflow Designer\n                \n\n \n\n \n\nX\n\nLinkedIn\n\nInstagram\n\nYouTube\n\nAbout Collibra\n\nCollibra Platform\n\nBlog\n\nCareers\n\nPartner Program\n\nContact us\n\nSitemap\n\n\u00a9 2026 Collibra. All rights reserved.\n\nPrivacy and legal"
+        }
+      ],
+      "status": "completed",
+      "step": "rag_retrieval"
+    },
+    {
+      "flows": 3,
+      "forms": 1,
+      "nodes": 4,
+      "scripts": 1,
+      "status": "completed",
+      "step": "load_canvas_or_import"
+    },
+    {
+      "condition": "",
+      "elementId": "flow1",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "${approvalDecision == 'approve'}",
+      "elementId": "flow2",
+      "flowType": "conditional",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "condition": "",
+      "elementId": "flow3",
+      "flowType": "normal",
+      "listenerGenerated": true,
+      "step": "sequence_flow_autocorrect"
+    },
+    {
+      "attempts": 1,
+      "elementId": "approveScript",
+      "generated": false,
+      "status": "passed",
+      "step": "script_task_autocorrect"
+    },
+    {
+      "blockingIssues": 0,
+      "failedCases": 0,
+      "iteration": 1,
+      "packageStatus": "passed",
+      "step": "compile_test_repair"
+    }
+  ],
+  "zipPath": "C:\\Users\\Mohith\\Documents\\Codex\\2026-05-15\\role-you-are-a-senior-principal\\output\\pytest_autonomous_imported_sample_20260522_155646.zip"
+}

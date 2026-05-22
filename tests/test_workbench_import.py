@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import zipfile
 from pathlib import Path
 from xml.etree import ElementTree as ET
@@ -72,11 +73,46 @@ def test_autonomous_agent_canvas_mode_exports_imported_workflow() -> None:
     assert payload["ok"] is True
     assert payload["quality"]["summary"]["blockingIssues"] == 0
     assert payload["cases"]["summary"]["failedCases"] == 0
-    assert payload["zipPath"].endswith("_autonomous_package.zip")
+    assert "_with_timestamp_" not in Path(payload["zipPath"]).name
+    assert re.search(r"_\d{8}_\d{6}\.zip$", Path(payload["zipPath"]).name)
+    assert len(Path(payload["zipPath"]).name) <= 70
     with zipfile.ZipFile(payload["zipPath"]) as package:
         names = package.namelist()
     assert sum(name.lower().endswith(".app") for name in names) == 1
     assert not any(name.lower().endswith((".json", ".groovy", ".md")) for name in names)
+
+
+def test_autonomous_prompt_mode_falls_back_when_forced_ai_key_is_missing(monkeypatch) -> None:
+    for key in ("OPENAI_API_KEY", "AI_GATEWAY_API_KEY", "CLAUDE_API_KEY", "GEMINI_API_KEY"):
+        monkeypatch.delenv(key, raising=False)
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/agent/autonomous-run",
+        json={
+            "mode": "prompt",
+            "prompt": (
+                "Create a production Collibra governed access workflow with requester intake, steward triage, "
+                "business approval, risk review, rework reroutes, call activity to downstream provisioning workflow, "
+                "API failure remediation, documentation and test evidence."
+            ),
+            "userTestCases": "Scenario: Happy path\nExpected: Workflow exports without blocking issues.",
+            "forceAi": True,
+            "packageName": "pytest_autonomous_prompt_fallback",
+            "maxIterations": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["status"] == "passed"
+    assert payload["quality"]["summary"]["blockingIssues"] == 0
+    assert payload["cases"]["summary"]["failedCases"] == 0
+    assert any(item["step"] == "ai_design_preference" for item in payload["trace"])
+    with zipfile.ZipFile(payload["zipPath"]) as package:
+        names = package.namelist()
+    assert sum(name.lower().endswith(".app") for name in names) == 1
 
 
 def test_import_rejects_unsafe_zip_member_paths() -> None:
@@ -338,8 +374,8 @@ def test_workbench_documentation_includes_imported_forms_and_writes_html() -> No
     assert response.status_code == 200
     payload = response.json()
     assert "approvalForm" in payload["markdown"]
-    assert payload["path"].endswith("_workbench_documentation.md")
-    assert payload["htmlPath"].endswith("_workbench_documentation.html")
+    assert payload["path"].endswith("_doc.md")
+    assert payload["htmlPath"].endswith("_doc.html")
     assert "approvalForm" in Path(payload["path"]).read_text(encoding="utf-8")
     assert "<html>" in Path(payload["htmlPath"]).read_text(encoding="utf-8")
 
@@ -474,6 +510,200 @@ def test_generate_code_returns_org_profile_plan_and_compile_result() -> None:
     assert "string2Uuid" in payload["groovy"]
     assert "import java.util.UUID" not in payload["groovy"]
     assert payload["compileStatus"] in {"passed", "skipped"}
+
+
+def test_workbench_export_can_timestamp_package_name() -> None:
+    client = TestClient(app)
+    imported = client.post(
+        "/api/workflow/import",
+        files={"file": ("sampleCollibraApp.zip", _sample_collibra_zip(), "application/zip")},
+    ).json()
+
+    response = client.post(
+        "/api/workflow/export",
+        json={
+            "bpmnXml": imported["bpmnXml"],
+            "appModel": imported["appModel"],
+            "forms": imported["forms"],
+            "packageName": "timestampedExport.zip",
+            "withTimestamp": True,
+        },
+    )
+
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert "with_timestamp" not in disposition
+    assert re.search(r'timestampedExport_\d{8}_\d{6}\.zip', disposition)
+    with zipfile.ZipFile(io.BytesIO(response.content)) as package:
+        names = package.namelist()
+    assert any(re.match(r"timestampedExport_\d{8}_\d{6}\.bpmn", name) for name in names)
+
+
+def test_autocorrect_generates_sequence_flow_code_and_prompt_defined_call_activity() -> None:
+    client = TestClient(app)
+    bpmn = """<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" targetNamespace="http://www.collibra.com/test">
+  <bpmn:collaboration id="collab"><bpmn:participant id="pool" name="Collibra Workflow" processRef="callerRepairWorkflow" /></bpmn:collaboration>
+  <bpmn:process id="callerRepairWorkflow" name="Caller Repair Workflow" isExecutable="true">
+    <bpmn:laneSet id="lanes">
+      <bpmn:lane id="lane_requester" name="Requester"><bpmn:flowNodeRef>start</bpmn:flowNodeRef><bpmn:flowNodeRef>review</bpmn:flowNodeRef></bpmn:lane>
+      <bpmn:lane id="lane_system" name="Collibra Automation"><bpmn:flowNodeRef>script</bpmn:flowNodeRef><bpmn:flowNodeRef>callProvisioning</bpmn:flowNodeRef><bpmn:flowNodeRef>end</bpmn:flowNodeRef></bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="start" name="Start" />
+    <bpmn:userTask id="review" name="Approval Review" />
+    <bpmn:scriptTask id="script" name="Prepare payload" scriptFormat="groovy"><bpmn:script /></bpmn:scriptTask>
+    <bpmn:exclusiveGateway id="route" name="Approved?" />
+    <bpmn:callActivity id="callProvisioning" name="Call provisioning workflow" />
+    <bpmn:endEvent id="end" name="Complete" />
+    <bpmn:endEvent id="rejected" name="Rejected" />
+    <bpmn:sequenceFlow id="flow_start_review" sourceRef="start" targetRef="review" />
+    <bpmn:sequenceFlow id="flow_review_script" sourceRef="review" targetRef="script" />
+    <bpmn:sequenceFlow id="flow_script_route" sourceRef="script" targetRef="route" />
+    <bpmn:sequenceFlow id="flow_approved" name="Approved" sourceRef="route" targetRef="callProvisioning" />
+    <bpmn:sequenceFlow id="flow_rejected" name="Rejected" sourceRef="route" targetRef="rejected" />
+    <bpmn:sequenceFlow id="flow_call_end" sourceRef="callProvisioning" targetRef="end" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="diagram"><bpmndi:BPMNPlane id="plane" bpmnElement="collab" /></bpmndi:BPMNDiagram>
+</bpmn:definitions>"""
+
+    response = client.post(
+        "/api/workflow/autocorrect",
+        json={
+            "bpmnXml": bpmn,
+            "appModel": {"metadata": {"name": "Caller Repair Workflow"}, "scripts": {}, "elementProperties": {}},
+            "forms": {},
+            "prompt": "Autocorrect and use FinanceApprovalWorkflow.zip as the caller activity source.",
+            "packageName": "pytest_autocorrect_repair.zip",
+            "maxIterations": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert payload["metrics"]["passPercent"] == 100
+    assert "_with_timestamp_" not in Path(payload["zipPath"]).name
+    assert re.search(r"_\d{8}_\d{6}\.zip$", Path(payload["zipPath"]).name)
+    assert len(Path(payload["zipPath"]).name) <= 70
+    assert "transitionListenerGroovy" in payload["bpmnXml"]
+    assert 'calledElement="FinanceApprovalWorkflow"' in payload["bpmnXml"]
+    assert "listenerCode" in payload["appModel"]["elementProperties"]["flow_approved"]
+    assert payload["appModel"]["elementProperties"]["callProvisioning"]["calledWorkflowSource"] == "FinanceApprovalWorkflow.zip"
+    assert "execution.setVariable" in payload["appModel"]["scripts"]["script"]["groovy"]
+    with zipfile.ZipFile(payload["zipPath"]) as package:
+        names = package.namelist()
+        app_manifest = json.loads(package.read(next(name for name in names if name.endswith(".app"))).decode("utf-8"))
+    assert sum(name.lower().endswith(".bpmn") for name in names) == 1
+    assert {"key": "FinanceApprovalWorkflow", "type": "bpmn"} not in app_manifest["extension"]["design"]["childModels"]
+    related = [Path(path) for path in payload["relatedPackagePaths"]]
+    assert len(related) == 1
+    assert related[0].exists()
+    assert len(related[0].name) <= 90
+    with zipfile.ZipFile(related[0]) as package:
+        child_names = package.namelist()
+        child_manifest = json.loads(package.read(next(name for name in child_names if name.endswith(".app"))).decode("utf-8"))
+    assert "FinanceApprovalWorkflow.bpmn" in child_names
+    assert child_manifest["extension"]["design"]["childModels"][-1] == {"key": "FinanceApprovalWorkflow", "type": "bpmn"}
+
+
+def test_autocorrect_stitches_user_specified_ootb_subworkflow_zip() -> None:
+    client = TestClient(app)
+    bpmn = """<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" targetNamespace="http://www.collibra.com/test">
+  <bpmn:process id="parentWithOotbChild" name="Parent With OOTB Child" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:callActivity id="voteSubprocess" name="Run voting subprocess" />
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="flow1" sourceRef="start" targetRef="voteSubprocess" />
+    <bpmn:sequenceFlow id="flow2" sourceRef="voteSubprocess" targetRef="end" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="diagram"><bpmndi:BPMNPlane id="plane" bpmnElement="parentWithOotbChild" /></bpmndi:BPMNDiagram>
+</bpmn:definitions>"""
+
+    response = client.post(
+        "/api/workflow/autocorrect",
+        json={
+            "bpmnXml": bpmn,
+            "appModel": {"metadata": {"name": "Parent With OOTB Child"}, "scripts": {}, "elementProperties": {}},
+            "forms": {},
+            "prompt": "Use VotingSubProcessApp.zip as the caller activity and stitch all required parameters.",
+            "packageName": "pytest_ootb_stitch.zip",
+            "maxIterations": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert 'calledElement="votingSubProcess"' in payload["bpmnXml"]
+    props = payload["appModel"]["elementProperties"]["voteSubprocess"]
+    assert props["calledWorkflowSource"] == "VotingSubProcessApp.zip"
+    assert props["inputs"]
+    assert props["outputs"]
+    assert "votingSubProcess" in payload["appModel"]["calledWorkflows"]
+    with zipfile.ZipFile(payload["zipPath"]) as package:
+        names = package.namelist()
+        app_manifest = json.loads(package.read(next(name for name in names if name.endswith(".app"))).decode("utf-8"))
+    assert sum(name.lower().endswith(".bpmn") for name in names) == 1
+    assert "votingSubProcess.bpmn" not in names
+    assert {"key": "votingSubProcess", "type": "bpmn"} not in app_manifest["extension"]["design"]["childModels"]
+    related = [Path(path) for path in payload["relatedPackagePaths"]]
+    assert len(related) == 1
+    assert related[0].exists()
+    with zipfile.ZipFile(related[0]) as package:
+        child_names = package.namelist()
+        child_manifest = json.loads(package.read(next(name for name in child_names if name.endswith(".app"))).decode("utf-8"))
+    assert "votingSubProcess.bpmn" in child_names
+    assert any(name == "form-votingSubProcessVoteForm.form" for name in child_names)
+    assert {"key": "votingSubProcess", "type": "bpmn"} in child_manifest["extension"]["design"]["childModels"]
+
+
+def test_autocorrect_generates_requested_called_workflow_when_no_source_exists(monkeypatch) -> None:
+    def fail_ai_design(*args, **kwargs):
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr("src.api.server.agent.design_from_prompt", fail_ai_design)
+    client = TestClient(app)
+    bpmn = """<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" targetNamespace="http://www.collibra.com/test">
+  <bpmn:process id="parentDynamicChild" name="Parent Dynamic Child" isExecutable="true">
+    <bpmn:startEvent id="start" />
+    <bpmn:userTask id="review" name="Review" />
+    <bpmn:endEvent id="end" />
+    <bpmn:sequenceFlow id="flow1" sourceRef="start" targetRef="review" />
+    <bpmn:sequenceFlow id="flow2" sourceRef="review" targetRef="end" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="diagram"><bpmndi:BPMNPlane id="plane" bpmnElement="parentDynamicChild" /></bpmndi:BPMNDiagram>
+</bpmn:definitions>"""
+
+    response = client.post(
+        "/api/workflow/autocorrect",
+        json={
+            "bpmnXml": bpmn,
+            "appModel": {"metadata": {"name": "Parent Dynamic Child"}, "scripts": {}, "elementProperties": {}},
+            "forms": {},
+            "prompt": "Generate called workflow named DynamicProvisioning for downstream provisioning approval and use it as a caller activity.",
+            "packageName": "pytest_generated_child.zip",
+            "maxIterations": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["ok"] is True
+    assert 'calledElement="DynamicProvisioning"' in payload["bpmnXml"]
+    assert payload["appModel"]["calledWorkflows"]["DynamicProvisioning"]["generated"] is True
+    with zipfile.ZipFile(payload["zipPath"]) as package:
+        names = package.namelist()
+    assert sum(name.lower().endswith(".bpmn") for name in names) == 1
+    assert "DynamicProvisioning.bpmn" not in names
+    related = [Path(path) for path in payload["relatedPackagePaths"]]
+    assert len(related) == 1
+    assert related[0].exists()
+    with zipfile.ZipFile(related[0]) as package:
+        child_names = package.namelist()
+    assert "DynamicProvisioning.bpmn" in child_names
+    assert any(name.startswith("form-DynamicProvisioning") and name.endswith(".form") for name in child_names)
 
 
 def _sample_collibra_zip() -> bytes:

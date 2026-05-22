@@ -34,7 +34,7 @@ Production-check this imported Collibra workflow and preserve its form and scrip
 ## Sequence Flow Rules
 
 - `flow1`: `start` -> `reviewTask`; name: n/a; type: normal; rule: `normal`
-- `flow2`: `reviewTask` -> `approveScript`; name: n/a; type: normal; rule: `normal`
+- `flow2`: `reviewTask` -> `approveScript`; name: n/a; type: conditional; rule: `${approvalDecision == 'approve'}`
 - `flow3`: `approveScript` -> `end`; name: n/a; type: normal; rule: `normal`
 
 ## Forms And App Sidecar

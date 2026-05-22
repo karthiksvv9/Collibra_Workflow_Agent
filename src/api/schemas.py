@@ -24,6 +24,7 @@ class RetrieveResponse(BaseModel):
 class BuildWorkflowRequest(BaseModel):
     master_prompt: str
     output_name: str | None = None
+    modelId: str | None = None
 
 
 class BuildWorkflowResponse(BaseModel):
